@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const Groq = require('groq-sdk'); // Import Groq
-const MCModel = require('../models/mcModel');
+const MCModel = require('../models/assessment/mcModel');
 
 // Gunakan API Key Groq kamu
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });

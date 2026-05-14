@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const pool = require('./config/db');
 const mcRoutes = require('./routes/mcRoutes'); // Import route MC
+const presentationRoutes = require('./routes/content/presentationRoutes'); // Import route Presentation
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,6 +12,7 @@ app.use(express.json());
 
 // --- ROUTES ---
 app.use('/api', mcRoutes); // Semua route MC akan diawali dengan /api/generate-mc
+app.use('/api', presentationRoutes); // Route presentasi
 
 // Route Health Check (Hanya untuk testing awal)
 app.get('/health', async (req, res) => {
