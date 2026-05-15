@@ -1,7 +1,7 @@
 const pool = require('../../config/db');
 
 const PresentationModel = {
-    // 1. Simpan log request ke tabel generation_requests
+    // 1. Simpan log request ke tabel generation_requests-
     createRequest: async (requestId, userId, inputData) => {
         const query = `
     INSERT INTO generation_requests (id, user_id, feature_type, input_data, status)

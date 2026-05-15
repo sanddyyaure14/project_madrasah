@@ -8,5 +8,5 @@ const {
 
 router.post("/generate", generateSyllabus);
 router.get("/", getSyllabi);
-
+//-
 module.exports = router;

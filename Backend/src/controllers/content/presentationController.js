@@ -16,12 +16,12 @@ const generatePresentation = async (req, res) => {
 
         const finalUserId = userId || '00000000-0000-0000-0000-000000000000';
 
-        // 1. Log Request ke Database
+        // 1. Log Request ke Database-
         await PresentationModel.createRequest(requestId, finalUserId, {
             topik, jumlah_slide, tujuan, audiens, include_catatan
         });
 
-        // 2. Panggil Gemini (Menggunakan model gemini-2.5-flash)
+        // 2. Panggil Gemini (Menggunakan model gemini-2.5-flash)-
         const model = genAI.getGenerativeModel({
             model: "gemini-2.5-flash",
             generationConfig: {

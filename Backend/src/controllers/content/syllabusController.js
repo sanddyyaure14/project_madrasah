@@ -15,7 +15,7 @@ const generateSyllabus = async (req, res) => {
 
         const finalUserId = userId || '00000000-0000-0000-0000-000000000000';
 
-        // 1. Log Request ke Database
+        // 1. Log Request ke Database-
         await SyllabusModel.createRequest(requestId, finalUserId, {
             mata_pelajaran, kurikulum, jenjang, tingkat_kelas, semester, tahun_ajaran
         });

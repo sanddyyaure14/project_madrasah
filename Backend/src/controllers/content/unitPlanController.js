@@ -20,7 +20,7 @@ const generateUnitPlan = async (req, res) => {
             judul_unit, mata_pelajaran, tingkat_kelas, tujuan_pembelajaran, jumlah_pertemuan, durasi_per_jp
         });
 
-        // 2. Panggil Gemini
+        // 2. Panggil Gemini-
         const model = genAI.getGenerativeModel({
             model: "gemini-2.5-flash",
             generationConfig: {

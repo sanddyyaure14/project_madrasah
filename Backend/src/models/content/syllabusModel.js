@@ -14,10 +14,10 @@ const SyllabusModel = {
         return result.rows[0];
     },
 
-    // 2. Simpan hasil silabus ke tabel syllabi
+    // 2. Simpan hasil silabus ke tabel syllabi-
     saveSyllabus: async (data) => {
         const {
-            id, request_id, kurikulum, semester, silabus_json, 
+            id, request_id, kurikulum, semester, silabus_json,
             jenjang, mata_pelajaran, tahun_ajaran, tingkat_kelas
         } = data;
 
@@ -29,7 +29,7 @@ const SyllabusModel = {
     `;
 
         const values = [
-            id, request_id, kurikulum, semester, JSON.stringify(silabus_json), 
+            id, request_id, kurikulum, semester, JSON.stringify(silabus_json),
             jenjang, mata_pelajaran, tahun_ajaran, tingkat_kelas
         ];
 
