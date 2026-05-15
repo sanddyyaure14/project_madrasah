@@ -3,6 +3,7 @@ const express = require('express');
 const pool = require('./config/db');
 const mcRoutes = require('./routes/assessment/mcRoutes'); // Import route MC
 const presentationRoutes = require('./routes/content/presentationRoutes'); // Import route Presentation
+const syllabusRoutes = require('./routes/content/syllabusRoutes'); // Import route Silabus
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,7 +13,8 @@ app.use(express.json());
 
 // --- ROUTES ---
 app.use('/api', mcRoutes); // Semua route MC akan diawali dengan /api/generate-mc
-app.use('/api', presentationRoutes); // Route presentasi
+app.use('/api/presentation', presentationRoutes); // Route presentasi
+app.use('/api/syllabus', syllabusRoutes); // Route silabus
 
 // Route Health Check (Hanya untuk testing awal)
 app.get('/health', async (req, res) => {
