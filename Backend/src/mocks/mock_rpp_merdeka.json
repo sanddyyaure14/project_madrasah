@@ -1,0 +1,81 @@
+{
+  "informasi_umum": {
+    "mata_pelajaran": "Sejarah Kebudayaan Islam",
+    "judul_unit": "Masa Kejayaan Islam",
+    "kelas": "8",
+    "alokasi_waktu": "2 Pertemuan",
+    "kompetensi_awal": [
+      "Peserta didik memahami sejarah awal masuknya Islam",
+      "Peserta didik mengetahui tokoh-tokoh penting penyebar Islam"
+    ],
+    "profil_pelajar_pancasila": [
+      "Beriman, Bertakwa kepada Tuhan YME, dan Berakhlak Mulia",
+      "Bernalar Kritis",
+      "Berkebinekaan Global"
+    ],
+    "sarana_prasarana": [
+      "Papan tulis dan spidol",
+      "Buku Paket SKI Kelas 8",
+      "Proyektor LCD (jika ada)"
+    ],
+    "target_peserta_didik": "Peserta didik reguler/tipikal"
+  },
+  "komponen_inti": {
+    "tujuan_pembelajaran": [
+      "Peserta didik mampu mengidentifikasi faktor-faktor penyebab kejayaan Islam.",
+      "Peserta didik mampu menganalisis peran tokoh-tokoh pada masa kejayaan Islam."
+    ],
+    "pemahaman_bermakna": "Kejayaan Islam tidak hanya pada bidang agama, tetapi juga ilmu pengetahuan dan peradaban yang bermanfaat bagi seluruh dunia.",
+    "pertanyaan_pemantik": [
+      "Pernahkah kamu mendengar zaman keemasan Islam?",
+      "Menurutmu, apa yang membuat sebuah peradaban bisa menjadi sangat maju?"
+    ],
+    "kegiatan_pembelajaran": [
+      {
+        "pertemuan_ke": 1,
+        "pendahuluan": [
+          "Guru membuka dengan salam dan doa bersama.",
+          "Guru mengecek kehadiran peserta didik.",
+          "Guru memberikan apersepsi berupa pertanyaan pemantik."
+        ],
+        "kegiatan_inti": [
+          "Guru menayangkan video pendek atau gambar tentang peninggalan peradaban Islam.",
+          "Peserta didik dibagi menjadi beberapa kelompok diskusi.",
+          "Setiap kelompok membaca materi dan mendiskusikan faktor kejayaan Islam.",
+          "Perwakilan kelompok mempresentasikan hasil diskusinya."
+        ],
+        "penutup": [
+          "Guru dan peserta didik menyimpulkan materi bersama-sama.",
+          "Guru memberikan penugasan membaca materi tokoh cendekiawan untuk pertemuan berikutnya.",
+          "Ditutup dengan doa."
+        ]
+      },
+      {
+        "pertemuan_ke": 2,
+        "pendahuluan": [
+          "Guru mengulas singkat kesimpulan pada pertemuan pertama.",
+          "Guru menyampaikan tujuan pembelajaran hari ini."
+        ],
+        "kegiatan_inti": [
+          "Peserta didik bermain peran (role-play) singkat tentang tokoh cendekiawan Islam (misal: Ibnu Sina, Al-Khawarizmi).",
+          "Guru memberikan penjelasan penguatan mengenai penemuan tokoh-tokoh tersebut.",
+          "Peserta didik mengerjakan LKS/Kuis singkat."
+        ],
+        "penutup": [
+          "Refleksi pembelajaran: Apa hikmah yang bisa diambil dari tokoh-tokoh tersebut?",
+          "Guru memberikan apresiasi kepada kelompok terbaik.",
+          "Salam penutup."
+        ]
+      }
+    ],
+    "asesmen": [
+      "Penilaian Sikap: Observasi selama diskusi kelompok (Gotong Royong, Nalar Kritis)",
+      "Penilaian Pengetahuan: Kuis tertulis di akhir pertemuan ke-2",
+      "Penilaian Keterampilan: Kemampuan presentasi dan bermain peran"
+    ],
+    "pengayaan_dan_remedial": [
+      "Pengayaan: Meminta peserta didik yang sudah paham untuk mencari satu artikel tentang peninggalan Islam di Eropa.",
+      "Remedial: Memberikan bimbingan khusus dan tugas membaca ulang bagi peserta didik yang nilainya di bawah KKM."
+    ]
+  }
+}
