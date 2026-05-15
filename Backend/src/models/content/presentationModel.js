@@ -66,6 +66,13 @@ const PresentationModel = {
       WHERE id = $1;
     `;
         await pool.query(query, [requestId, status, JSON.stringify(outputData)]);
+    },
+
+    // 4. Ambil semua data presentasi (GET)
+    getAllPresentations: async () => {
+        const query = `SELECT * FROM presentations ORDER BY id DESC;`;
+        const result = await pool.query(query);
+        return result.rows;
     }
 };
 

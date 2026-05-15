@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const pool = require('./config/db');
-const mcRoutes = require('./routes/mcRoutes'); // Import route MC
+const mcRoutes = require('./routes/assessment/mcRoutes'); // Import route MC
 const presentationRoutes = require('./routes/content/presentationRoutes'); // Import route Presentation
 
 const app = express();
