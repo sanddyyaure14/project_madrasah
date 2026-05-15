@@ -1,6 +1,6 @@
 const pool = require('../../config/db');
 
-const PresentationModel = {
+const AcademicContentModel = {
     // 1. Simpan log request ke tabel generation_requests
     createRequest: async (requestId, userId, inputData) => {
         const query = `
@@ -14,7 +14,7 @@ const PresentationModel = {
         const values = [
             requestId,
             finalUserId,
-            'presentation',
+            'academic_content',
             JSON.stringify(inputData),
             'processing'
         ];
@@ -23,22 +23,22 @@ const PresentationModel = {
         return result.rows[0];
     },
 
-    // 2. Simpan hasil presentasi ke tabel presentations
-    savePresentation: async (data) => {
+    // 2. Simpan hasil konten akademik ke tabel academic_contents
+    saveAcademicContent: async (data) => {
         const {
             id,
             request_id,
+            jenis_konten,
             topik,
-            jumlah_slide,
-            tujuan,
-            audiens,
-            slides_json,
-            include_catatan
+            mata_pelajaran,
+            tingkat_kelas,
+            panjang_konten,
+            content_json
         } = data;
 
         const query = `
-      INSERT INTO presentations 
-      (id, request_id, topik, jumlah_slide, tujuan, audiens, slides_json, include_catatan)
+      INSERT INTO academic_contents 
+      (id, request_id, jenis_konten, topik, mata_pelajaran, tingkat_kelas, panjang_konten, content_json)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *;
     `;
@@ -46,12 +46,12 @@ const PresentationModel = {
         const values = [
             id,
             request_id,
+            jenis_konten,
             topik,
-            jumlah_slide,
-            tujuan,
-            audiens,
-            JSON.stringify(slides_json),
-            include_catatan
+            mata_pelajaran || null,
+            tingkat_kelas || null,
+            panjang_konten || null,
+            JSON.stringify(content_json)
         ];
 
         const result = await pool.query(query, values);
@@ -68,12 +68,12 @@ const PresentationModel = {
         await pool.query(query, [requestId, status, JSON.stringify(outputData)]);
     },
 
-    // 4. Ambil semua data presentasi (GET)
-    getAllPresentations: async () => {
-        const query = `SELECT * FROM presentations ORDER BY id DESC;`;
+    // 4. Ambil semua data konten akademik (GET)
+    getAllAcademicContents: async () => {
+        const query = `SELECT * FROM academic_contents ORDER BY id DESC;`;
         const result = await pool.query(query);
         return result.rows;
     }
 };
 
-module.exports = PresentationModel;
+module.exports = AcademicContentModel;
