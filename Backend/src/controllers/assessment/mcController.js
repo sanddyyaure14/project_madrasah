@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const Groq = require('groq-sdk'); // Import Groq
-const MCModel = require('../models/mcModel');
+const MCModel = require('../../models/assessment/mcModel');
 
 // Gunakan API Key Groq kamu
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -11,15 +11,42 @@ const generateMC = async (req, res) => {
 
     try {
         const {
-            topic, grade, count, optionsCount,
-            standards, difficulty, subject, userId
-        } = req.body;
+        mata_pelajaran,
+        tingkat_kelas: input_kelas,
+        topik,
+        jumlah_soal,
+        tingkat_kesulitan,
+        opsi_pilihan, 
+        standards,    
+        userId
+    } = req.body;
+
+    let tingkat_kelas = "";
+        const angkaKelas = parseInt(input_kelas); // Konversi ke angka biasa buat jaga-jaga kalau dikirim string
+
+        if (angkaKelas >= 7 && angkaKelas <= 9) {
+            tingkat_kelas = `${angkaKelas} SMP`; // Hasilnya: "7 SMP", "8 SMP", "9 SMP"
+        } else if (angkaKelas >= 10 && angkaKelas <= 12) {
+            tingkat_kelas = `${angkaKelas} SMA`; // Hasilnya: "10 SMA", "11 SMA", "12 SMA"
+        } else {
+            // Jika teman frontend mengirim angka di luar 7-12 (misal: kelas 1 atau 6)
+            return res.status(400).json({
+                success: false,
+                message: `Tingkat kelas '${input_kelas}' tidak valid. Backend hanya menerima angka kelas 7 sampai 12.`
+            });
+        }
 
         const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
 
         // 1. Log Request ke Database
         await MCModel.createRequest(requestId, finalUserId, {
-            topic, grade, count, optionsCount, standards
+        mata_pelajaran,
+        tingkat_kelas,
+        topik,
+        jumlah_soal,
+        tingkat_kesulitan,
+        opsi_pilihan,
+        standards
         });
 
         // 2. Panggil Groq (Menggunakan model pengganti yang didukung)
@@ -31,11 +58,11 @@ const generateMC = async (req, res) => {
                 },
                 {
                     role: "user",
-                    content: `Buatlah ${count} soal pilihan ganda tentang ${topic}.
+                    content: `Buatlah ${jumlah_soal} soal pilihan ganda tentang ${topik}.
                     Kurikulum: ${standards === 'K13' ? 'K13' : 'Kurikulum Merdeka'} Indonesia.
-                    Tingkat: ${grade} (${subject}).
-                    Kesulitan: ${difficulty}.
-                    Jumlah Opsi: ${optionsCount || 4}.
+                    Tingkat: ${tingkat_kelas} (${mata_pelajaran}).
+                    Kesulitan: ${tingkat_kesulitan}.
+                    Jumlah Opsi: ${opsi_pilihan || 4}.
 
                     Struktur JSON yang wajib diikuti:
                     {
@@ -62,11 +89,11 @@ const generateMC = async (req, res) => {
         const assessmentData = {
             id: mcId,
             request_id: requestId,        // Harus request_id (pakai underscore)
-            mata_pelajaran: subject,      // Harus mata_pelajaran
-            tingkat_kelas: grade,         // Harus tingkat_kelas
-            topik: topic,                 // Harus topik
+            mata_pelajaran,      // Harus mata_pelajaran
+            tingkat_kelas,         // Harus tingkat_kelas
+            topik,                 // Harus topik
             jumlah_soal: aiResponse.soal_list.length, // Harus jumlah_soal
-            tingkat_kesulitan: difficulty,
+            tingkat_kesulitan,
             questions_json: aiResponse.soal_list,
             kompetensi_dasar: aiResponse.kompetensi_dasar
         };
@@ -79,7 +106,7 @@ const generateMC = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: "Gaspol! Soal Berhasil dibuat dengan Groq Llama 3.1.",
+            message: "Haris Berhasil buat dengan Groq Llama 3.3.",
             data: savedAssessment
         });
 

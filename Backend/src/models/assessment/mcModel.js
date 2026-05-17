@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+const pool = require('../../config/db');
 
 const MCModel = {
     // 1. Simpan log request ke tabel generation_requests
