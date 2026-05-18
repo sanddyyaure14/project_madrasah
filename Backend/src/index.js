@@ -6,6 +6,8 @@ const pool = require('./config/db');
 const mcRoutes = require('./routes/assessment/mcRoutes');
 const writingRoutes = require('./routes/assessment/writingRoutes');
 
+const rubicRoutes = require('./routes/assessment/rubicRoutes');
+
 // Content Routes 
 const presentationRoutes = require('./routes/content/presentationRoutes');
 const syllabusRoutes = require('./routes/content/syllabusRoutes');
@@ -26,6 +28,9 @@ app.use(express.json());
 //Assessment
 app.use('/api', mcRoutes); // Semua route MC akan diawali dengan /api/generate-mc
 app.use('/api', writingRoutes);
+
+app.use('/api', rubicRoutes);
+
 //Content
 app.use('/api', presentationRoutes); // Route presentasi
 app.use('/api/academic-content', academicContentRoutes); // Route academic content
