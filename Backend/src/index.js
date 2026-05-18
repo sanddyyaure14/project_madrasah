@@ -12,6 +12,9 @@ const syllabusRoutes = require('./routes/content/syllabusRoutes');
 const unitPlanRoutes = require('./routes/content/unitPlanRoutes');
 const academicContentRoutes = require('./routes/content/academicContentRoutes');
 
+// Error Handlers
+const contentErrorHandler = require('./middlewares/content/contentErrorHandler');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -30,6 +33,8 @@ app.use('/api/presentation', presentationRoutes); // Route presentasi
 app.use('/api/syllabus', syllabusRoutes); // Route silabus
 app.use('/api/unit-plan', unitPlanRoutes); // Route RPP / Modul Ajar
 
+// Error Handling Middlewares (Wajib di bawah semua routes)
+app.use(contentErrorHandler);
 
 // Route Health Check (Hanya untuk testing awal)
 app.get('/health', async (req, res) => {
