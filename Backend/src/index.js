@@ -7,6 +7,7 @@ const mcRoutes = require('./routes/assessment/mcRoutes');
 const writingRoutes = require('./routes/assessment/writingRoutes');
 
 const rubicRoutes = require('./routes/assessment/rubicRoutes');
+const worksheetRoutes = require('./routes/assessment/worksheetRoutes');
 
 // Content Routes 
 const presentationRoutes = require('./routes/content/presentationRoutes');
@@ -30,6 +31,7 @@ app.use('/api', mcRoutes); // Semua route MC akan diawali dengan /api/generate-m
 app.use('/api', writingRoutes);
 
 app.use('/api', rubicRoutes);
+app.use('/api', worksheetRoutes);
 
 //Content
 app.use('/api', presentationRoutes); // Route presentasi
