@@ -11,10 +11,12 @@ const generateWritingFeedback = async (req, res) => {
 
     try {
         const {
-            tingkat_kelas: input_kelas,     // Menerima angka murni (7 - 12)
+            tingkat_kelas: input_kelas,     // Menerima angka murni (7-12) atau Romawi (VII-XII)
             jenis_tulisan,                 // narasi | deskripsi | eksposisi | argumentasi
             fokus_feedback,                
             tulisan_siswa: input_teks_langsung, 
+            nama_siswa,                    // Antisipasi input dari form frontend
+            bahasa_output,                 // Antisipasi input bahasa dari form frontend
             userId
         } = req.body;
 
@@ -25,22 +27,34 @@ const generateWritingFeedback = async (req, res) => {
         if (!allowedJenisTulisan.includes(jenisTulisanFormatted)) {
             return res.status(400).json({
                 success: false,
-                message: `Jenis tulisan '${jenis_tulisan}' tidak valid. Backend hanya menerima: narasi, deskripsi, eksposisi, atau argumentasi.`
+                message: `Jenis tulisan '${jenis_tulisan}' tidak valid. Backend hanya menerima: narasi, deskripsi, eksposisi, atau argumentasi.`,
+                data: null,
+                meta: {}
             });
         }
 
-        // 2. --- MAPPING OTOMATIS TINGKAT KELAS ---
+        // 2. --- MAPPING AUTOMATIS TINGKAT KELAS (Mendukung Angka Murni & Romawi) ---
         let tingkat_kelas = "";
-        const angkaKelas = parseInt(input_kelas); 
+        const kelasRaw = input_kelas ? input_kelas.toString().toUpperCase().trim() : "";
 
-        if (angkaKelas >= 7 && angkaKelas <= 9) {
-            tingkat_kelas = `${angkaKelas} SMP`; 
-        } else if (angkaKelas >= 10 && angkaKelas <= 12) {
-            tingkat_kelas = `${angkaKelas} SMA`; 
+        if (kelasRaw === "7" || kelasRaw === "VII") {
+            tingkat_kelas = "7 SMP";
+        } else if (kelasRaw === "8" || kelasRaw === "VIII") {
+            tingkat_kelas = "8 SMP";
+        } else if (kelasRaw === "9" || kelasRaw === "IX") {
+            tingkat_kelas = "9 SMP";
+        } else if (kelasRaw === "10" || kelasRaw === "X") {
+            tingkat_kelas = "10 SMA";
+        } else if (kelasRaw === "11" || kelasRaw === "XI") {
+            tingkat_kelas = "11 SMA";
+        } else if (kelasRaw === "12" || kelasRaw === "XII") {
+            tingkat_kelas = "12 SMA";
         } else {
             return res.status(400).json({
                 success: false,
-                message: `Tingkat kelas '${input_kelas}' tidak valid. Backend hanya menerima angka kelas 7 sampai 12.`
+                message: `Tingkat kelas '${input_kelas}' tidak valid. Backend menerima angka (7-12) atau Romawi (VII-XII).`,
+                data: null,
+                meta: {}
             });
         }
 
@@ -51,9 +65,7 @@ const generateWritingFeedback = async (req, res) => {
             try {
                 console.log("=== FILE DITERIMA BACKEND ===");
                 console.log("Nama File:", req.file.originalname);
-                console.log("Ukuran (Bytes):", req.file.size);
 
-                // Mengatasi variasi export pdf-parse pada Node.js modern secara aman
                 let parseFunction;
                 if (typeof pdfParse === 'function') {
                     parseFunction = pdfParse;
@@ -63,26 +75,24 @@ const generateWritingFeedback = async (req, res) => {
                     parseFunction = require('pdf-parse');
                 }
 
-                // WAJIB AWAI: pdf-parse mengembalikan Promise
                 const pdfData = await parseFunction(req.file.buffer);
                 tulisan_siswa = pdfData && pdfData.text ? pdfData.text.trim() : "";
-                
-                console.log("=== HASIL EKSTRAKSI TEXT PDF ===");
-                console.log("Panjang teks:", tulisan_siswa.length);
-                console.log("Preview:", tulisan_siswa.substring(0, 200) + (tulisan_siswa.length > 200 ? "..." : ""));
                 
                 if (!tulisan_siswa || tulisan_siswa.length < 10) {
                     return res.status(400).json({ 
                         success: false, 
-                        message: "File PDF kosong, tidak terbaca, atau hanya berisi gambar (scan)." 
+                        message: "File PDF kosong, tidak terbaca, atau hanya berisi gambar (scan).",
+                        data: null,
+                        meta: {}
                     });
                 }
             } catch (pdfErr) {
                 console.error("=== GAGAL EKSTRAKSI PDF DETAIL ===");
-                console.error(pdfErr);
                 return res.status(400).json({ 
                     success: false, 
-                    message: `Gagal membaca file PDF: ${pdfErr.message}` 
+                    message: `Gagal membaca file PDF: ${pdfErr.message}`,
+                    data: null,
+                    meta: {}
                 });
             }
         } else if (input_teks_langsung && input_teks_langsung.trim() !== "") {  
@@ -90,7 +100,9 @@ const generateWritingFeedback = async (req, res) => {
         } else {
             return res.status(400).json({
                 success: false,
-                message: "Tulisan siswa wajib diisi (teks langsung atau file PDF)."
+                message: "Tulisan siswa wajib diisi (teks langsung atau file PDF).",
+                data: null,
+                meta: {}
             });
         }
 
@@ -98,6 +110,7 @@ const generateWritingFeedback = async (req, res) => {
 
         // 4. --- LOG REQUEST AWAL KE DATABASE ---
         const inputData = {
+            nama_siswa: nama_siswa || "Siswa Anonim",
             tingkat_kelas,
             jenis_tulisan: jenisTulisanFormatted,
             fokus_feedback,
@@ -105,21 +118,25 @@ const generateWritingFeedback = async (req, res) => {
         };
         await WritingModel.createRequest(requestId, finalUserId, inputData);
 
-        // 5. --- PROMPT STRUKTUR GROQ AI (LLAMA 3.3) ---
+        // 5. --- PROMPT STRUKTUR GROQ AI (MENDUKUNG MULTI-FOKUS) ---
+        const fokusUtama = fokus_feedback || 'Gunakan standar penulisan bahasa Indonesia yang baik (EYD, efektivitas kalimat, kekayaan kosakata)';
+
         const chatCompletion = await groq.chat.completions.create({
             messages: [
                 {
                     role: "system",
-                    content: "Anda adalah seorang guru bahasa yang ahli, objektif, dan konstruktif. Tugas Anda adalah memeriksa tulisan siswa dan memberikan feedback mendalam dalam format JSON murni."
+                    content: `Anda adalah seorang guru bahasa yang ahli, objektif, dan sangat patuh pada instruksi. 
+                    Tugas Anda adalah memeriksa tulisan siswa bernama ${nama_siswa || 'Siswa Anonim'}.
+                    Anda WAJIB mengembalikan respon dalam bentuk JSON murni menggunakan Bahasa ${bahasa_output || 'Indonesia'}.`
                 },
                 {
                     role: "user",
-                    content: `Berikan umpan balik (feedback) otomatis untuk karangan siswa berikut.
+                    content: `Berikan umpan balik otomatis untuk karangan siswa berikut.
                     
                     Konteks Pembelajaran:
                     - Jenis Teks: Teks ${jenisTulisanFormatted}
                     - Tingkat Kelas Siswa: ${tingkat_kelas}
-                    - Fokus Penilaian Utama: ${fokus_feedback || 'Gunakan standar penulisan bahasa Indonesia yang baik (EYD, efektivitas kalimat)'}
+                    - FOKUS PENILAIAN UTAMA: ${fokusUtama}
                     
                     ----------------------------------------
                     Teks Karangan Siswa yang Harus Dinilai:
@@ -128,18 +145,21 @@ const generateWritingFeedback = async (req, res) => {
                     """
                     ----------------------------------------
 
-                    Evaluasilah karangan di atas dan wajib kembalikan respon dalam format JSON murni dengan struktur persis seperti ini:
+                    ATURAN KETAT ARRAY ASPEK:
+                    Perhatikan fokus penilaian utama di atas. Jika user meminta beberapa fokus (misal: "isi, struktur, ejaan"), maka di dalam array "aspek" Anda WAJIB mengeluarkan jumlah objek yang sama persis sesuai fokus yang diminta (1 objek untuk 'isi', 1 objek untuk 'struktur', dst). Jangan kurangi dan jangan tambahkan aspek di luar itu!
+
+                    Evaluasilah karangan di atas dan WAJIB kembalikan respon dalam format JSON murni dengan struktur PERSIS seperti berikut:
                     {
-                        "skor_keseluruhan": 82.5, 
-                        "analisis_rubrik": "Tulis ulasan mendalam mengenai performa tulisan siswa dikaitkan dengan fokus penilaian.",
-                        "detail_perbaikan_kalimat": [
+                        "skor_total": 85,
+                        "aspek": [
                             {
-                                "salah": "Kutipan teks siswa yang keliru atau tidak efektif",
-                                "perbaikan": "Saran perbaikan teks yang benar",
-                                "alasan": "Penjelasan logis mengapa bagian itu salah dan bagaimana memperbaikinya"
+                                "nama": "Nama Aspek (Isi sesuai aspek yang sedang dinilai, misal: Isi / Struktur / Ejaan)",
+                                "skor": 80,
+                                "komentar": "Ulasan detail bagian teks siswa yang berkaitan dengan aspek ini",
+                                "saran": "Langkah konkret perbaikan khusus untuk aspek ini"
                             }
                         ],
-                        "saran_motivasi": "Berikan pesan penutup yang menyemangati siswa untuk terus menulis."
+                        "ringkasan": "Kesimpulan umum performa tulisan siswa dan kalimat motivasi penutup."
                     }`
                 }
             ],
@@ -149,30 +169,63 @@ const generateWritingFeedback = async (req, res) => {
 
         const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
 
-        // 6. --- STRUKTUR DATA SINKRON DENGAN FOTO TABEL DATABASE KAMU ---
+        // 6. --- STRUKTUR DATA UNTUK DATABASE & RESPONS ---
+        // Kita bersihkan array aspek: hapus nama_siswa, lalu paksa skor menjadi format desimal (ex: 80.00)
+        const aspekClean = aiResponse.aspek.map(item => ({
+            nama_aspek: item.nama, 
+            skor: Number(item.skor).toFixed(2), // <-- Ubah skor aspek jadi format desimal (ex: "80.00")
+            komentar: item.komentar,                  
+            saran: item.saran                         
+        }));
+
+        // Susun objek feedback_json yang super bersih dan urut sesuai keinginanmu
+        const feedbackJsonSesuaiSchema = {
+            skor_total: Number(aiResponse.skor_total).toFixed(2), // <-- Ubah skor total jadi format desimal (ex: "78.00")
+            aspek: aspekClean,
+            ringkasan: aiResponse.ringkasan
+        };
+
+        // Memecah string "isi, struktur, ejaan" menjadi array untuk kolom TEXT[] PostgreSQL
+        let arrayFokus = null;
+        if (fokus_feedback) {
+            arrayFokus = fokus_feedback.split(',').map(f => f.trim().toLowerCase());
+        }
+
         const feedbackData = {
             id: feedbackId,
             request_id: requestId,
             tulisan_siswa,
             jenis_tulisan: jenisTulisanFormatted, 
             tingkat_kelas,
-            fokus_feedback: fokus_feedback ? [fokus_feedback] : null, // Dimasukkan ke format TEXT[]
-            feedback_json: aiResponse, 
-            skor_keseluruhan: aiResponse.skor_keseluruhan
+            fokus_feedback: arrayFokus, 
+            feedback_json: feedbackJsonSesuaiSchema, 
+            skor_keseluruhan: Number(aiResponse.skor_total).toFixed(2) 
         };
 
         // Simpan ke PostgreSQL via Model
         const savedFeedback = await WritingModel.saveFeedback(feedbackData);
 
-        // 7. --- UPDATE STATUS LOG REQUEST ---
-        await WritingModel.updateRequestStatus(requestId, 'completed', savedFeedback);
+        // Racik ulang data akhir bersih yang dipotong pas sampai feedback_json
+        const responseDataClean = {
+            id: savedFeedback.id,
+            request_id: savedFeedback.request_id,
+            tulisan_siswa: savedFeedback.tulisan_siswa,
+            jenis_tulisan: savedFeedback.jenis_tulisan,
+            tingkat_kelas: savedFeedback.tingkat_kelas,
+            fokus_feedback: savedFeedback.fokus_feedback,
+            feedback_json: feedbackJsonSesuaiSchema // Berhenti pas sampai sini
+        };
 
-        // Kembalikan response sukses
+        // 7. --- UPDATE STATUS LOG REQUEST ---
+        await WritingModel.updateRequestStatus(requestId, 'completed', responseDataClean);
+
+        // 8. --- RETURN RESPONSE FINAL ---
         return res.status(201).json({
             success: true,
             message: "Umpan balik karangan siswa sukses dibuat menggunakan Llama 3.3.",
-            data: savedFeedback
-        });
+            data: responseDataClean,
+            meta: {}
+        }); 
 
     } catch (error) {
         console.error("Error Detail Writing Feedback:", error);
@@ -186,7 +239,9 @@ const generateWritingFeedback = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Terjadi kesalahan pada proses AI atau Database",
-            error: error.message
+            error: error.message,
+            data: null, // Sesuai aturan penanganan error kaku dosen
+            meta: {}    // Sesuai aturan penanganan error kaku dosen
         });
     }
 };

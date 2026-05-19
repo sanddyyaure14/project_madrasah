@@ -39,27 +39,36 @@ const MCModel = {
             topik,           // SESUAIKAN: ganti dari topic ke topik
             jumlah_soal,     // SESUAIKAN: ganti dari count ke jumlah_soal
             tingkat_kesulitan,
+            include_kunci,
             questions_json,
             kompetensi_dasar // TAMBAHKAN: ini kolom baru yang kamu minta
         } = data;
 
         const query = `
-      INSERT INTO assessment_mc 
-      (id, request_id, mata_pelajaran, tingkat_kelas, topik, jumlah_soal, tingkat_kesulitan, questions_json, kompetensi_dasar)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *;
-    `;
+            INSERT INTO assessment_mc 
+            (id, request_id, mata_pelajaran, tingkat_kelas, topik, jumlah_soal, tingkat_kesulitan, include_kunci, questions_json, kompetensi_dasar)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            ON CONFLICT (id) DO UPDATE SET
+                questions_json = EXCLUDED.questions_json,
+                kompetensi_dasar = EXCLUDED.kompetensi_dasar,
+                topik = EXCLUDED.topik,
+                tingkat_kesulitan = EXCLUDED.tingkat_kesulitan,
+                include_kunci = EXCLUDED.include_kunci,
+                jumlah_soal = EXCLUDED.jumlah_soal
+            RETURNING *;
+        `;
 
         const values = [
-            id,
-            request_id,        // $2
-            mata_pelajaran,    // $3
-            tingkat_kelas,     // $4
-            topik,             // $5
-            jumlah_soal,       // $6
-            tingkat_kesulitan, // $7
-            JSON.stringify(questions_json), // $8
-            kompetensi_dasar   // $9 (Otomatis masuk ke DB)
+            id,                                     // $1
+            request_id,                             // $2
+            mata_pelajaran,                         // $3
+            tingkat_kelas,                          // $4
+            topik,                                  // $5
+            jumlah_soal,                            // $6
+            tingkat_kesulitan,                      // $7
+            include_kunci === false ? false : true, // $8 (Menangani default boolean aman)
+            JSON.stringify(questions_json),     // $9
+            kompetensi_dasar                    // $10
         ];
 
         const result = await pool.query(query, values);
@@ -74,6 +83,35 @@ const MCModel = {
       WHERE id = $1;
     `;
         await pool.query(query, [requestId, status, JSON.stringify(outputData)]);
+    },
+
+    // 4. Ambil data berdasarkan ID
+    getAssessmentById: async (id) => {
+        try {
+            const query = `
+                SELECT id, request_id, mata_pelajaran, tingkat_kelas, topik, 
+                       jumlah_soal, tingkat_kesulitan, include_kunci, questions_json, kompetensi_dasar
+                FROM assessment_mc 
+                WHERE id = $1;
+            `; // <--- Kolom ditarik pas sesuai isi tabel di gambar (tanpa created_at)
+            const result = await pool.query(query, [id]);
+            return result.rows[0] || null; 
+        } catch (error) {
+            console.error("Error di MCModel (getAssessmentById):", error);
+            throw error;
+        }
+    },
+
+    // 5. FUNGSI KHUSUS DELETE (Sudah dimasukkan ke dalam objek MCModel & pakai pool)
+    deleteAssessment: async (id) => {
+        try {
+            const query = `DELETE FROM assessment_mc WHERE id = $1;`;
+            const result = await pool.query(query, [id]);
+            return result;
+        } catch (error) {
+            console.error("Error di MCModel (deleteAssessment):", error);
+            throw error;
+        }
     }
 };
 
