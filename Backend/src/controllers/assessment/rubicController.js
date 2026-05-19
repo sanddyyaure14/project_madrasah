@@ -10,23 +10,38 @@ const generateRubric = async (req, res) => {
 
     try {
         const {
-            jenis_tugas,
-            tingkat_kelas,
-            skala_nilai,
-            standar_tujuan,
-            deskripsi_tugas,
-            kustomisasi_tambahan,
-            standar_acuan,
-            tujuan_pembelajaran,
+            jenis_tugas,         // WAJIB - sesuai modul
+            aspek_penilaian,     // WAJIB - sesuai modul (guru yang isi)
+            skala_nilai,         // WAJIB - sesuai modul
+            tujuan_pembelajaran, // opsional - sesuai modul (TP/KD)
+            deskripsi_tugas,     // opsional - sesuai modul
+            mata_pelajaran,      // opsional - sesuai modul
+            tingkat_kelas,       // opsional 
             userId
         } = req.body;
 
-        // Validasi skala nilai
-        const skalaValid = ['1-4', '1-10', '1-100'];
-        if (!skalaValid.includes(skala_nilai)) {
+        // =========================================
+        // Validasi input WAJIB sesuai modul
+        // =========================================
+        if (!jenis_tugas) {
             return res.status(400).json({
                 success: false,
-                message: `Skala nilai '${skala_nilai}' tidak valid. Pilihan: 1-4, 1-10, atau 1-100.`
+                message: 'jenis_tugas wajib diisi'
+            });
+        }
+
+        if (!aspek_penilaian || !Array.isArray(aspek_penilaian) || aspek_penilaian.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'aspek_penilaian wajib diisi dan harus berupa array (contoh: ["Isi", "Penyampaian"])'
+            });
+        }
+
+        const skalaValid = ['1-4', '1-10', '1-100'];
+        if (!skala_nilai || !skalaValid.includes(skala_nilai)) {
+            return res.status(400).json({
+                success: false,
+                message: `skala_nilai wajib diisi. Pilihan: 1-4, 1-10, atau 1-100`
             });
         }
 
@@ -37,17 +52,16 @@ const generateRubric = async (req, res) => {
         // =========================================
         await RubicModel.createRequest(requestId, finalUserId, {
             jenis_tugas,
-            tingkat_kelas,
+            aspek_penilaian,
             skala_nilai,
-            standar_tujuan,
+            tujuan_pembelajaran,
             deskripsi_tugas,
-            kustomisasi_tambahan,
-            standar_acuan,
-            tujuan_pembelajaran
+            mata_pelajaran,
+            tingkat_kelas
         });
 
         // =========================================
-        // 2. Bangun nilai berdasarkan skala
+        // 2. Tentukan nilai berdasarkan skala
         // =========================================
         const nilaiMap = {
             '1-4':   { max: 4,   levels: [4, 3, 2, 1] },
@@ -57,7 +71,8 @@ const generateRubric = async (req, res) => {
         const skalaInfo = nilaiMap[skala_nilai];
 
         // =========================================
-        // 3. Panggil Groq AI — generate rubrik + tujuan pembelajaran
+        // 3. Panggil Groq AI
+        // aspek_penilaian dari guru dikirim ke AI
         // =========================================
         const chatCompletion = await groq.chat.completions.create({
             messages: [
@@ -69,23 +84,22 @@ const generateRubric = async (req, res) => {
                     role: "user",
                     content: `Buatlah rubrik penilaian detail dengan ketentuan berikut:
 - Jenis Tugas: ${jenis_tugas}
-- Tingkat Kelas: ${tingkat_kelas}
+- Aspek yang Dinilai (WAJIB gunakan aspek ini): ${aspek_penilaian.join(', ')}
 - Skala Nilai: ${skala_nilai} (nilai tertinggi: ${skalaInfo.max})
-- Standar/Tujuan: ${standar_tujuan}
-- Deskripsi Tugas: ${deskripsi_tugas}
-${kustomisasi_tambahan ? `- Kustomisasi Tambahan: ${kustomisasi_tambahan}` : ''}
-${standar_acuan ? `- Standar Acuan: ${standar_acuan}` : ''}
-${tujuan_pembelajaran ? `- Tujuan Pembelajaran (gunakan ini): ${tujuan_pembelajaran}` : '- Tujuan Pembelajaran: buatkan secara otomatis yang relevan dan spesifik berdasarkan jenis tugas dan standar di atas'}
+${deskripsi_tugas ? `- Deskripsi Tugas: ${deskripsi_tugas}` : ''}
+${mata_pelajaran ? `- Mata Pelajaran: ${mata_pelajaran}` : ''}
+${tingkat_kelas ? `- Tingkat Kelas: ${tingkat_kelas}` : ''}
+${tujuan_pembelajaran ? `- Tujuan Pembelajaran (gunakan ini): ${tujuan_pembelajaran}` : '- Tujuan Pembelajaran: buatkan otomatis yang relevan'}
 
 Struktur JSON yang wajib diikuti:
 {
     "judul": "judul rubrik",
     "deskripsi": "deskripsi singkat rubrik",
-    "tujuan_pembelajaran": "tujuan pembelajaran yang spesifik dan terukur menggunakan kata kerja operasional (contoh: Siswa mampu menyusun esai argumentatif dengan struktur yang jelas dan argumen yang logis)",
-    "aspek_penilaian": ["aspek1", "aspek2", "aspek3", "aspek4"],
+    "tujuan_pembelajaran": "tujuan pembelajaran spesifik dan terukur menggunakan kata kerja operasional",
+    "aspek_penilaian": ${JSON.stringify(aspek_penilaian)},
     "aspek": [
         {
-            "nama_aspek": "nama aspek",
+            "nama_aspek": "nama aspek (harus dari daftar aspek yang diberikan)",
             "bobot_persen": 25,
             "deskripsi_aspek": "penjelasan aspek ini",
             "kriteria": [
@@ -100,7 +114,7 @@ Struktur JSON yang wajib diikuti:
     "catatan_guru": "saran tambahan untuk guru"
 }
 
-Pastikan: total bobot_persen semua aspek = 100. Buat 4 aspek penilaian yang relevan.`
+PENTING: Buat tepat ${aspek_penilaian.length} aspek sesuai daftar yang diberikan. Total bobot_persen semua aspek = 100.`
                 }
             ],
             model: "llama-3.3-70b-versatile",
@@ -109,7 +123,7 @@ Pastikan: total bobot_persen semua aspek = 100. Buat 4 aspek penilaian yang rele
 
         const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
 
-        // Ambil tujuan_pembelajaran dari AI jika tidak diisi user
+        // Ambil tujuan_pembelajaran dari AI jika tidak diisi guru
         const finalTujuanPembelajaran = tujuan_pembelajaran || aiResponse.tujuan_pembelajaran;
 
         // =========================================
@@ -119,7 +133,7 @@ Pastikan: total bobot_persen semua aspek = 100. Buat 4 aspek penilaian yang rele
             id: rubicId,
             request_id: requestId,
             jenis_tugas,
-            aspek_penilaian: aiResponse.aspek_penilaian || aiResponse.aspek?.map(a => a.nama_aspek) || [],
+            aspek_penilaian,          // dari guru, bukan dari AI
             skala_nilai,
             rubric_json: aiResponse,
             tujuan_pembelajaran: finalTujuanPembelajaran
