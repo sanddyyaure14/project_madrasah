@@ -213,6 +213,7 @@ const getRubricById = async (req, res) => {
 
 // PUT - Update rubrik berdasarkan ID
 
+
 const updateRubric = async (req, res) => {
     try {
         const { id } = req.params;

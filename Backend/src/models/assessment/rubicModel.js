@@ -1,6 +1,7 @@
 const pool = require('../../config/db');
 
 // 1. Catat request masuk ke generation_requests
+
 const createRequest = async (requestId, userId, inputData) => {
     const query = `
         INSERT INTO generation_requests 
@@ -15,6 +16,7 @@ const createRequest = async (requestId, userId, inputData) => {
 };
 
 // 2. Simpan hasil rubrik ke assessment_rubric
+
 const saveAssessment = async (data) => {
     const query = `
         INSERT INTO assessment_rubric 
@@ -37,6 +39,7 @@ const saveAssessment = async (data) => {
 };
 
 // 3. Update status request (completed / failed)
+
 const updateRequestStatus = async (requestId, status, outputData) => {
     const query = `
         UPDATE generation_requests
@@ -53,6 +56,7 @@ const updateRequestStatus = async (requestId, status, outputData) => {
 };
 
 // 4. GET ALL - Ambil semua rubrik milik user
+
 const getAllRubrics = async (userId) => {
     const query = `
         SELECT 
@@ -76,6 +80,7 @@ const getAllRubrics = async (userId) => {
 };
 
 // 5. GET BY ID - Ambil detail rubrik berdasarkan ID
+
 const getRubricById = async (rubricId, userId) => {
     const query = `
         SELECT 
@@ -99,6 +104,7 @@ const getRubricById = async (rubricId, userId) => {
 };
 
 // 6. UPDATE - Update rubrik berdasarkan ID
+
 const updateRubric = async (rubricId, userId, data) => {
     const query = `
         UPDATE assessment_rubric ar
@@ -128,6 +134,7 @@ const updateRubric = async (rubricId, userId, data) => {
 };
 
 // 7. DELETE - Hapus rubrik berdasarkan ID
+
 const deleteRubric = async (rubricId, userId) => {
     const getRubricQuery = `
         SELECT ar.id, ar.request_id 
