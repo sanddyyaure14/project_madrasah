@@ -112,6 +112,25 @@ const MCModel = {
             console.error("Error di MCModel (deleteAssessment):", error);
             throw error;
         }
+    },
+
+    getAllAssessment: async () => {
+        try {
+            // Kita pakai LEFT JOIN ke generation_requests kalau sewaktu-waktu 
+            // kamu butuh mengambil data dari log request-nya juga, Ris.
+            const query = `
+                SELECT amc.*, gr.user_id, gr.status AS request_status
+                FROM assessment_mc amc
+                LEFT JOIN generation_requests gr ON amc.request_id = gr.id
+                ORDER BY amc.id DESC;
+            `; 
+            
+            const result = await pool.query(query);
+            return result.rows; // Mengembalikan semua baris data berupa array objek
+        } catch (error) {
+            console.error("Error di MCModel (getAllAssessment):", error);
+            throw error;
+        }
     }
 };
 

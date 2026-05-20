@@ -5,51 +5,36 @@ const WritingModel = require('../../models/assessment/writingModel');
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+// 1. CREATE / GENERATE
 const generateWritingFeedback = async (req, res) => {
     const requestId = uuidv4();
     const feedbackId = uuidv4();
 
     try {
         const {
-            tingkat_kelas: input_kelas,     // Menerima angka murni (7-12) atau Romawi (VII-XII)
-            jenis_tulisan,                 // narasi | deskripsi | eksposisi | argumentasi
+            tingkat_kelas: input_kelas,     
+            jenis_tulisan,                 
             fokus_feedback,                
             tulisan_siswa: input_teks_langsung, 
-            nama_siswa,                    // Antisipasi input dari form frontend
-            bahasa_output,                 // Antisipasi input bahasa dari form frontend
+            nama_siswa,                    
+            bahasa_output,                 
             userId
         } = req.body;
 
-        // 1. --- VALIDASI ENUM JENIS TULISAN ---
-        const allowedJenisTulisan = ['narasi', 'deskripsi', 'eksposisi', 'argumentasi'];
-        const jenisTulisanFormatted = jenis_tulisan ? jenis_tulisan.toLowerCase().trim() : '';
+        // --- FORMATTING JENIS TULISAN ---
+        const jenisTulisanFormatted = jenis_tulisan ? jenis_tulisan.toLowerCase().trim() : 'umum';
 
-        if (!allowedJenisTulisan.includes(jenisTulisanFormatted)) {
-            return res.status(400).json({
-                success: false,
-                message: `Jenis tulisan '${jenis_tulisan}' tidak valid. Backend hanya menerima: narasi, deskripsi, eksposisi, atau argumentasi.`,
-                data: null,
-                meta: {}
-            });
-        }
-
-        // 2. --- MAPPING AUTOMATIS TINGKAT KELAS (Mendukung Angka Murni & Romawi) ---
+        // --- MAPPING OTOMATIS TINGKAT KELAS ---
         let tingkat_kelas = "";
         const kelasRaw = input_kelas ? input_kelas.toString().toUpperCase().trim() : "";
 
-        if (kelasRaw === "7" || kelasRaw === "VII") {
-            tingkat_kelas = "7 SMP";
-        } else if (kelasRaw === "8" || kelasRaw === "VIII") {
-            tingkat_kelas = "8 SMP";
-        } else if (kelasRaw === "9" || kelasRaw === "IX") {
-            tingkat_kelas = "9 SMP";
-        } else if (kelasRaw === "10" || kelasRaw === "X") {
-            tingkat_kelas = "10 SMA";
-        } else if (kelasRaw === "11" || kelasRaw === "XI") {
-            tingkat_kelas = "11 SMA";
-        } else if (kelasRaw === "12" || kelasRaw === "XII") {
-            tingkat_kelas = "12 SMA";
-        } else {
+        if (["7", "VII"].includes(kelasRaw)) tingkat_kelas = "7 SMP";
+        else if (["8", "VIII"].includes(kelasRaw)) tingkat_kelas = "8 SMP";
+        else if (["9", "IX"].includes(kelasRaw)) tingkat_kelas = "9 SMP";
+        else if (["10", "X"].includes(kelasRaw)) tingkat_kelas = "10 SMA";
+        else if (["11", "XI"].includes(kelasRaw)) tingkat_kelas = "11 SMA";
+        else if (["12", "XII"].includes(kelasRaw)) tingkat_kelas = "12 SMA";
+        else {
             return res.status(400).json({
                 success: false,
                 message: `Tingkat kelas '${input_kelas}' tidak valid. Backend menerima angka (7-12) atau Romawi (VII-XII).`,
@@ -58,23 +43,12 @@ const generateWritingFeedback = async (req, res) => {
             });
         }
 
-        // 3. --- DETEKSI LOGIKA INPUT (PDF ATAU TEKS LANGSUNG) ---
+        // --- DETEKSI LOGIKA INPUT (PDF ATAU TEKS LANGSUNG) ---
         let tulisan_siswa = "";
 
         if (req.file) {
             try {
-                console.log("=== FILE DITERIMA BACKEND ===");
-                console.log("Nama File:", req.file.originalname);
-
-                let parseFunction;
-                if (typeof pdfParse === 'function') {
-                    parseFunction = pdfParse;
-                } else if (pdfParse && typeof pdfParse.default === 'function') {
-                    parseFunction = pdfParse.default;
-                } else {
-                    parseFunction = require('pdf-parse');
-                }
-
+                let parseFunction = typeof pdfParse === 'function' ? pdfParse : (pdfParse && pdfParse.default === 'function' ? pdfParse.default : require('pdf-parse'));
                 const pdfData = await parseFunction(req.file.buffer);
                 tulisan_siswa = pdfData && pdfData.text ? pdfData.text.trim() : "";
                 
@@ -87,7 +61,6 @@ const generateWritingFeedback = async (req, res) => {
                     });
                 }
             } catch (pdfErr) {
-                console.error("=== GAGAL EKSTRAKSI PDF DETAIL ===");
                 return res.status(400).json({ 
                     success: false, 
                     message: `Gagal membaca file PDF: ${pdfErr.message}`,
@@ -108,7 +81,6 @@ const generateWritingFeedback = async (req, res) => {
 
         const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
 
-        // 4. --- LOG REQUEST AWAL KE DATABASE ---
         const inputData = {
             nama_siswa: nama_siswa || "Siswa Anonim",
             tingkat_kelas,
@@ -118,7 +90,6 @@ const generateWritingFeedback = async (req, res) => {
         };
         await WritingModel.createRequest(requestId, finalUserId, inputData);
 
-        // 5. --- PROMPT STRUKTUR GROQ AI (MENDUKUNG MULTI-FOKUS) ---
         const fokusUtama = fokus_feedback || 'Gunakan standar penulisan bahasa Indonesia yang baik (EYD, efektivitas kalimat, kekayaan kosakata)';
 
         const chatCompletion = await groq.chat.completions.create({
@@ -145,9 +116,6 @@ const generateWritingFeedback = async (req, res) => {
                     """
                     ----------------------------------------
 
-                    ATURAN KETAT ARRAY ASPEK:
-                    Perhatikan fokus penilaian utama di atas. Jika user meminta beberapa fokus (misal: "isi, struktur, ejaan"), maka di dalam array "aspek" Anda WAJIB mengeluarkan jumlah objek yang sama persis sesuai fokus yang diminta (1 objek untuk 'isi', 1 objek untuk 'struktur', dst). Jangan kurangi dan jangan tambahkan aspek di luar itu!
-
                     Evaluasilah karangan di atas dan WAJIB kembalikan respon dalam format JSON murni dengan struktur PERSIS seperti berikut:
                     {
                         "skor_total": 85,
@@ -169,23 +137,19 @@ const generateWritingFeedback = async (req, res) => {
 
         const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
 
-        // 6. --- STRUKTUR DATA UNTUK DATABASE & RESPONS ---
-        // Kita bersihkan array aspek: hapus nama_siswa, lalu paksa skor menjadi format desimal (ex: 80.00)
         const aspekClean = aiResponse.aspek.map(item => ({
-            nama_aspek: item.nama, 
-            skor: Number(item.skor).toFixed(2), // <-- Ubah skor aspek jadi format desimal (ex: "80.00")
-            komentar: item.komentar,                  
-            saran: item.saran                         
+            nama_aspek: item.nama || item.nama_aspek,
+            skor: Number(item.skor || item.skor_aspek).toFixed(2),
+            saran: item.saran,
+            komentar: item.komentar
         }));
 
-        // Susun objek feedback_json yang super bersih dan urut sesuai keinginanmu
         const feedbackJsonSesuaiSchema = {
-            skor_total: Number(aiResponse.skor_total).toFixed(2), // <-- Ubah skor total jadi format desimal (ex: "78.00")
+            skor_total: Number(aiResponse.skor_total), 
             aspek: aspekClean,
             ringkasan: aiResponse.ringkasan
         };
 
-        // Memecah string "isi, struktur, ejaan" menjadi array untuk kolom TEXT[] PostgreSQL
         let arrayFokus = null;
         if (fokus_feedback) {
             arrayFokus = fokus_feedback.split(',').map(f => f.trim().toLowerCase());
@@ -202,48 +166,335 @@ const generateWritingFeedback = async (req, res) => {
             skor_keseluruhan: Number(aiResponse.skor_total).toFixed(2) 
         };
 
-        // Simpan ke PostgreSQL via Model
         const savedFeedback = await WritingModel.saveFeedback(feedbackData);
 
-        // Racik ulang data akhir bersih yang dipotong pas sampai feedback_json
+        // Di sini skor_total diformat string .toFixed(2) Ris
         const responseDataClean = {
             id: savedFeedback.id,
             request_id: savedFeedback.request_id,
+            nama_siswa: nama_siswa || "Siswa Anonim",
             tulisan_siswa: savedFeedback.tulisan_siswa,
             jenis_tulisan: savedFeedback.jenis_tulisan,
             tingkat_kelas: savedFeedback.tingkat_kelas,
             fokus_feedback: savedFeedback.fokus_feedback,
-            feedback_json: feedbackJsonSesuaiSchema // Berhenti pas sampai sini
+            skor_total: Number(feedbackJsonSesuaiSchema.skor_total).toFixed(2),
+            aspek: feedbackJsonSesuaiSchema.aspek,
+            ringkasan: feedbackJsonSesuaiSchema.ringkasan
         };
 
-        // 7. --- UPDATE STATUS LOG REQUEST ---
         await WritingModel.updateRequestStatus(requestId, 'completed', responseDataClean);
 
-        // 8. --- RETURN RESPONSE FINAL ---
         return res.status(201).json({
             success: true,
-            message: "Umpan balik karangan siswa sukses dibuat menggunakan Llama 3.3.",
+            message: "Haris Berhasil! Umpan balik karangan siswa sukses dibuat menggunakan Llama 3.3.",
             data: responseDataClean,
             meta: {}
         }); 
 
     } catch (error) {
         console.error("Error Detail Writing Feedback:", error);
-
         try {
             await WritingModel.updateRequestStatus(requestId, 'failed', { error: error.message });
         } catch (dbErr) {
             console.error("Gagal update status fail ke DB");
         }
-
         return res.status(500).json({
             success: false,
             message: "Terjadi kesalahan pada proses AI atau Database",
             error: error.message,
-            data: null, // Sesuai aturan penanganan error kaku dosen
-            meta: {}    // Sesuai aturan penanganan error kaku dosen
+            data: null, 
+            meta: {}    
         });
     }
 };
 
-module.exports = { generateWritingFeedback };
+// 2. READ ALL
+const getAllFeedback = async (req, res) => {
+    try {
+        const feedbacks = await WritingModel.getAllFeedback();
+        
+        const formattedFeedbacks = feedbacks.map(item => {
+            const fJson = typeof item.feedback_json === 'string' ? JSON.parse(item.feedback_json) : item.feedback_json;
+            
+            const aspekNormalized = fJson && Array.isArray(fJson.aspek) 
+                ? fJson.aspek.map(asp => ({
+                    nama_aspek: asp.nama_aspek || asp.nama,
+                    skor: isNaN(asp.skor) ? asp.skor : Number(asp.skor).toFixed(2),
+                    saran: asp.saran,
+                    komentar: asp.komentar
+                  }))
+                : [];
+
+            // Menggunakan string format .toFixed(2) untuk skor_total
+            const rawSkor = fJson ? fJson.skor_total : (item.skor_keseluruhan || 0);
+
+            return {
+                id: item.id,
+                request_id: item.request_id,
+                nama_siswa: item.nama_siswa || "Siswa Anonim",
+                tulisan_siswa: item.tulisan_siswa,
+                jenis_tulisan: item.jenis_tulisan,
+                tingkat_kelas: item.tingkat_kelas,
+                fokus_feedback: item.fokus_feedback,
+                skor_total: Number(rawSkor).toFixed(2),
+                aspek: aspekNormalized,
+                ringkasan: fJson ? fJson.ringkasan : ""
+            };
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Haris Berhasil mengambil semua data riwayat umpan balik tulisan.",
+            data: formattedFeedbacks,
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error di writingController (getAllFeedback):", error);
+        return res.status(500).json({
+            success: false,
+            message: "Gagal mengambil semua data riwayat umpan balik.",
+            error: error.message,
+            data: null,
+            meta: {}
+        });
+    }
+};
+
+// 3. READ BY ID
+const getFeedbackById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const feedback = await WritingModel.getFeedbackById(id);
+
+        if (!feedback) {
+            return res.status(404).json({
+                success: false,
+                message: `Data riwayat umpan balik dengan ID ${id} tidak ditemukan.`,
+                data: null,
+                meta: {}
+            });
+        }
+
+        const fJson = typeof feedback.feedback_json === 'string' ? JSON.parse(feedback.feedback_json) : feedback.feedback_json;
+
+        const aspekNormalized = fJson && Array.isArray(fJson.aspek) 
+            ? fJson.aspek.map(asp => ({
+                nama_aspek: asp.nama_aspek || asp.nama,
+                skor: isNaN(asp.skor) ? asp.skor : Number(asp.skor).toFixed(2),
+                saran: asp.saran,
+                komentar: asp.komentar
+              }))
+            : [];
+
+        // Menggunakan string format .toFixed(2) untuk skor_total
+        const rawSkor = fJson ? fJson.skor_total : (feedback.skor_keseluruhan || 0);
+
+        const formattedFeedback = {
+            id: feedback.id,
+            request_id: feedback.request_id,
+            nama_siswa: feedback.nama_siswa || "Siswa Anonim",
+            tulisan_siswa: feedback.tulisan_siswa,
+            jenis_tulisan: feedback.jenis_tulisan,
+            tingkat_kelas: feedback.tingkat_kelas,
+            fokus_feedback: feedback.fokus_feedback,
+            skor_total: Number(rawSkor).toFixed(2),
+            aspek: aspekNormalized,
+            ringkasan: fJson ? fJson.ringkasan : ""
+        };
+
+        return res.status(200).json({
+            success: true,
+            message: "Haris Berhasil mengambil detail data umpan balik.",
+            data: formattedFeedback,
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error di writingController (getFeedbackById):", error);
+        return res.status(500).json({
+            success: false,
+            message: "Gagal mengambil detail data umpan balik.",
+            error: error.message,
+            data: null,
+            meta: {}
+        });
+    }
+};
+
+// 4. UPDATE
+const updateFeedback = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { skor_total, aspek, ringkasan } = req.body; 
+
+        if (!id || skor_total === undefined || !aspek || !ringkasan) {
+            return res.status(400).json({
+                success: false,
+                message: "ID parameter dan body dengan property 'skor_total', 'aspek', serta 'ringkasan' wajib disertakan.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        const aspekPayload = aspek.map(asp => ({
+            nama_aspek: asp.nama_aspek || asp.nama,
+            skor: isNaN(asp.skor) ? asp.skor : Number(asp.skor).toFixed(2),
+            saran: asp.saran,
+            komentar: asp.komentar
+        }));
+
+        const payloadJson = {
+            skor_total: Number(skor_total),
+            aspek: aspekPayload,
+            ringkasan
+        };
+
+        const skorKeseluruhanBaru = Number(skor_total).toFixed(2);
+        const updatedData = await WritingModel.updateFeedback(id, payloadJson, skorKeseluruhanBaru);
+        const fJson = typeof updatedData.feedback_json === 'string' ? JSON.parse(updatedData.feedback_json) : updatedData.feedback_json;
+
+        const aspekResponseNormalized = fJson && Array.isArray(fJson.aspek)
+            ? fJson.aspek.map(asp => ({
+                nama_aspek: asp.nama_aspek || asp.nama,
+                skor: asp.skor,
+                saran: asp.saran,
+                komentar: asp.komentar
+              }))
+            : [];
+
+        // Menggunakan string format .toFixed(2) untuk skor_total
+        const rawSkor = fJson ? fJson.skor_total : (updatedData.skor_keseluruhan || 0);
+
+        const formattedResponse = {
+            id: updatedData.id,
+            request_id: updatedData.request_id,
+            nama_siswa: updatedData.nama_siswa || "Siswa Anonim",
+            tulisan_siswa: updatedData.tulisan_siswa,
+            jenis_tulisan: updatedData.jenis_tulisan,
+            tingkat_kelas: updatedData.tingkat_kelas,
+            fokus_feedback: updatedData.fokus_feedback,
+            skor_total: Number(rawSkor).toFixed(2),
+            aspek: aspekResponseNormalized,
+            ringkasan: fJson ? fJson.ringkasan : ""
+        };
+
+        return res.status(200).json({
+            success: true,
+            message: "Perubahan penilaian dan ulasan esai berhasil disimpan.",
+            data: formattedResponse,
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error di writingController (updateFeedback):", error);
+        return res.status(500).json({
+            success: false,
+            message: "Gagal memperbarui data umpan balik.",
+            error: error.message,
+            data: null,
+            meta: {}
+        });
+    }
+};
+
+// 5. DELETE
+const deleteFeedback = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deleted = await WritingModel.deleteFeedback(id);
+
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                message: `Data umpan balik dengan ID ${id} tidak ditemukan atau sudah dihapus sebelumnya.`,
+                data: null,
+                meta: {}
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `Data riwayat umpan balik esai dengan ID ${id} berhasil dihapus dari sistem.`,
+            data: null,
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error di writingController (deleteFeedback):", error);
+        return res.status(500).json({
+            success: false,
+            message: "Gagal menghapus data umpan balik.",
+            error: error.message,
+            data: null,
+            meta: {}
+        });
+    }
+};
+
+// 6. SHARE TEXT WA
+const getFeedbackShareText = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const feedback = await WritingModel.getFeedbackById(id);
+
+        if (!feedback) {
+            return res.status(404).json({
+                success: false,
+                message: `Data ulasan dengan ID ${id} tidak ditemukan.`,
+                data: null,
+                meta: {}
+            });
+        }
+
+        const fJson = typeof feedback.feedback_json === 'string' ? JSON.parse(feedback.feedback_json) : feedback.feedback_json;
+        const aspekList = fJson && fJson.aspek ? fJson.aspek : [];
+        const rawSkor = fJson ? fJson.skor_total : (feedback.skor_keseluruhan || 0);
+        const skorTotal = Number(rawSkor).toFixed(2);
+        const ringkasanText = fJson ? fJson.ringkasan : "";
+
+        let shareText = `*LAPORAN HASIL EVALUASI TULISAN SISWA*\n`;
+        shareText += `=========================================\n`;
+        shareText += `Nama Siswa: ${feedback.nama_siswa || 'Siswa Anonim'}\n`;
+        shareText += `Tingkat/Kelas: ${feedback.tingkat_kelas}\n`;
+        shareText += `Jenis Teks: Teks ${feedback.jenis_tulisan}\n`;
+        shareText += `Skor Keseluruhan: ${skorTotal}\n`;
+        shareText += `=========================================\n\n`;
+        shareText += `*DETAIL PENILAIAN PER ASPEK:*\n\n`;
+
+        aspekList.forEach((asp, index) => {
+            shareText += `${index + 1}. *Aspek ${String(asp.nama_aspek || asp.nama || '').toUpperCase()}* (Skor: ${asp.skor})\n`;
+            shareText += `   Catatan Guru: ${asp.komentar}\n`;
+            shareText += `   Rekomendasi: ${asp.saran}\n\n`;
+        });
+
+        shareText += `*KESIMPULAN DAN SARAN PERBAIKAN:*\n`;
+        shareText += `"${ringkasanText}"\n\n`;
+        shareText += `Selamat atas kerja kerasnya dalam menyelesaikan tugas ini. Teruslah berlatih menulis untuk mengasah kemampuanmu ke depan.`;
+
+        return res.status(200).json({
+            success: true,
+            message: "Haris Berhasil meracik teks ulasan yang siap dishare ke siswa.",
+            data: {
+                id: feedback.id,
+                nama_siswa: feedback.nama_siswa,
+                text_to_copy: shareText 
+            },
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error di writingController (getFeedbackShareText):", error);
+        return res.status(500).json({
+            success: false,
+            message: "Gagal meracik teks share ulasan.",
+            error: error.message,
+            data: null,
+            meta: {}
+        });
+    }
+};
+
+module.exports = { 
+    generateWritingFeedback,
+    getAllFeedback,
+    getFeedbackById,
+    updateFeedback,
+    deleteFeedback,
+    getFeedbackShareText
+};

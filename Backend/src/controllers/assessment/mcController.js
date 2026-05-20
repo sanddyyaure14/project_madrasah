@@ -401,4 +401,29 @@ const exportToPDF = async (req, res) => {
     }
 };
 
-module.exports = { generateMC, updateMC, getMCById, deleteMC,exportToPDF };
+// FUNGSI KHUSUS GET ALL UNTUK MENAMPILKAN SEMUA DATA ASSESSMENT SOAL MULTIPLE CHOICE (MC)
+const getAllMC = async (req, res) => {
+    try {
+        // Panggil fungsi model untuk mengambil semua data dari database
+        const assessments = await MCModel.getAllAssessment(); // Pastikan fungsi ini ada di mcModel.js kamu nanti
+
+        // Return Response dengan Meta sesuai Blueprint Dosen
+        res.status(200).json({
+            success: true,
+            message: "Haris Berhasil mengambil semua data riwayat assessment soal pilihan ganda.",
+            data: assessments,
+            meta: {}
+        });
+
+    } catch (error) {
+        console.error("Error saat GET ALL Assessment MC:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal mengambil semua data assessment pilihan ganda.",
+            error: error.message,
+            data: null,
+            meta: {}
+        });
+    }
+};
+module.exports = { generateMC, updateMC, getMCById, deleteMC,exportToPDF,getAllMC };

@@ -7,6 +7,7 @@ const mcController = require('../../controllers/assessment/mcController');
 
 // Endpoint untuk Assessment (Saat ini verifyToken dinonaktifkan dulu agar bisa dites tanpa login)
 router.post('/generate-mc', mcController.generateMC);
+router.get('/assessment', mcController.getAllMC);
 router.put('/assessment/edit/:id', mcController.updateMC);
 router.get('/assessment/:id', mcController.getMCById);
 router.delete('/assessment/delete/:id', mcController.deleteMC);

@@ -11,34 +11,58 @@ const upload = multer({
     }
 });
 
-// Import Controller (Sesuaikan dengan nama file controllermu, kemarin kita pakai writingFeedbackController)
-const { generateWritingFeedback } = require('../../controllers/assessment/writingController');
+// Import Controller Lengkap (Sekarang mencakup fungsi CRUD baru)
+const { 
+    generateWritingFeedback,
+    getAllFeedback,
+    getFeedbackById,
+    updateFeedback,
+    deleteFeedback,
+    getFeedbackShareText 
+} = require('../../controllers/assessment/writingController');
 
-// Route untuk Writing Feedback (Mendukung Teks Langsung & Upload PDF)
+// 1. CREATE / GENERATE (Mendukung Teks Langsung & Upload PDF)
 router.post('/generate/writing-feedback', (req, res, next) => {
     upload.single('file_pdf')(req, res, function (err) {
         if (err instanceof multer.MulterError) {
-            // Error mutlak dari Multer (ex: Unexpected field, file too large)
             console.error("=== MULTER ERROR ===", err);
             return res.status(400).json({ 
                 success: false, 
                 message: `Multer Error: ${err.message}`,
-                data: null, // <-- Tambahan kontrak dosen
-                meta: {}    // <-- Tambahan kontrak dosen
+                data: null, 
+                meta: {} 
             });
         } else if (err) {
-            // Error sistem lainnya 
             console.error("=== SYSTEM MULTIPART ERROR ===", err);
             return res.status(500).json({ 
                 success: false, 
                 message: `System Error: ${err.message}`,
-                data: null, // <-- Tambahan kontrak dosen
-                meta: {}    // <-- Tambahan kontrak dosen
+                data: null, 
+                meta: {} 
             });
         }
-        // Jika aman, lanjut ke controller utama
         next();
     });
 }, generateWritingFeedback);
+
+// =========================================================================
+// 🔥 AMAN & BERURUTAN: Tambahan Endpoint CRUD untuk Writing Feedback
+// =========================================================================
+
+// 2. READ ALL (Ditaruh di atas rute bermotif parameter :id agar tidak bentrok)
+router.get('/feedback', getAllFeedback);
+
+router.get('/feedback/share/:id', getFeedbackShareText);
+
+// 3. READ BY ID
+router.get('/feedback/:id', getFeedbackById);
+
+// 4. UPDATE (Aksi Simpan setelah Guru mengedit skor/komentar)
+router.put('/feedback/edit/:id', updateFeedback);
+
+// 5. DELETE
+router.delete('/feedback/delete/:id', deleteFeedback);
+
+
 
 module.exports = router;
