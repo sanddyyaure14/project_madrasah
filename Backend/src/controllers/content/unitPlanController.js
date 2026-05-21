@@ -1,8 +1,11 @@
 const { v4: uuidv4 } = require('uuid');
 const UnitPlanModel = require('../../models/content/unitPlanModel');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
+const path = require('path');
+const fs = require('fs');
+const { generateUnitPlanDocx } = require('../../utils/docxGenerator');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const generateUnitPlan = async (req, res) => {
     const requestId = uuidv4();
@@ -20,13 +23,7 @@ const generateUnitPlan = async (req, res) => {
             judul_unit, mata_pelajaran, tingkat_kelas, tujuan_pembelajaran, jumlah_pertemuan, durasi_per_jp
         });
 
-        // 2. Panggil Gemini-
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-            generationConfig: {
-                responseMimeType: "application/json"
-            }
-        });
+        // 2. Panggil Groq AI Llama 3.3
 
         const prompt = `Anda adalah seorang ahli penyusun Modul Ajar / RPP Kurikulum Merdeka (Madrasah). Buatlah rancangan Modul Ajar untuk:
 Mata Pelajaran: ${mata_pelajaran}
@@ -65,9 +62,21 @@ Anda WAJIB memberikan respons dalam format JSON murni dengan struktur berikut:
     }
 }`;
 
-        const result = await model.generateContent(prompt);
-        const aiResponseText = result.response.text();
-        const aiResponseJSON = JSON.parse(aiResponseText);
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                {
+                    role: "system",
+                    content: "Anda adalah seorang ahli penyusun Modul Ajar / RPP Kurikulum Merdeka (Madrasah). Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            model: "llama-3.3-70b-versatile",
+            response_format: { "type": "json_object" }
+        });
+        const aiResponseJSON = JSON.parse(chatCompletion.choices[0].message.content);
 
         // 3. Simpan ke Database
         const unitPlanData = {
@@ -89,7 +98,7 @@ Anda WAJIB memberikan respons dalam format JSON murni dengan struktur berikut:
 
         res.status(201).json({
             success: true,
-            message: "Modul Ajar (RPP) berhasil dibuat dengan Gemini AI.",
+            message: "Modul Ajar (RPP) berhasil dibuat dengan Groq Llama 3.3.",
             data: savedUnitPlan
         });
 
@@ -126,4 +135,49 @@ const getUnitPlans = async (req, res) => {
     }
 };
 
-module.exports = { generateUnitPlan, getUnitPlans };
+const downloadUnitPlanDocx = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Ambil data dari database
+        const unitPlanData = await UnitPlanModel.getUnitPlanById(id);
+        
+        if (!unitPlanData) {
+            return res.status(404).json({
+                success: false,
+                message: "Unit Plan tidak ditemukan"
+            });
+        }
+
+        // Buat folder temp jika belum ada
+        const tempDir = path.join(__dirname, '../../../temp');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        // Generate DOCX
+        const fileName = `unit_plan_${id}.docx`;
+        const filePath = path.join(tempDir, fileName);
+        
+        await generateUnitPlanDocx(unitPlanData, filePath);
+
+        // Download file
+        res.download(filePath, fileName, (err) => {
+            if (err) {
+                console.error("Error downloading file:", err);
+            }
+            // Hapus file setelah download
+            fs.unlinkSync(filePath);
+        });
+
+    } catch (error) {
+        console.error("Error generating DOCX:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal generate DOCX",
+            error: error.message
+        });
+    }
+};
+
+module.exports = { generateUnitPlan, getUnitPlans, downloadUnitPlanDocx };

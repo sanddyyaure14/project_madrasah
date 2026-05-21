@@ -73,6 +73,13 @@ const AcademicContentModel = {
         const query = `SELECT * FROM academic_contents ORDER BY id DESC;`;
         const result = await pool.query(query);
         return result.rows;
+    },
+
+    // 5. Ambil data konten akademik berdasarkan ID (GET BY ID)
+    getAcademicContentById: async (id) => {
+        const query = `SELECT * FROM academic_contents WHERE id = $1;`;
+        const result = await pool.query(query, [id]);
+        return result.rows[0];
     }
 };
 

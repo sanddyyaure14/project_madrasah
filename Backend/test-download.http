@@ -1,0 +1,96 @@
+### Test Download API Endpoints
+### Gunakan REST Client extension di VS Code untuk menjalankan file ini
+
+### 1. Generate Academic Content terlebih dahulu
+POST http://localhost:3000/api/content/academic-content/generate
+Content-Type: application/json
+
+{
+  "jenis_konten": "Materi Pembelajaran",
+  "topik": "Fotosintesis pada Tumbuhan",
+  "mapel": "Biologi",
+  "kelas": "10",
+  "panjang": "sedang",
+  "bahasa": "Indonesia",
+  "gaya_bahasa": "Akademik dan Informatif",
+  "userId": "00000000-0000-0000-0000-000000000000"
+}
+
+### 2. Get All Academic Contents (untuk mendapatkan ID)
+GET http://localhost:3000/api/content/academic-content/
+
+### 3. Download Academic Content as PDF
+### Ganti YOUR_CONTENT_ID dengan ID yang didapat dari step 2
+GET http://localhost:3000/api/content/academic-content/download/YOUR_CONTENT_ID/pdf
+
+###############################################
+
+### 4. Generate Presentation terlebih dahulu
+POST http://localhost:3000/api/content/presentation/generate
+Content-Type: application/json
+
+{
+  "topik": "Pengenalan Sistem Tata Surya",
+  "jumlah_slide": 8,
+  "tujuan": "Menjelaskan struktur dan komponen tata surya",
+  "audiens": "Siswa SMP",
+  "include_catatan": true,
+  "userId": "00000000-0000-0000-0000-000000000000"
+}
+
+### 5. Get All Presentations (untuk mendapatkan ID)
+GET http://localhost:3000/api/content/presentation/
+
+### 6. Download Presentation as PPT
+### Ganti YOUR_PRESENTATION_ID dengan ID yang didapat dari step 5
+GET http://localhost:3000/api/content/presentation/download/YOUR_PRESENTATION_ID/ppt
+
+###############################################
+
+### 7. Generate Syllabus terlebih dahulu
+POST http://localhost:3000/api/content/syllabus/generate
+Content-Type: application/json
+
+{
+  "mata_pelajaran": "Matematika",
+  "kurikulum": "Kurikulum Merdeka",
+  "jenjang": "SMA",
+  "tingkat_kelas": "10",
+  "semester": "Ganjil",
+  "tahun_ajaran": "2024/2025",
+  "userId": "00000000-0000-0000-0000-000000000000"
+}
+
+### 8. Get All Syllabi (untuk mendapatkan ID)
+GET http://localhost:3000/api/content/syllabus/
+
+### 9. Download Syllabus as PDF
+### Ganti YOUR_SYLLABUS_ID dengan ID yang didapat dari step 8
+GET http://localhost:3000/api/content/syllabus/download/YOUR_SYLLABUS_ID/pdf
+
+### 10. Download Syllabus as DOCX
+### Ganti YOUR_SYLLABUS_ID dengan ID yang didapat dari step 8
+GET http://localhost:3000/api/content/syllabus/download/YOUR_SYLLABUS_ID/docx
+
+###############################################
+
+### 11. Generate Unit Plan terlebih dahulu
+POST http://localhost:3000/api/content/unit-plan/generate
+Content-Type: application/json
+
+{
+  "judul_unit": "Sistem Persamaan Linear",
+  "mata_pelajaran": "Matematika",
+  "tingkat_kelas": "10",
+  "tujuan_pembelajaran": "Siswa mampu memahami dan menyelesaikan sistem persamaan linear dua variabel",
+  "jumlah_pertemuan": 3,
+  "durasi_per_jp": 45,
+  "userId": "00000000-0000-0000-0000-000000000000"
+}
+
+### 12. Get All Unit Plans (untuk mendapatkan ID)
+GET http://localhost:3000/api/content/unit-plan/
+
+### 13. Download Unit Plan as DOCX
+### Ganti YOUR_UNIT_PLAN_ID dengan ID yang didapat dari step 12
+GET http://localhost:3000/api/content/unit-plan/download/YOUR_UNIT_PLAN_ID/docx

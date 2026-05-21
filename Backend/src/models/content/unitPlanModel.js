@@ -48,6 +48,13 @@ const UnitPlanModel = {
         const query = `SELECT * FROM unit_plans ORDER BY id DESC;`;
         const result = await pool.query(query);
         return result.rows;
+    },
+
+    // Ambil data unit plan berdasarkan ID (GET BY ID)
+    getUnitPlanById: async (id) => {
+        const query = `SELECT * FROM unit_plans WHERE id = $1;`;
+        const result = await pool.query(query, [id]);
+        return result.rows[0];
     }
 };
 //-
