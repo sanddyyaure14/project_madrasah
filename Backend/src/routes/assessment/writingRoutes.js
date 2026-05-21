@@ -2,16 +2,26 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 
-// Konfigurasi multer menggunakan RAM storage
+// =========================================================================
+// 🌟 ARSITEKTUR ALUR 2: Konfigurasi Multer & Validasi Input Ketat
+// =========================================================================
 const upload = multer({ 
     storage: multer.memoryStorage(),
     limits: {
         fileSize: 5 * 1024 * 1024, // Batasi maksimal file 5MB
-        parts: 10 // Beri kuota total field teks + file maksimal 10 part
+        parts: 10 
+    },
+    fileFilter: (req, file, cb) => {
+        // Alur 2 Langkah 1: Validasi format dokumen input
+        if (file.mimetype === 'application/pdf') {
+            cb(null, true);
+        } else {
+            cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'Format file tidak didukung. Hanya menerima dokumen PDF (.pdf)!'));
+        }
     }
 });
 
-// Import Controller Lengkap (Sekarang mencakup fungsi CRUD baru)
+// Import Controller Lengkap
 const { 
     generateWritingFeedback,
     getAllFeedback,
@@ -21,48 +31,62 @@ const {
     getFeedbackShareText 
 } = require('../../controllers/assessment/writingController');
 
-// 1. CREATE / GENERATE (Mendukung Teks Langsung & Upload PDF)
-router.post('/generate/writing-feedback', (req, res, next) => {
-    upload.single('file_pdf')(req, res, function (err) {
-        if (err instanceof multer.MulterError) {
-            console.error("=== MULTER ERROR ===", err);
-            return res.status(400).json({ 
-                success: false, 
-                message: `Multer Error: ${err.message}`,
-                data: null, 
-                meta: {} 
-            });
-        } else if (err) {
-            console.error("=== SYSTEM MULTIPART ERROR ===", err);
-            return res.status(500).json({ 
-                success: false, 
-                message: `System Error: ${err.message}`,
-                data: null, 
-                meta: {} 
+// =========================================================================
+// 🔥 ENDPOINT UTAMA (CREATE / GENERATE)
+// =========================================================================
+
+// 1. GENERATE CONTEN AI (Sesuai Alur 2: Langkah 1 s.d 4)
+router.post('/generate/writing-feedback', 
+    // Middleware A: Penanganan Multipart Form-Data (Upload)
+    (req, res, next) => {
+        upload.single('file_pdf')(req, res, function (err) {
+            if (err instanceof multer.MulterError) {
+                console.error("=== MULTER ERROR ===", err);
+                const customMessage = err.code === 'LIMIT_UNEXPECTED_FILE' ? err.field : `Multer Error: ${err.message}`;
+                return res.status(400).json({ success: false, message: customMessage, data: null, meta: {} });
+            } else if (err) {
+                console.error("=== SYSTEM MULTIPART ERROR ===", err);
+                return res.status(500).json({ success: false, message: `System Error: ${err.message}`, data: null, meta: {} });
+            }
+            next();
+        });
+    },
+    
+    // Middleware B: Validasi Input (Alur 2 - Langkah 1: Validasi Input)
+    (req, res, next) => {
+        // Memastikan ada payload teks atau payload file yang dikirim oleh guru
+        if (!req.body.tulisan_siswa && !req.file) {
+            return res.status(400).json({
+                success: false,
+                message: "Validasi Gagal: Mohon masukkan teks tulisan siswa atau unggah file dokumen PDF tugas siswa.",
+                data: null,
+                meta: {}
             });
         }
         next();
-    });
-}, generateWritingFeedback);
+    }, 
+    
+    // Controller Utama (Alur 2 - Langkah 2 & 3: Cek Kuota, Insert PENDING -> PROCESSING -> COMPLETED)
+    generateWritingFeedback
+);
 
 // =========================================================================
-// 🔥 AMAN & BERURUTAN: Tambahan Endpoint CRUD untuk Writing Feedback
+// 🌟 ENDPOINT MANAGEMENT HISTORY (READ, UPDATE, DELETE)
 // =========================================================================
 
-// 2. READ ALL (Ditaruh di atas rute bermotif parameter :id agar tidak bentrok)
+// 2. READ ALL (Diletakkan paling atas agar tidak bentrok dengan parameter :id)
 router.get('/feedback', getAllFeedback);
 
+// Rute Share Text WA 
 router.get('/feedback/share/:id', getFeedbackShareText);
 
-// 3. READ BY ID
+// 3. READ BY ID (Alur 2 - Langkah 4: Tampilkan Output / Ambil data dari library)
 router.get('/feedback/:id', getFeedbackById);
 
-// 4. UPDATE (Aksi Simpan setelah Guru mengedit skor/komentar)
+// 4. UPDATE (Alur 2 - Langkah 4: Edit jika perlu & Simpan kembali ke library)
 router.put('/feedback/edit/:id', updateFeedback);
 
 // 5. DELETE
 router.delete('/feedback/delete/:id', deleteFeedback);
-
-
 
 module.exports = router;

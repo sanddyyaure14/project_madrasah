@@ -21,6 +21,22 @@ const generateWritingFeedback = async (req, res) => {
             userId
         } = req.body;
 
+        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const targetBahasa = bahasa_output || 'Indonesia';
+
+        // =========================================================================
+        // 🌟 SEIRAMA MCASSESSMENT: INTEGRASI VALIDASI KUOTA USER
+        // =========================================================================
+        const quotaCheck = await WritingModel.checkUserQuota(finalUserId);
+        if (quotaCheck && !quotaCheck.hasQuota) {
+            return res.status(403).json({
+                success: false,
+                message: "Haris Maaf, Kuota pembuatan bulanan Anda telah habis. Silakan hubungi admin untuk peningkatan akun.",
+                data: null,
+                meta: { remaining: 0 }
+            });
+        }
+
         // --- FORMATTING JENIS TULISAN ---
         const jenisTulisanFormatted = jenis_tulisan ? jenis_tulisan.toLowerCase().trim() : 'umum';
 
@@ -79,8 +95,6 @@ const generateWritingFeedback = async (req, res) => {
             });
         }
 
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
-
         const inputData = {
             nama_siswa: nama_siswa || "Siswa Anonim",
             tingkat_kelas,
@@ -88,66 +102,56 @@ const generateWritingFeedback = async (req, res) => {
             fokus_feedback,
             input_method: req.file ? "pdf_upload" : "text_input"
         };
+        
+        // Simpan request awal dengan status default 'processing'
         await WritingModel.createRequest(requestId, finalUserId, inputData);
 
         const fokusUtama = fokus_feedback || 'Gunakan standar penulisan bahasa Indonesia yang baik (EYD, efektivitas kalimat, kekayaan kosakata)';
+        const targetModel = "llama-3.3-70b-versatile";
+
+        // --- DEKLARASI PROMPT DIOPTIMALKAN UNTUK MULTI-BAHASA AKADEMIK ---
+        const systemPrompt = `Anda adalah seorang dosen dan guru bahasa ahli, objektif, dan patuh pada instruksi. Tugas Anda memeriksa tulisan siswa bernama ${nama_siswa || 'Siswa Anonim'}. Anda WAJIB memberikan narasi ulasan (komentar, saran, ringkasan) dalam Bahasa ${targetBahasa}, namun struktur/kunci objek JSON harus tetap menggunakan penamaan bahasa Indonesia yang diinstruksikan user.`;
+
+        const userPrompt = `Berikan umpan balik otomatis untuk karangan siswa berikut.\n\nKonteks Pembelajaran:\n- Jenis Teks: Teks ${jenisTulisanFormatted}\n- Tingkat Kelas Siswa: ${tingkat_kelas}\n- FOKUS PENILAIAN UTAMA: ${fokusUtama}\n\n----------------------------------------\nTeks Karangan Siswa yang Harus Dinilai:\n"""\n${tulisan_siswa}\n"""\n----------------------------------------\n\nEvaluasilah karangan di atas. Anda WAJIB mengembalikan respon dalam format JSON murni dengan struktur kunci (key) PERSIS seperti di bawah ini, tetapi untuk nilai teks di dalamnya wajib ditulis menggunakan Bahasa ${targetBahasa}:\n{\n  "skor_total": 85,\n  "aspek": [\n    {\n      "nama": "Nama Aspek Penulisan",\n      "skor": 80,\n      "komentar": "Ulasan detail analisis karangan siswa pada aspek ini",\n      "saran": "Langkah konkret perbaikan akademis bagi siswa"\n    }\n  ],\n  "ringkasan": "Kesimpulan umum performa esai dan kalimat motivasi akademis."\n}`;
+
+        // 🌟 START TIMER
+        const startTime = performance.now();
 
         const chatCompletion = await groq.chat.completions.create({
             messages: [
-                {
-                    role: "system",
-                    content: `Anda adalah seorang guru bahasa yang ahli, objektif, dan sangat patuh pada instruksi. 
-                    Tugas Anda adalah memeriksa tulisan siswa bernama ${nama_siswa || 'Siswa Anonim'}.
-                    Anda WAJIB mengembalikan respon dalam bentuk JSON murni menggunakan Bahasa ${bahasa_output || 'Indonesia'}.`
-                },
-                {
-                    role: "user",
-                    content: `Berikan umpan balik otomatis untuk karangan siswa berikut.
-                    
-                    Konteks Pembelajaran:
-                    - Jenis Teks: Teks ${jenisTulisanFormatted}
-                    - Tingkat Kelas Siswa: ${tingkat_kelas}
-                    - FOKUS PENILAIAN UTAMA: ${fokusUtama}
-                    
-                    ----------------------------------------
-                    Teks Karangan Siswa yang Harus Dinilai:
-                    """
-                    ${tulisan_siswa}
-                    """
-                    ----------------------------------------
-
-                    Evaluasilah karangan di atas dan WAJIB kembalikan respon dalam format JSON murni dengan struktur PERSIS seperti berikut:
-                    {
-                        "skor_total": 85,
-                        "aspek": [
-                            {
-                                "nama": "Nama Aspek (Isi sesuai aspek yang sedang dinilai, misal: Isi / Struktur / Ejaan)",
-                                "skor": 80,
-                                "komentar": "Ulasan detail bagian teks siswa yang berkaitan dengan aspek ini",
-                                "saran": "Langkah konkret perbaikan khusus untuk aspek ini"
-                            }
-                        ],
-                        "ringkasan": "Kesimpulan umum performa tulisan siswa dan kalimat motivasi penutup."
-                    }`
-                }
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
             ],
-            model: "llama-3.3-70b-versatile",
+            model: targetModel,
             response_format: { "type": "json_object" }
         });
 
-        const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
+        // 🌟 END TIMER
+        const endTime = performance.now();
+        const processingTimeMs = Math.round(endTime - startTime);
 
-        const aspekClean = aiResponse.aspek.map(item => ({
-            nama_aspek: item.nama || item.nama_aspek,
-            skor: Number(item.skor || item.skor_aspek).toFixed(2),
-            saran: item.saran,
-            komentar: item.komentar
-        }));
+        const rawContent = chatCompletion.choices[0].message.content;
+        const aiResponse = JSON.parse(rawContent);
+
+        // 🌟 AMBIL DATA METADATA TOKEN
+        const usage = chatCompletion.usage || {};
+
+        // 🌟 DEFENSIVE PARSING (Antisipasi jika LLM mengubah nama key di luar kendali)
+        const rawAspek = aiResponse.aspek || aiResponse.aspects || [];
+        const rawSkorTotal = aiResponse.skor_total !== undefined ? aiResponse.skor_total : (aiResponse.total_score || 0);
+        const rawRingkasan = aiResponse.ringkasan || aiResponse.summary || "";
+
+        const aspekClean = Array.isArray(rawAspek) ? rawAspek.map(item => ({
+            nama_aspek: item.nama || item.nama_aspek || item.aspect_name || "Umum",
+            skor: Number(item.skor || item.skor_aspek || item.score || 0).toFixed(2),
+            saran: item.saran || item.suggestion || "",
+            komentar: item.komentar || item.comment || ""
+        })) : [];
 
         const feedbackJsonSesuaiSchema = {
-            skor_total: Number(aiResponse.skor_total), 
+            skor_total: Number(rawSkorTotal), 
             aspek: aspekClean,
-            ringkasan: aiResponse.ringkasan
+            ringkasan: rawRingkasan
         };
 
         let arrayFokus = null;
@@ -163,12 +167,15 @@ const generateWritingFeedback = async (req, res) => {
             tingkat_kelas,
             fokus_feedback: arrayFokus, 
             feedback_json: feedbackJsonSesuaiSchema, 
-            skor_keseluruhan: Number(aiResponse.skor_total).toFixed(2) 
+            skor_keseluruhan: Number(rawSkorTotal).toFixed(2) 
         };
 
+        // =========================================================================
+        // 🌟 URUTAN ALUR PROSES DOSEN: SIMPAN DATA DULU -> JIKA SUKSES BARU POTONG KUOTA
+        // =========================================================================
         const savedFeedback = await WritingModel.saveFeedback(feedbackData);
+        await WritingModel.incrementQuotaUsage(finalUserId);
 
-        // Di sini skor_total diformat string .toFixed(2) Ris
         const responseDataClean = {
             id: savedFeedback.id,
             request_id: savedFeedback.request_id,
@@ -182,13 +189,27 @@ const generateWritingFeedback = async (req, res) => {
             ringkasan: feedbackJsonSesuaiSchema.ringkasan
         };
 
-        await WritingModel.updateRequestStatus(requestId, 'completed', responseDataClean);
+        const outputLogData = {
+            result: responseDataClean,
+            model_used: targetModel,
+            prompt_tokens: usage.prompt_tokens || 0,
+            completion_tokens: usage.completion_tokens || 0,
+            total_tokens: usage.total_tokens || 0,
+            prompt_used: `[SYSTEM PROMPT]\n${systemPrompt}\n\n[USER PROMPT]\n${userPrompt}`,
+            processing_time_ms: processingTimeMs
+        };
+
+        await WritingModel.updateRequestStatus(requestId, 'completed', outputLogData);
 
         return res.status(201).json({
             success: true,
             message: "Haris Berhasil! Umpan balik karangan siswa sukses dibuat menggunakan Llama 3.3.",
             data: responseDataClean,
-            meta: {}
+            meta: {
+                model_used: targetModel,
+                tokens: usage,
+                processing_time_ms: processingTimeMs
+            }
         }); 
 
     } catch (error) {
@@ -225,7 +246,6 @@ const getAllFeedback = async (req, res) => {
                   }))
                 : [];
 
-            // Menggunakan string format .toFixed(2) untuk skor_total
             const rawSkor = fJson ? fJson.skor_total : (item.skor_keseluruhan || 0);
 
             return {
@@ -286,7 +306,6 @@ const getFeedbackById = async (req, res) => {
               }))
             : [];
 
-        // Menggunakan string format .toFixed(2) untuk skor_total
         const rawSkor = fJson ? fJson.skor_total : (feedback.skor_keseluruhan || 0);
 
         const formattedFeedback = {
@@ -361,7 +380,6 @@ const updateFeedback = async (req, res) => {
               }))
             : [];
 
-        // Menggunakan string format .toFixed(2) untuk skor_total
         const rawSkor = fJson ? fJson.skor_total : (updatedData.skor_keseluruhan || 0);
 
         const formattedResponse = {

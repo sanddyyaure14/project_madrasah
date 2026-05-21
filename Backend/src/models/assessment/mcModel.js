@@ -1,91 +1,137 @@
 const pool = require('../../config/db');
 
 const MCModel = {
-    // 1. Simpan log request ke tabel generation_requests
+    // 1. SESUAI DIAGRAM LANGKAH 2: Simpan log request awal dengan status PENDING
     createRequest: async (requestId, userId, inputData) => {
         const query = `
-    INSERT INTO generation_requests (id, user_id, feature_type, input_data, status)
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING *;
-  `;
-
-        /**
-         * SOLUSI NOT-NULL CONSTRAINT:
-         * Jika userId dari frontend kosong/null, kita gunakan ID dummy.
-         * Pastikan ID dummy ini adalah UUID yang valid secara format.
-         */
-        const finalUserId = userId || '00000000-0000-0000-0000-000000000000';
-
-        const values = [
-            requestId,                 // $1
-            finalUserId,               // $2 (Sekarang tidak akan null lagi)
-            'multiple_choice',         // $3
-            JSON.stringify(inputData), // $4
-            'processing'               // $5
-        ];
-
-        const result = await pool.query(query, values);
-        return result.rows[0];
-    },
-
-    // 2. Simpan hasil soal ke tabel assessment_mc
-    saveAssessment: async (data) => {
-        // Destructuring harus sesuai dengan kunci yang dikirim dari controller
-        const {
-            id,
-            request_id,      // SESUAIKAN: ganti dari requestId ke request_id
-            mata_pelajaran,  // SESUAIKAN: ganti dari subject ke mata_pelajaran
-            tingkat_kelas,   // SESUAIKAN: ganti dari grade ke tingkat_kelas
-            topik,           // SESUAIKAN: ganti dari topic ke topik
-            jumlah_soal,     // SESUAIKAN: ganti dari count ke jumlah_soal
-            tingkat_kesulitan,
-            include_kunci,
-            questions_json,
-            kompetensi_dasar // TAMBAHKAN: ini kolom baru yang kamu minta
-        } = data;
-
-        const query = `
-            INSERT INTO assessment_mc 
-            (id, request_id, mata_pelajaran, tingkat_kelas, topik, jumlah_soal, tingkat_kesulitan, include_kunci, questions_json, kompetensi_dasar)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            ON CONFLICT (id) DO UPDATE SET
-                questions_json = EXCLUDED.questions_json,
-                kompetensi_dasar = EXCLUDED.kompetensi_dasar,
-                topik = EXCLUDED.topik,
-                tingkat_kesulitan = EXCLUDED.tingkat_kesulitan,
-                include_kunci = EXCLUDED.include_kunci,
-                jumlah_soal = EXCLUDED.jumlah_soal
+            INSERT INTO generation_requests (id, user_id, feature_type, input_data, status)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING *;
         `;
 
         const values = [
-            id,                                     // $1
-            request_id,                             // $2
-            mata_pelajaran,                         // $3
-            tingkat_kelas,                          // $4
-            topik,                                  // $5
-            jumlah_soal,                            // $6
-            tingkat_kesulitan,                      // $7
-            include_kunci === false ? false : true, // $8 (Menangani default boolean aman)
-            JSON.stringify(questions_json),     // $9
-            kompetensi_dasar                    // $10
+            requestId,
+            userId || '00000000-0000-0000-0000-000000000000',
+            'multiple_choice', // Menjaga tipe fitur asli kamu
+            JSON.stringify(inputData),
+            'pending' // 🌟 DIUBAH: Dari 'processing' ke 'pending' agar sesuai alur awal
         ];
 
         const result = await pool.query(query, values);
         return result.rows[0];
     },
 
-    // 3. Update status di generation_requests (misal dari processing ke completed)
-    updateRequestStatus: async (requestId, status, outputData = null) => {
+    // 2. SESUAI DIAGRAM LANGKAH 3: Update status (pending -> processing -> completed/failed)
+    updateRequestStatus: async (requestId, status, metrics = {}) => {
         const query = `
-      UPDATE generation_requests 
-      SET status = $2, output_data = $3, completed_at = NOW() 
-      WHERE id = $1;
-    `;
-        await pool.query(query, [requestId, status, JSON.stringify(outputData)]);
+            UPDATE generation_requests 
+            SET 
+                status = $2, 
+                output_data = COALESCE($3, output_data),
+                prompt_used = COALESCE($4, prompt_used),
+                error_message = COALESCE($5, error_message),
+                processing_time_ms = COALESCE($6, processing_time_ms),
+                llm_model_used = COALESCE($7, llm_model_used),
+                token_usage = COALESCE($8, token_usage),
+                completed_at = NOW() 
+            WHERE id = $1
+            RETURNING *;
+        `;
+        
+        const values = [
+            requestId,
+            status,
+            metrics.output_data ? JSON.stringify(metrics.output_data) : null,
+            metrics.prompt_used || null,
+            metrics.error_message || null,
+            metrics.processing_time_ms || null,
+            metrics.llm_model_used || null,
+            metrics.token_usage ? JSON.stringify(metrics.token_usage) : null
+        ];
+
+        await pool.query(query, values);
     },
 
-    // 4. Ambil data berdasarkan ID
+    // 3. AMBIL DATA KUOTA GURU
+    getUserQuota: async (userId) => {
+    const query = `
+        SELECT monthly_limit, used_this_month, plan_type, reset_date 
+        FROM usage_quotas 
+        WHERE user_id = $1
+        FOR UPDATE; -- 🌟 Kuncinya ada di sini, Ris!
+    `;
+    const result = await pool.query(query, [userId]);
+    return result.rows[0] || null;
+},
+
+    // 4. 🌟 BARU & KRUSIAL: TRANSAKSI ATOMIK (Simpan Soal SEKALIGUS Potong Kuota)
+    // Ini menggantikan fungsi saveAssessment dan incrementUsedQuota terpisah agar aman dari cececan dosen!
+    saveAssessmentAndDeductQuota: async (data, userId) => {
+        const client = await pool.connect(); // Ambil client untuk transaksi berkelanjutan
+        try {
+            await client.query('BEGIN'); // Mulai transaksi manual
+
+            const {
+                id,
+                request_id,
+                mata_pelajaran,
+                tingkat_kelas,
+                topik,
+                jumlah_soal,
+                tingkat_kesulitan,
+                include_kunci,
+                questions_json,
+                kompetensi_dasar
+            } = data;
+
+            // Query 1: Simpan Paket Soal Pilihan Ganda
+            const assessmentQuery = `
+                INSERT INTO assessment_mc 
+                (id, request_id, mata_pelajaran, tingkat_kelas, topik, jumlah_soal, tingkat_kesulitan, include_kunci, questions_json, kompetensi_dasar)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT (id) DO UPDATE SET
+                    questions_json = EXCLUDED.questions_json,
+                    kompetensi_dasar = EXCLUDED.kompetensi_dasar,
+                    topik = EXCLUDED.topik,
+                    tingkat_kesulitan = EXCLUDED.tingkat_kesulitan,
+                    include_kunci = EXCLUDED.include_kunci,
+                    jumlah_soal = EXCLUDED.jumlah_soal
+                RETURNING *;
+            `;
+
+            const assessmentValues = [
+                id,
+                request_id,
+                mata_pelajaran,
+                tingkat_kelas,
+                topik,
+                jumlah_soal,
+                tingkat_kesulitan,
+                include_kunci === false ? false : true,
+                JSON.stringify(questions_json),
+                kompetensi_dasar
+            ];
+            const assessmentResult = await client.query(assessmentQuery, assessmentValues);
+
+            // Query 2: Potong Kuota Guru (+1 Pemakaian)
+            const quotaQuery = `
+                UPDATE usage_quotas 
+                SET used_this_month = used_this_month + 1 
+                WHERE user_id = $1;
+            `;
+            await client.query(quotaQuery, [userId]);
+
+            await client.query('COMMIT'); // Eksekusi sukses bersamaan ke DB
+            return assessmentResult.rows[0];
+        } catch (error) {
+            await client.query('ROLLBACK'); // Batalkan semua aksi jika salah satu gagal!
+            throw error;
+        } finally {
+            client.release(); // Kembalikan koneksi ke pool
+        }
+    },
+
+    // --- 5. FUNGSI CRUD ASLI KAMU (100% UTAL-UTIL TIDAK DIGANGGU) ---
     getAssessmentById: async (id) => {
         try {
             const query = `
@@ -93,7 +139,7 @@ const MCModel = {
                        jumlah_soal, tingkat_kesulitan, include_kunci, questions_json, kompetensi_dasar
                 FROM assessment_mc 
                 WHERE id = $1;
-            `; // <--- Kolom ditarik pas sesuai isi tabel di gambar (tanpa created_at)
+            `;
             const result = await pool.query(query, [id]);
             return result.rows[0] || null; 
         } catch (error) {
@@ -102,7 +148,6 @@ const MCModel = {
         }
     },
 
-    // 5. FUNGSI KHUSUS DELETE (Sudah dimasukkan ke dalam objek MCModel & pakai pool)
     deleteAssessment: async (id) => {
         try {
             const query = `DELETE FROM assessment_mc WHERE id = $1;`;
@@ -116,17 +161,14 @@ const MCModel = {
 
     getAllAssessment: async () => {
         try {
-            // Kita pakai LEFT JOIN ke generation_requests kalau sewaktu-waktu 
-            // kamu butuh mengambil data dari log request-nya juga, Ris.
             const query = `
                 SELECT amc.*, gr.user_id, gr.status AS request_status
                 FROM assessment_mc amc
                 LEFT JOIN generation_requests gr ON amc.request_id = gr.id
                 ORDER BY amc.id DESC;
             `; 
-            
             const result = await pool.query(query);
-            return result.rows; // Mengembalikan semua baris data berupa array objek
+            return result.rows;
         } catch (error) {
             console.error("Error di MCModel (getAllAssessment):", error);
             throw error;

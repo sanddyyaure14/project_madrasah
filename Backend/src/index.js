@@ -5,7 +5,6 @@ const pool = require('./config/db');
 // Assessment Routes 
 const mcRoutes = require('./routes/assessment/mcRoutes');
 const writingRoutes = require('./routes/assessment/writingRoutes');
-
 const rubicRoutes = require('./routes/assessment/rubicRoutes');
 const worksheetRoutes = require('./routes/assessment/worksheetRoutes');
 
@@ -15,9 +14,13 @@ const syllabusRoutes = require('./routes/content/syllabusRoutes');
 const unitPlanRoutes = require('./routes/content/unitPlanRoutes');
 const academicContentRoutes = require('./routes/content/academicContentRoutes');
 
+// Dashboard / Kepsek Routes
+const kepsekRoutes = require('./routes/dashboard/kepsekRoutes');
+
 // Error Handlers
 const contentErrorHandler = require('./middlewares/content/contentErrorHandler');
 
+// 2. INSIALISASI APP & PORT
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -25,6 +28,9 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 // --- ROUTES ---
+
+// Kepsek / Dashboard Route 
+app.use('/api', kepsekRoutes);
 
 //Assessment
 app.use('/api', mcRoutes); // Semua route MC akan diawali dengan /api/generate-mc
