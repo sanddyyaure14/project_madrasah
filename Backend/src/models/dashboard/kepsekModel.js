@@ -47,6 +47,71 @@ class KepsekModel {
             throw error;
         }
     }
+
+    // =========================================================================
+    // 🌟 TAMBAHAN BARU: QUERY ANTRIAN & APPROVE GURU (AUTH VERIFIKASI)
+    // =========================================================================
+
+    // A. Ambil semua daftar guru yang statusnya masih 'Pending' (is_active = false)
+    static async getPendingTeachers(instansiId) {
+        try {
+            const query = `
+                SELECT 
+                    u.id, u.nama_lengkap, u.email, u.role, u.is_active,
+                    p.nip, p.mata_pelajaran, p.jenjang, p.kurikulum, p.no_hp, u.created_at
+                FROM users u
+                INNER JOIN user_profiles p ON u.id = p.user_id
+                WHERE u.role = 'guru' AND u.is_active = false AND p.instansi_id = $1
+                ORDER BY u.created_at DESC;
+            `;
+            const { rows } = await db.query(query, [instansiId]);
+            return rows;
+        } catch (error) {
+            console.error("Error di KepsekModel.getPendingTeachers:", error);
+            throw error;
+        }
+    }
+
+    // B. Proses ACC / APPROVE (Mengubah is_active menjadi true)
+    static async approveTeacher(userId) {
+        try {
+            const query = `
+                UPDATE users 
+                SET is_active = true 
+                WHERE id = $1 AND role = 'guru'
+                RETURNING id, nama_lengkap, email, is_active;
+            `;
+            const { rows } = await db.query(query, [userId]);
+            return rows[0];
+        } catch (error) {
+            console.error("Error di KepsekModel.approveTeacher:", error);
+            throw error;
+        }
+    }
+
+    // C. Proses REJECT / TOLAK (Menghapus data pendaftaran secara aman via Transaksi SQL)
+    static async rejectTeacherTransaction(userId) {
+        const client = await db.connect();
+        try {
+            await client.query('BEGIN');
+            
+            // 1. Hapus profil dulu karena adanya relasi Foreign Key ke tabel users
+            await client.query("DELETE FROM user_profiles WHERE user_id = $1;", [userId]);
+            
+            // 2. Hapus user utamanya
+            const queryUser = "DELETE FROM users WHERE id = $1 AND role = 'guru' RETURNING id, nama_lengkap;";
+            const { rows } = await client.query(queryUser, [userId]);
+            
+            await client.query('COMMIT');
+            return rows[0];
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error("Error di KepsekModel.rejectTeacherTransaction:", error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
 }
 
 module.exports = KepsekModel;

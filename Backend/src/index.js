@@ -1,6 +1,9 @@
 require('dotenv').config();
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const pool = require('./config/db');
+
+const authRoutes = require('./routes/authRoutes');
 
 // Assessment Routes 
 const mcRoutes = require('./routes/assessment/mcRoutes');
@@ -26,8 +29,12 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
+app.use(cookieParser());
 
 // --- ROUTES ---
+
+// Auth / Registrasi & Login
+app.use('/api', authRoutes);
 
 // Kepsek / Dashboard Route 
 app.use('/api', kepsekRoutes);

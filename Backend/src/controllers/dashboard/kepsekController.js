@@ -2,7 +2,7 @@ const KepsekModel = require('../../models/dashboard/kepsekModel');
 
 const getDashboardSummary = async (req, res) => {
     try {
-        // 1. Ambil semua data summary (Total Guru, Rating, dan Total Global Generate) secara bersamaan (Paralel)
+        // 1. Ambal semua data summary (Total Guru, Rating, dan Total Global Generate) secara bersamaan (Paralel)
         const [totalGuru, ratingData, globalGenerate] = await Promise.all([
             KepsekModel.countTotalGuru(),
             KepsekModel.getAverageRatingSummary(),
@@ -38,4 +38,85 @@ const getDashboardSummary = async (req, res) => {
     }
 };
 
-module.exports = { getDashboardSummary };
+// =========================================================================
+// 🌟 TAMBAHAN BARU: FITUR ANTRIAN & APPROVE GURU (AUTH VERIFIKASI)
+// =========================================================================
+
+// 1. Mengambil antrean guru yang daftar di madrasah milik kepsek tersebut
+const getRegistrationQueue = async (req, res) => {
+    try {
+        // ID Instansi idealnya diambil dari token JWT Kepsek (misal: req.user.instansi_id)
+        // Untuk testing awal di Postman, kita tangkap dulu dari query string / body / default dummy
+        const instansiId = req.query.instansi_id || req.body.instansi_id || 'b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a';
+
+        const listGuru = await KepsekModel.getPendingTeachers(instansiId);
+        
+        return res.status(200).json({
+            success: true,
+            message: "Berhasil memuat daftar antrean pendaftaran guru.",
+            count: listGuru.length,
+            data: listGuru
+        });
+    } catch (error) {
+        console.error("Error pada getRegistrationQueue:", error);
+        return res.status(500).json({ 
+            success: false, 
+            message: "Gagal memuat antrean verifikasi guru.",
+            error: error.message 
+        });
+    }
+};
+
+// 2. Mengeksekusi aksi klik tombol ACC (Approve) atau Tolak (Reject)
+const reviewTeacherAccount = async (req, res) => {
+    try {
+        const { targetUserId, action } = req.body; // action diisi teks: 'approve' atau 'reject'
+
+        if (!targetUserId || !action) {
+            return res.status(400).json({ success: false, message: "ID Guru (targetUserId) dan Aksi (approve/reject) wajib diisi." });
+        }
+
+        // Skenario Aksi = APPROVE (ACC)
+        if (action === 'approve') {
+            const approvedGuru = await KepsekModel.approveTeacher(targetUserId);
+            if (!approvedGuru) {
+                return res.status(404).json({ success: false, message: "Data guru tidak ditemukan." });
+            }
+            return res.status(200).json({
+                success: true,
+                message: `Sukses! Akun guru atas nama ${approvedGuru.nama_lengkap} telah di-ACC. Sekarang dia sudah bisa login.`,
+                data: approvedGuru
+            });
+        }
+
+        // Skenario Aksi = REJECT (TOLAK)
+        if (action === 'reject') {
+            const rejectedGuru = await KepsekModel.rejectTeacherTransaction(targetUserId);
+            if (!rejectedGuru) {
+                return res.status(404).json({ success: false, message: "Data guru tidak ditemukan." });
+            }
+            return res.status(200).json({
+                success: true,
+                message: `Pendaftaran ${rejectedGuru.nama_lengkap} berhasil ditolak dan dihapus dari sistem.`,
+                data: rejectedGuru
+            });
+        }
+
+        return res.status(400).json({ success: false, message: "Aksi tidak valid! Gunakan kata 'approve' atau 'reject'." });
+
+    } catch (error) {
+        console.error("Error pada reviewTeacherAccount:", error);
+        return res.status(500).json({ 
+            success: false, 
+            message: "Terjadi kesalahan server saat memproses verifikasi.", 
+            error: error.message 
+        });
+    }
+};
+
+// Pastikan semua fungsi diekspor di sini agar bisa dipanggil oleh Routes
+module.exports = { 
+    getDashboardSummary,
+    getRegistrationQueue, // 🌟 Daftarkan fungsi baru
+    reviewTeacherAccount  // 🌟 Daftarkan fungsi baru
+};
