@@ -52,6 +52,13 @@ const SyllabusModel = {
         const query = `SELECT * FROM syllabi ORDER BY id DESC;`;
         const result = await pool.query(query);
         return result.rows;
+    },
+
+    // 5. Ambil data silabus berdasarkan ID (GET BY ID)
+    getSyllabusById: async (id) => {
+        const query = `SELECT * FROM syllabi WHERE id = $1;`;
+        const result = await pool.query(query, [id]);
+        return result.rows[0];
     }
 };
 

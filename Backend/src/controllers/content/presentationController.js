@@ -1,9 +1,12 @@
 const { v4: uuidv4 } = require('uuid');
 const PresentationModel = require('../../models/content/presentationModel');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
+const path = require('path');
+const fs = require('fs');
+const { generatePresentationPPT } = require('../../utils/pptGenerator');
 
-// Inisialisasi Gemini menggunakan API Key
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Inisialisasi Groq menggunakan API Key
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const generatePresentation = async (req, res) => {
     const requestId = uuidv4();
@@ -21,13 +24,7 @@ const generatePresentation = async (req, res) => {
             topik, jumlah_slide, tujuan, audiens, include_catatan
         });
 
-        // 2. Panggil Gemini (Menggunakan model gemini-2.5-flash)-
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-            generationConfig: {
-                responseMimeType: "application/json"
-            }
-        });
+        // 2. Panggil Groq AI Llama 3.3
 
         const prompt = `Anda adalah asisten pembuat materi presentasi yang ahli. Buatlah presentasi sebanyak ${jumlah_slide} slide tentang topik: "${topik}".
 Tujuan presentasi: ${tujuan || 'Edukasi / Penjelasan umum'}.
@@ -45,9 +42,21 @@ Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut:
     ]
 }`;
 
-        const result = await model.generateContent(prompt);
-        const aiResponseText = result.response.text();
-        const aiResponse = JSON.parse(aiResponseText);
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                {
+                    role: "system",
+                    content: "Anda adalah asisten pembuat materi presentasi yang ahli. Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            model: "llama-3.3-70b-versatile",
+            response_format: { "type": "json_object" }
+        });
+        const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
 
         // 3. Simpan ke Database
         const presentationData = {
@@ -68,7 +77,7 @@ Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut:
 
         res.status(201).json({
             success: true,
-            message: "Presentasi berhasil dibuat dengan Gemini AI.",
+            message: "Presentasi berhasil dibuat dengan Groq Llama 3.3.",
             data: savedPresentation
         });
 
@@ -107,4 +116,49 @@ const getPresentations = async (req, res) => {
     }
 };
 
-module.exports = { generatePresentation, getPresentations };
+const downloadPresentationPPT = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Ambil data dari database
+        const presentationData = await PresentationModel.getPresentationById(id);
+        
+        if (!presentationData) {
+            return res.status(404).json({
+                success: false,
+                message: "Presentasi tidak ditemukan"
+            });
+        }
+
+        // Buat folder temp jika belum ada
+        const tempDir = path.join(__dirname, '../../../temp');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        // Generate PPT
+        const fileName = `presentation_${id}.pptx`;
+        const filePath = path.join(tempDir, fileName);
+        
+        await generatePresentationPPT(presentationData, filePath);
+
+        // Download file
+        res.download(filePath, fileName, (err) => {
+            if (err) {
+                console.error("Error downloading file:", err);
+            }
+            // Hapus file setelah download
+            fs.unlinkSync(filePath);
+        });
+
+    } catch (error) {
+        console.error("Error generating PPT:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal generate PPT",
+            error: error.message
+        });
+    }
+};
+
+module.exports = { generatePresentation, getPresentations, downloadPresentationPPT };

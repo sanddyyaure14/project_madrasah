@@ -73,6 +73,13 @@ const PresentationModel = {
         const query = `SELECT * FROM presentations ORDER BY id DESC;`;
         const result = await pool.query(query);
         return result.rows;
+    },
+
+    // 5. Ambil data presentasi berdasarkan ID (GET BY ID)
+    getPresentationById: async (id) => {
+        const query = `SELECT * FROM presentations WHERE id = $1;`;
+        const result = await pool.query(query, [id]);
+        return result.rows[0];
     }
 };
 

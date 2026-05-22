@@ -3,3 +3,9 @@
 
 # Ignore dependencies
 node_modules/
+
+# Ignore temporary files
+temp/
+*.pdf
+*.pptx
+*.docx

@@ -8,20 +8,26 @@ const generateMC = async (req, res) => {
     const requestId = uuidv4();
     const mcId = uuidv4();
 
+    // ⏱️ MULAI HITUNG WAKTU PROSES (Stopwatch Start)
+    const startTime = performance.now();
+
     try {
-        // 1. Ambil data dari req.body (Termasuk kompetensi_dasar hasil input manual guru)
+        // 1. Ambil data dari req.body
         const {
             mata_pelajaran,
             tingkat_kelas: input_kelas,
             topik,
             jumlah_soal,
-            tingkat_kesulitan,
+            tingkat_kesulitan: input_kesulitan,
             include_kunci, 
             kompetensi_dasar, 
             userId
         } = req.body;
 
-        // Validasi dan Normalisasi Tingkat Kelas (Menangani Romawi atau Angka)
+        // 🌟 Normalisasi total tingkat kesulitan menjadi huruf kecil murni (ENUM aman)
+        const tingkat_kesulitan = input_kesulitan ? input_kesulitan.trim().toLowerCase() : "sedang";
+
+        // Validasi dan Normalisasi Tingkat Kelas (Bawaan Kamu)
         let tingkat_kelas = "";
         let angkaKelas = parseInt(input_kelas);
         
@@ -36,44 +42,73 @@ const generateMC = async (req, res) => {
         }
 
         if (angkaKelas >= 7 && angkaKelas <= 9) {
-            tingkat_kelas = `${angkaKelas} SMP`;
+             tingkat_kelas = `${angkaKelas} SMP`;
         } else if (angkaKelas >= 10 && angkaKelas <= 12) {
-            tingkat_kelas = `${angkaKelas} SMA`;
+             tingkat_kelas = `${angkaKelas} SMA`;
         } else {
             return res.status(400).json({
                 success: false,
-                message: `Tingkat kelas '${input_kelas}' tidak valid. Backend menerima kelas 7-12 atau VII-XII.`,
+                message: `Tingkat kelas '${input_kelas}' tidak valid.`,
                 data: null,
                 meta: {}
             });
         }
 
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const finalUserId = userId || '8f7c6b5a-4d3c-2b1a-0f9e-8d7c6b5a4d3c';
+        const jumlahOpsi = tingkat_kelas.includes('SMA') ? 5 : 4;
 
-        // Log request awal ke database
-        await MCModel.createRequest(requestId, finalUserId, {
+        // 🌟 PENENTUAN BOOELAN SAKELAR SECARA SANGAT KETAT
+        const isIncludeKunci = include_kunci === false ? false : true;
+
+        const inputDataForLog = {
             mata_pelajaran,
             tingkat_kelas,
             topik,
             jumlah_soal,
             tingkat_kesulitan,
-            include_kunci: include_kunci === false ? false : true,
+            include_kunci: isIncludeKunci,
             standards: kompetensi_dasar 
-        });
+        };
 
-        // Penentuan jumlah opsi pilihan otomatis (SMP = 4 opsi, SMA = 5 opsi)
-        const jumlahOpsi = tingkat_kelas.includes('SMA') ? 5 : 4;
+        // LANGKAH A: Tulis Log Request Awal (Pending)
+        await MCModel.createRequest(requestId, finalUserId, inputDataForLog);
 
-        // 2. Kirim prompt ke Groq (Hanya menyuruh AI fokus bikin soal, tidak usah ngarang KD)
-        const chatCompletion = await groq.chat.completions.create({
-            messages: [
-                {
-                    role: "system",
-                    content: "Anda adalah asisten pembuat soal ujian madrasah yang ahli. Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun di luar objek JSON."
-                },
-                {
-                    role: "user",
-                    content: `Buatlah ${jumlah_soal} soal pilihan ganda kontekstual berbasis materi madrasah tentang ${topik}.
+        // LANGKAH B: Panggil Cek Kuota (FOR UPDATE)
+        const quota = await MCModel.getUserQuota(finalUserId);
+        if (!quota) {
+            return res.status(403).json({
+                success: false,
+                message: "Akses ditolak. Profil kuota tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        if (quota.used_this_month >= quota.monthly_limit) {
+            const endTime = performance.now();
+            await MCModel.updateRequestStatus(requestId, 'failed', { 
+                error_message: `Generate gagal! Kuota bulanan habis.`,
+                processing_time_ms: Math.round(endTime - startTime)
+            });
+            return res.status(403).json({
+                success: false,
+                message: "Generate gagal! Kuota bulanan Anda telah habis.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        // LANGKAH C: Naikkan status ke processing
+        await MCModel.updateRequestStatus(requestId, 'processing');
+
+        // 2. Definisi Prompt Teks untuk LLM (Kondisional)
+        const systemPrompt = "Anda adalah asisten pembuat soal ujian madrasah yang ahli. Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun di luar objek JSON.";
+        
+        const aturanKunciPrompt = isIncludeKunci 
+            ? 'Tentukan 1 jawaban benar di dalam array "pilihan_raw" lalu beri tanda " (KUNCI)" tepat di belakang teksnya. Contoh: "Bersih atau suci (KUNCI)".'
+            : 'Jangan memberikan tanda " (KUNCI)" pada pilihan jawaban mana pun. Buat seluruh opsi jawaban murni teks jawaban biasa.';
+
+        const userPrompt = `Buatlah ${jumlah_soal} soal pilihan ganda kontekstual berbasis materi madrasah tentang ${topik}.
                     
                     ACUAN KOMPETENSI DASAR (INPUT GURU):
                     ${kompetensi_dasar || 'Gunakan materi standar nasional madrasah'}
@@ -89,50 +124,77 @@ const generateMC = async (req, res) => {
                             {
                                 "no": 1,
                                 "soal": "Teks pertanyaan soal...",
-                                "pilihan_raw": ["Opsi A", "Opsi B", "Opsi C (KUNCI)", "Opsi D"],
-                                "pembahasan": "Penjelasan ilmiah/fakta sejarah/cara pengerjaan yang logis mengapa opsi tersebut benar."
+                                "pilihan_raw": ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
+                                "pembahasan": "${isIncludeKunci ? 'Penjelasan mengapa benar.' : ''}"
                             }
                         ]
                     }
 
-                    ATURAN SANGAT KETAT UNTUK AKURASI KONTEN:
+                    ATURAN SANGAT KETAT KONTEN:
                     1. Jika mata pelajaran eksak (Matematika/Fisika): Pastikan hitungan menghasilkan jawaban BILANGAN BULAT.
-                    2. Tentukan 1 jawaban benar di dalam array "pilihan_raw" lalu beri tanda " (KUNCI)" tepat di belakang teksnya. Contoh: "Bersih atau suci (KUNCI)".`
-                }
+                    2. ${aturanKunciPrompt}`;
+
+        // Kirim ke Groq
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
             ],
             model: "llama-3.3-70b-versatile",
             response_format: { "type": "json_object" }
         });
 
+        const promptUsedCombined = `System: ${systemPrompt}\nUser: ${userPrompt}`;
+        const modelUsed = chatCompletion.model || "llama-3.3-70b-versatile";
+        const tokenUsage = {
+            prompt_tokens: chatCompletion.usage?.prompt_tokens || 0,
+            completion_tokens: chatCompletion.usage?.completion_tokens || 0,
+            total_tokens: chatCompletion.usage?.total_tokens || 0
+        };
+
         const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
         const indexToLetter = ["A", "B", "C", "D", "E"];
 
-        // 3. Transformasi Array ke Object {A, B, C, D} & Filter Sakelar "Include Kunci"
-        const formattedQuestions = aiResponse.questions.map((q) => {
-            let hurufKunci = "A";
-            let objekPilihan = {};
+        if (!aiResponse.questions || !Array.isArray(aiResponse.questions)) {
+            throw new Error("Format respons JSON dari AI tidak valid.");
+        }
 
-            q.pilihan_raw.forEach((pil, index) => {
-                const huruf = indexToLetter[index];
-                
-                if (typeof pil === 'string' && pil.includes("(KUNCI)")) {
-                    hurufKunci = huruf;
-                    objekPilihan[huruf] = pil.replace(" (KUNCI)", "").trim();
-                } else {
-                    objekPilihan[huruf] = String(pil).trim();
+        // 3. Transformasi Array ke Object & Filter Sakelar "Include Kunci"
+        const formattedQuestions = aiResponse.questions.map((q) => {
+            let hurufKunci = isIncludeKunci ? "A" : "";
+            let objekPilihan = {};
+            const mentahPilihan = q.pilihan_raw || [];
+
+            mentahPilihan.forEach((pil, index) => {
+                if (index < jumlahOpsi) {
+                    const huruf = indexToLetter[index];
+                    
+                    if (typeof pil === 'string' && pil.includes("(KUNCI)") && isIncludeKunci) {
+                        hurufKunci = huruf;
+                        objekPilihan[huruf] = pil.replace(" (KUNCI)", "").trim();
+                    } else {
+                        objekPilihan[huruf] = String(pil).replace(" (KUNCI)", "").trim();
+                    }
                 }
             });
 
-            return {
+            // 🌟 PERBAIKAN UTAMA: Bungkus objek secara dinamis
+            const itemSoal = {
                 no: q.no,
                 soal: q.soal,
-                pilihan: objekPilihan,
-                kunci: include_kunci === false ? "" : hurufKunci,
-                pembahasan: include_kunci === false ? "" : (q.pembahasan || "Gunakan prinsip materi untuk menyelesaikan soal ini.")
+                pilihan: objekPilihan
             };
+
+            // JIKA TRUE, BARU KITA ATUR/MASUKKAN KEY KUNCI DAN PEMBAHASAN
+            if (isIncludeKunci) {
+                itemSoal.kunci = hurufKunci;
+                itemSoal.pembahasan = q.pembahasan || "Gunakan prinsip materi untuk menyelesaikan soal ini.";
+            }
+
+            return itemSoal;
         });
 
-        // Susun objek data (Gunakan kompetensi_dasar asli yang diketik manual oleh guru)
+        // Susun objek data penampung database
         const assessmentData = {
             id: mcId,
             request_id: requestId,        
@@ -140,31 +202,57 @@ const generateMC = async (req, res) => {
             tingkat_kelas,        
             topik,                
             jumlah_soal: formattedQuestions.length,
-            tingkat_kesulitan,
-            include_kunci: include_kunci === false ? false : true,
+            tingkat_kesulitan, 
+            include_kunci: isIncludeKunci, // Mengirimkan boolean asli (false/true)
             questions_json: formattedQuestions, 
             kompetensi_dasar: kompetensi_dasar || "" 
         };
 
-        const savedAssessment = await MCModel.saveAssessment(assessmentData);
-        await MCModel.updateRequestStatus(requestId, 'completed', savedAssessment);
+        // Simpan ke DB sekaligus memotong kuota
+        const savedAssessment = await MCModel.saveAssessmentAndDeductQuota(assessmentData, finalUserId);
 
-        // 4. Return Response sesuai blueprint dosen (Sudah Ditambahkan Meta)
+        const endTime = performance.now();
+        const processingTimeMs = Math.round(endTime - startTime);
+        const updatedQuota = await MCModel.getUserQuota(finalUserId);
+
+        // Update status log akhir (completed)
+        await MCModel.updateRequestStatus(requestId, 'completed', {
+            output_data: savedAssessment,
+            prompt_used: promptUsedCombined,
+            llm_model_used: modelUsed,
+            token_usage: tokenUsage,
+            processing_time_ms: processingTimeMs
+        });
+
+        // 4. Return Response bersih ke Postman
         res.status(201).json({
             success: true,
             message: "Haris Berhasil buat dengan Groq Llama 3.3.",
             request_id: requestId,
             status: "completed",
             data: {
-                questions: formattedQuestions
+                questions: formattedQuestions // 🌟 Dijamin bersih tanpa key "kunci"/"pembahasan" jika false!
             },
-            meta: {}
+            meta: {
+                quota_info: {
+                    plan_type: updatedQuota.plan_type,
+                    monthly_limit: updatedQuota.monthly_limit,
+                    used_this_month: updatedQuota.used_this_month,
+                    remaining_quota: updatedQuota.monthly_limit - updatedQuota.used_this_month
+                }
+            }
         });
 
     } catch (error) {
         console.error("Error Detail:", error);
+        const endTime = performance.now();
+        const processingTimeMs = Math.round(endTime - startTime);
+
         try {
-            await MCModel.updateRequestStatus(requestId, 'failed', { error: error.message });
+            await MCModel.updateRequestStatus(requestId, 'failed', { 
+                error_message: error.message,
+                processing_time_ms: processingTimeMs
+            });
         } catch (dbErr) {
             console.error("Gagal update status fail ke DB");
         }
@@ -178,7 +266,10 @@ const generateMC = async (req, res) => {
     }
 };
 
-// FUNGSI KHUSUS PUT UNTUK AKSI EDIT & SIMPAN
+// =========================================================================
+// FUNGSI DI BAWAH INI SAMA SEKALI TIDAK DIUBAH (100% Sesuai Request Bawaan)
+// =========================================================================
+
 const updateMC = async (req, res) => {
     try {
         const { id } = req.params; 
@@ -193,7 +284,6 @@ const updateMC = async (req, res) => {
             });
         }
 
-        // 1. Tarik data asli yang sudah ada di database berdasarkan ID
         const existingAssessment = await MCModel.getAssessmentById(id);
 
         if (!existingAssessment) {
@@ -205,7 +295,6 @@ const updateMC = async (req, res) => {
             });
         }
 
-        // 2. Gabungkan data lama (sebagai backup) dengan data baru hasil editan dari body
         const updatedData = {
             id,
             request_id: existingAssessment.request_id,
@@ -219,10 +308,8 @@ const updateMC = async (req, res) => {
             kompetensi_dasar: kompetensi_dasar !== undefined ? kompetensi_dasar : existingAssessment.kompetensi_dasar
         };
 
-        // 3. Panggil model untuk melakukan update (Upsert) ke database
         const result = await MCModel.saveAssessment(updatedData); 
 
-        // Return Response dengan Meta
         res.status(200).json({
             success: true,
             message: "Aksi EDIT Sukses! Perubahan soal berhasil disimpan via PUT.",
@@ -242,12 +329,9 @@ const updateMC = async (req, res) => {
     }
 };
 
-// FUNGSI KHUSUS GET UNTUK MENAMPILKAN DETAIL SOAL BERDASARKAN ID
 const getMCById = async (req, res) => {
     try {
         const { id } = req.params; 
-
-        // Panggil model untuk mengambil data dari database berdasarkan ID
         const assessment = await MCModel.getAssessmentById(id); 
 
         if (!assessment) {
@@ -259,7 +343,6 @@ const getMCById = async (req, res) => {
             });
         }
 
-        // Return Response dengan Meta
         res.status(200).json({
             success: true,
             message: "Haris Berhasil mengambil data assessment untuk preview/edit.",
@@ -279,7 +362,6 @@ const getMCById = async (req, res) => {
     }
 };
 
-// FUNGSI KHUSUS DELETE UNTUK MENGHAPUS SOAL BERDASARKAN ID
 const deleteMC = async (req, res) => {
     try {
         const { id } = req.params; 
@@ -293,7 +375,6 @@ const deleteMC = async (req, res) => {
             });
         }
 
-        // Jalankan pengecekan terlebih dahulu apakah datanya ada di database
         const existingAssessment = await MCModel.getAssessmentById(id);
         if (!existingAssessment) {
             return res.status(404).json({
@@ -304,10 +385,8 @@ const deleteMC = async (req, res) => {
             });
         }
 
-        // Panggil model untuk menghapus data. 
         await MCModel.deleteAssessment(id);
 
-        // Return Response dengan Meta sesuai Standar Kontrak
         res.status(200).json({
             success: true,
             message: `Haris Berhasil menghapus data assessment dengan ID ${id}.`,
@@ -330,8 +409,6 @@ const deleteMC = async (req, res) => {
 const exportToPDF = async (req, res) => {
     try {
         const { id } = req.params;
-
-        // 1. Ambil data soal dari database seperti biasa
         const assessment = await MCModel.getAssessmentById(id);
 
         if (!assessment) {
@@ -343,50 +420,39 @@ const exportToPDF = async (req, res) => {
             });
         }
 
-        // 2. Inisialisasi Dokumen PDF Baru menggunakan PDFKit
         const doc = new PDFDocument({ margin: 50 });
 
-        // Atur Header HTTP agar browser tahu bahwa ini adalah file PDF yang siap di-download
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=Soal_${assessment.topik.replace(/\s+/g, '_')}.pdf`);
 
-        // Alirkan (pipe) hasil pembuatan PDF langsung ke response Express
         doc.pipe(res);
 
-        // 3. Mulai Menggambar/Menulis isi PDF
-        // === JUDUL UTAMA ===
         doc.fontSize(16).text(`KUMPULAN SOAL UJIAN MADRASAH`, { align: 'center' });
         doc.fontSize(12).text(`Mata Pelajaran: ${assessment.mata_pelajaran} | Kelas: ${assessment.tingkat_kelas}`, { align: 'center' });
         doc.text(`Topik: ${assessment.topik} | Kesulitan: ${assessment.tingkat_kesulitan}`, { align: 'center' });
-        doc.moveDown(2); // Kasih jarak baris kosong
+        doc.moveDown(2);
 
-        // === LOOPING CETAK SOAL ===
-        // Karena questions_json di database kamu berupa array of object
         const daftarSoal = assessment.questions_json || [];
 
         daftarSoal.forEach((q) => {
-            // Tulis Teks Soal
             doc.fontSize(11).text(`${q.no}. ${q.soal}`, { align: 'justify' });
             doc.moveDown(0.5);
 
-            // Tulis Pilihan Ganda (A, B, C, D, E)
             if (q.pilihan) {
                 Object.entries(q.pilihan).forEach(([huruf, teksOpsi]) => {
                     doc.text(`   ${huruf}. ${teksOpsi}`);
                 });
             }
 
-            // Jika include_kunci bernilai true, tampilkan kunci dan pembahasan di bawah soal
             if (assessment.include_kunci && q.kunci) {
                 doc.moveDown(0.5);
                 doc.fillColor('green').text(`   * Kunci Jawaban: ${q.kunci}`, { bold: true });
                 doc.fillColor('black').text(`   * Pembahasan: ${q.pembahasan || '-'}`);
             }
 
-            doc.moveDown(1.5); // Jarak antar nomor soal
+            doc.moveDown(1.5);
         });
 
-        // Akhiri dokumen (PDF Selesai dibuat dan otomatis dikirim)
         doc.end();
 
     } catch (error) {
@@ -401,13 +467,10 @@ const exportToPDF = async (req, res) => {
     }
 };
 
-// FUNGSI KHUSUS GET ALL UNTUK MENAMPILKAN SEMUA DATA ASSESSMENT SOAL MULTIPLE CHOICE (MC)
 const getAllMC = async (req, res) => {
     try {
-        // Panggil fungsi model untuk mengambil semua data dari database
-        const assessments = await MCModel.getAllAssessment(); // Pastikan fungsi ini ada di mcModel.js kamu nanti
+        const assessments = await MCModel.getAllAssessment(); 
 
-        // Return Response dengan Meta sesuai Blueprint Dosen
         res.status(200).json({
             success: true,
             message: "Haris Berhasil mengambil semua data riwayat assessment soal pilihan ganda.",
@@ -426,4 +489,5 @@ const getAllMC = async (req, res) => {
         });
     }
 };
-module.exports = { generateMC, updateMC, getMCById, deleteMC,exportToPDF,getAllMC };
+
+module.exports = { generateMC, updateMC, getMCById, deleteMC, exportToPDF, getAllMC };

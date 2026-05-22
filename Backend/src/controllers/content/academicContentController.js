@@ -1,9 +1,60 @@
 const { v4: uuidv4 } = require('uuid');
 const AcademicContentModel = require('../../models/content/academicContentModel');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
+const path = require('path');
+const fs = require('fs');
+const { generateAcademicContentPDF } = require('../../utils/pdfGenerator');
 
-// Inisialisasi Gemini menggunakan API Key
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Inisialisasi Groq menggunakan API Key
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+// Helper to map jenis_konten to valid academic_content_type enum in DB
+const mapJenisKonten = (jenis) => {
+    if (!jenis) return 'penjelasan';
+    const normalized = jenis.toLowerCase().trim();
+    if (normalized === 'materi pembelajaran' || normalized === 'materi_pembelajaran' || normalized === 'penjelasan' || normalized === 'materi') {
+        return 'penjelasan';
+    }
+    if (normalized === 'ringkasan' || normalized === 'ringkasan materi') {
+        return 'ringkasan';
+    }
+    if (normalized === 'contoh soal' || normalized === 'contoh_soal' || normalized === 'soal') {
+        return 'contoh_soal';
+    }
+    if (normalized === 'kamus' || normalized === 'kamus istilah') {
+        return 'kamus';
+    }
+    if (normalized === 'artikel') {
+        return 'artikel';
+    }
+    
+    const validTypes = ['ringkasan', 'penjelasan', 'contoh_soal', 'kamus', 'artikel'];
+    if (validTypes.includes(normalized)) {
+        return normalized;
+    }
+    return 'penjelasan';
+};
+
+// Helper to map panjang to valid content_length enum in DB
+const mapPanjangKonten = (panjang) => {
+    if (!panjang) return 'sedang';
+    const normalized = panjang.toLowerCase().trim();
+    if (normalized === 'singkat' || normalized === 'short') {
+        return 'singkat';
+    }
+    if (normalized === 'sedang' || normalized === 'medium') {
+        return 'sedang';
+    }
+    if (normalized === 'panjang' || normalized === 'long') {
+        return 'panjang';
+    }
+    
+    const validLengths = ['singkat', 'sedang', 'panjang'];
+    if (validLengths.includes(normalized)) {
+        return normalized;
+    }
+    return 'sedang';
+};
 
 const generateAcademicContent = async (req, res) => {
     const requestId = uuidv4();
@@ -15,19 +66,15 @@ const generateAcademicContent = async (req, res) => {
         } = req.body;
 
         const finalUserId = userId || '00000000-0000-0000-0000-000000000000';
+        const mappedJenis = mapJenisKonten(jenis_konten);
+        const mappedPanjang = mapPanjangKonten(panjang);
 
         // 1. Log Request ke Database
         await AcademicContentModel.createRequest(requestId, finalUserId, {
-            jenis_konten, topik, mapel, kelas, panjang, bahasa, gaya_bahasa
+            jenis_konten: mappedJenis, topik, mapel, kelas, panjang: mappedPanjang, bahasa, gaya_bahasa
         });
 
-        // 2. Panggil Gemini (Menggunakan model gemini-2.5-flash)
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-            generationConfig: {
-                responseMimeType: "application/json"
-            }
-        });
+        // 2. Panggil Groq AI Llama 3.3
 
         const prompt = `Anda adalah asisten pembuat materi akademik yang ahli. Buatlah konten dengan spesifikasi berikut:
 Jenis Konten: ${jenis_konten}
@@ -47,19 +94,31 @@ Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut:
     "referensi": ["referensi 1", "referensi 2"]
 }`;
 
-        const result = await model.generateContent(prompt);
-        const aiResponseText = result.response.text();
-        const aiResponse = JSON.parse(aiResponseText);
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                {
+                    role: "system",
+                    content: "Anda adalah asisten pembuat materi akademik yang ahli. Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            model: "llama-3.3-70b-versatile",
+            response_format: { "type": "json_object" }
+        });
+        const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
 
         // 3. Simpan ke Database
         const contentData = {
             id: contentId,
             request_id: requestId,
-            jenis_konten: jenis_konten,
+            jenis_konten: mappedJenis,
             topik: topik,
             mata_pelajaran: mapel,
             tingkat_kelas: kelas,
-            panjang_konten: panjang,
+            panjang_konten: mappedPanjang,
             content_json: aiResponse
         };
 
@@ -70,7 +129,7 @@ Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut:
 
         res.status(201).json({
             success: true,
-            message: "Konten akademik berhasil dibuat dengan Gemini AI.",
+            message: "Konten akademik berhasil dibuat dengan Groq Llama 3.3.",
             data: savedContent
         });
 
@@ -109,4 +168,49 @@ const getAcademicContents = async (req, res) => {
     }
 };
 
-module.exports = { generateAcademicContent, getAcademicContents };
+const downloadAcademicContentPDF = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Ambil data dari database
+        const contentData = await AcademicContentModel.getAcademicContentById(id);
+        
+        if (!contentData) {
+            return res.status(404).json({
+                success: false,
+                message: "Konten akademik tidak ditemukan"
+            });
+        }
+
+        // Buat folder temp jika belum ada
+        const tempDir = path.join(__dirname, '../../../temp');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        // Generate PDF
+        const fileName = `academic_content_${id}.pdf`;
+        const filePath = path.join(tempDir, fileName);
+        
+        await generateAcademicContentPDF(contentData, filePath);
+
+        // Download file
+        res.download(filePath, fileName, (err) => {
+            if (err) {
+                console.error("Error downloading file:", err);
+            }
+            // Hapus file setelah download
+            fs.unlinkSync(filePath);
+        });
+
+    } catch (error) {
+        console.error("Error generating PDF:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal generate PDF",
+            error: error.message
+        });
+    }
+};
+
+module.exports = { generateAcademicContent, getAcademicContents, downloadAcademicContentPDF };
