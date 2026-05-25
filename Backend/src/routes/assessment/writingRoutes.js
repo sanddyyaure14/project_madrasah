@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const { verifyToken, authorizeRoles } = require('../../middlewares/authMiddleware');
 
 // =========================================================================
 // 🌟 ARSITEKTUR ALUR 2: Konfigurasi Multer & Validasi Input Ketat
@@ -37,6 +38,8 @@ const {
 
 // 1. GENERATE CONTEN AI (Sesuai Alur 2: Langkah 1 s.d 4)
 router.post('/generate/writing-feedback', 
+    verifyToken,
+    authorizeRoles('guru'),
     // Middleware A: Penanganan Multipart Form-Data (Upload)
     (req, res, next) => {
         upload.single('file_pdf')(req, res, function (err) {
@@ -75,18 +78,18 @@ router.post('/generate/writing-feedback',
 // =========================================================================
 
 // 2. READ ALL (Diletakkan paling atas agar tidak bentrok dengan parameter :id)
-router.get('/feedback', getAllFeedback);
+router.get('/feedback', verifyToken, authorizeRoles('guru', 'kepsek', 'admin'), getAllFeedback);
 
 // Rute Share Text WA 
-router.get('/feedback/share/:id', getFeedbackShareText);
+router.get('/feedback/share/:id', verifyToken, authorizeRoles('guru'), getFeedbackShareText);
 
 // 3. READ BY ID (Alur 2 - Langkah 4: Tampilkan Output / Ambil data dari library)
-router.get('/feedback/:id', getFeedbackById);
+router.get('/feedback/:id', verifyToken, authorizeRoles('guru', 'kepsek', 'admin'), getFeedbackById);
 
 // 4. UPDATE (Alur 2 - Langkah 4: Edit jika perlu & Simpan kembali ke library)
-router.put('/feedback/edit/:id', updateFeedback);
+router.put('/feedback/edit/:id', verifyToken, authorizeRoles('guru'), updateFeedback);
 
 // 5. DELETE
-router.delete('/feedback/delete/:id', deleteFeedback);
+router.delete('/feedback/delete/:id', verifyToken, authorizeRoles('guru'), deleteFeedback);
 
 module.exports = router;

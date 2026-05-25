@@ -20,14 +20,15 @@ const generateMC = async (req, res) => {
             jumlah_soal,
             tingkat_kesulitan: input_kesulitan,
             include_kunci, 
-            kompetensi_dasar, 
-            userId
+            kompetensi_dasar
         } = req.body;
 
+        // userId diambil dari JWT token (req.user disuntikkan oleh authMiddleware)
+        const finalUserId = req.user.id;
         // 🌟 Normalisasi total tingkat kesulitan menjadi huruf kecil murni (ENUM aman)
         const tingkat_kesulitan = input_kesulitan ? input_kesulitan.trim().toLowerCase() : "sedang";
 
-        // Validasi dan Normalisasi Tingkat Kelas (Bawaan Kamu)
+        // Validasi dan Normalisasi Tingkat Kelas
         let tingkat_kelas = "";
         let angkaKelas = parseInt(input_kelas);
         
@@ -54,7 +55,6 @@ const generateMC = async (req, res) => {
             });
         }
 
-        const finalUserId = userId || '8f7c6b5a-4d3c-2b1a-0f9e-8d7c6b5a4d3c';
         const jumlahOpsi = tingkat_kelas.includes('SMA') ? 5 : 4;
 
         // 🌟 PENENTUAN BOOELAN SAKELAR SECARA SANGAT KETAT

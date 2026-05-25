@@ -14,18 +14,19 @@ const generateWorksheet = async (req, res) => {
 
     try {
         const {
-            mata_pelajaran,      // WAJIB
-            topik,               // WAJIB
-            tipe_aktivitas,      // WAJIB - array
-            tingkat_kelas,       // WAJIB
-            durasi_menit,        // opsional
-            tujuan_pembelajaran, // opsional (TP)
-            header_sekolah,      // opsional
-            petunjuk_khusus,     // opsional
-            userId
+            mata_pelajaran,
+            topik,
+            tipe_aktivitas,
+            tingkat_kelas,
+            durasi_menit,
+            tujuan_pembelajaran,
+            header_sekolah,
+            petunjuk_khusus
         } = req.body;
 
-        // Validasi input WAJIB
+        // userId diambil dari JWT token (req.user disuntikkan oleh authMiddleware)
+        const finalUserId = req.user.id;
+
         if (!mata_pelajaran) {
             return res.status(400).json({ success: false, message: 'mata_pelajaran wajib diisi', data: null, meta: {} });
         }
@@ -38,8 +39,6 @@ const generateWorksheet = async (req, res) => {
         if (!tingkat_kelas) {
             return res.status(400).json({ success: false, message: 'tingkat_kelas wajib diisi', data: null, meta: {} });
         }
-
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
 
         // 1. Log Request ke Database
         await WorksheetModel.createRequest(requestId, finalUserId, {
@@ -153,8 +152,7 @@ PENTING:
 // =============================================
 const getAllWorksheets = async (req, res) => {
     try {
-        const { userId } = req.body;
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const finalUserId = req.user.id;
         const worksheets = await WorksheetModel.getAllWorksheets(finalUserId);
 
         res.status(200).json({
@@ -174,8 +172,7 @@ const getAllWorksheets = async (req, res) => {
 const getWorksheetById = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userId } = req.body;
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const finalUserId = req.user.id;
 
         const worksheet = await WorksheetModel.getWorksheetById(id, finalUserId);
         if (!worksheet) {
@@ -194,8 +191,8 @@ const getWorksheetById = async (req, res) => {
 const updateWorksheet = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userId, judul, mata_pelajaran, topik, tipe_aktivitas, durasi_menit, worksheet_json } = req.body;
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const { judul, mata_pelajaran, topik, tipe_aktivitas, durasi_menit, worksheet_json } = req.body;
+        const finalUserId = req.user.id;
 
         if (!judul || !mata_pelajaran || !topik || !tipe_aktivitas || !worksheet_json) {
             return res.status(400).json({ success: false, message: "judul, mata_pelajaran, topik, tipe_aktivitas, dan worksheet_json wajib diisi", data: null, meta: {} });
@@ -221,8 +218,7 @@ const updateWorksheet = async (req, res) => {
 const deleteWorksheet = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userId } = req.body;
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const finalUserId = req.user.id;
 
         const deleted = await WorksheetModel.deleteWorksheet(id, finalUserId);
         if (!deleted) {
@@ -241,8 +237,7 @@ const deleteWorksheet = async (req, res) => {
 const cetakPDF = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userId } = req.body;
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const finalUserId = req.user.id;
 
         const worksheet = await WorksheetModel.getWorksheetById(id, finalUserId);
         if (!worksheet) {
