@@ -196,6 +196,27 @@ const GuruModel = {
         `;
         const { rows } = await db.query(query, [userId, featureType, limit, offset]);
         return rows;
+    },
+
+    // =========================================================================
+    // C. DASHBOARD / QUOTA
+    // =========================================================================
+
+    /**
+     * Ambil informasi kuota penggunaan guru
+     */
+    getQuotaUsage: async (userId) => {
+        const query = `
+            SELECT 
+                plan_type, 
+                monthly_limit, 
+                used_this_month,
+                reset_date
+            FROM usage_quotas
+            WHERE user_id = $1;
+        `;
+        const { rows } = await db.query(query, [userId]);
+        return rows[0] || null;
     }
 };
 

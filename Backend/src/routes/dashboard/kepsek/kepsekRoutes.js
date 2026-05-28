@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const kepsekController = require('../../controllers/dashboard/kepsekController');
+const kepsekController = require('../../../controllers/dashboard/kepsek/kepsekController');
 
 // 1. Endpoint Summary Dashboard (Bawaan lama yang sudah benar)
 router.get('/kepsek/dashboard/summary', kepsekController.getDashboardSummary);

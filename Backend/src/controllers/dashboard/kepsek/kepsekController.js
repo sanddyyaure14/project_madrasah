@@ -1,4 +1,4 @@
-const KepsekModel = require('../../models/dashboard/kepsekModel');
+const KepsekModel = require('../../../models/dashboard/kepsek/kepsekModel');
 
 const getDashboardSummary = async (req, res) => {
     try {
