@@ -1,6 +1,6 @@
 const pool = require('../../config/db');
 
-// 1. Catat request masuk ke generation_requests
+// 1. Catat request masuk ke generation_requests//
 
 const createRequest = async (requestId, userId, inputData) => {
     const query = `
@@ -15,7 +15,7 @@ const createRequest = async (requestId, userId, inputData) => {
     return result.rows[0];
 };
 
-// 2. Simpan hasil rubrik ke assessment_rubric
+// 2. Simpan hasil rubrik ke assessment_rubric//
 
 const saveAssessment = async (data) => {
     const query = `
