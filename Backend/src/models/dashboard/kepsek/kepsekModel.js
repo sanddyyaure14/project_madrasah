@@ -72,7 +72,7 @@ class KepsekModel {
         }
     }
 
-    // B. Proses ACC / APPROVE (Mengubah is_active menjadi true)
+    // B. Proses ACC atau APPROVE (Mengubah is_active menjadi true)
     static async approveTeacher(userId) {
         try {
             const query = `
