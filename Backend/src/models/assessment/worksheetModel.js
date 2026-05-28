@@ -6,7 +6,7 @@ const createRequest = async (requestId, userId, inputData) => {
         INSERT INTO generation_requests 
             (id, user_id, feature_type, input_data, status, created_at)
         VALUES 
-            ($1, $2, 'worksheet', $3, 'processing', NOW())
+            ($1, $2, 'worksheet', $3, 'pending', NOW())
         RETURNING *
     `;
     const values = [requestId, userId, JSON.stringify(inputData)];

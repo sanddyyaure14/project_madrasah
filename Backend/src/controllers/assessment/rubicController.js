@@ -50,7 +50,10 @@ const generateRubric = async (req, res) => {
             tujuan_pembelajaran, deskripsi_tugas, mata_pelajaran, jumlah_level: finalJumlahLevel
         });
 
-        // 2. Panggil Groq AI
+        // 2. Update status → PROCESSING
+await RubicModel.updateRequestStatus(requestId, 'processing', {});
+
+        // 3. Panggil Groq AI
         const chatCompletion = await groq.chat.completions.create({
             messages: [
                 {
@@ -98,7 +101,7 @@ PENTING:
         const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
         const finalTujuanPembelajaran = tujuan_pembelajaran || aiResponse.tujuan_pembelajaran;
 
-        // 3. Simpan ke Database
+        // 4. Simpan ke Database
         const assessmentData = {
             id: rubicId,
             request_id: requestId,
@@ -110,7 +113,7 @@ PENTING:
         };
         const savedAssessment = await RubicModel.saveAssessment(assessmentData);
 
-        // 4. Update Status Request
+        // 5. Update Status Request
         await RubicModel.updateRequestStatus(requestId, 'completed', savedAssessment);
 
         res.status(201).json({

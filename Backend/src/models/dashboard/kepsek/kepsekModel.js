@@ -1,5 +1,5 @@
 // UBAH BARIS INI: Sesuaikan dengan nama dan posisi file konfigurasi databasemu
-const db = require('../../config/db'); 
+const db = require('../../../config/db'); 
 
 class KepsekModel {
     // 1. Fungsi hitung total guru yang aktif
