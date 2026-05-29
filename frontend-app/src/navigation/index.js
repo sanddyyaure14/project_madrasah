@@ -12,6 +12,8 @@ import TeachersScreen from '../screens/TeachersScreen';
 import ApprovalsScreen from '../screens/ApprovalsScreen';
 import ToolPageScreen from '../screens/ToolPageScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import PresentationFormScreen from '../screens/PresentationFormScreen';
+import PresentationPreviewScreen from '../screens/PresentationPreviewScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -88,6 +90,16 @@ function DashboardStack() {
         component={DashboardHomeScreen}
         options={{ title: 'MadrasahAI' }}
       />
+      <Stack.Screen
+        name="PresentationForm"
+        component={PresentationFormScreen}
+        options={{ title: 'Generator Presentasi' }}
+      />
+      <Stack.Screen
+        name="PresentationPreview"
+        component={PresentationPreviewScreen}
+        options={{ title: 'Preview Presentasi' }}
+      />      
       <Stack.Screen
         name="ToolPage"
         component={ToolPageScreen}
