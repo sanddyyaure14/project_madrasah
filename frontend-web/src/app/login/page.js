@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
       const data = await res.json();
@@ -36,6 +37,9 @@ export default function LoginPage() {
       if (data.accessToken) {
         localStorage.setItem("accessToken", data.accessToken);
         localStorage.setItem("user", JSON.stringify(data.user));
+        
+        // Simpan flag login ke cookie untuk dibaca oleh middleware Next.js
+        document.cookie = `isLoggedIn=true; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 hari
       }
 
       // Redirect ke dashboard
@@ -332,13 +336,13 @@ export default function LoginPage() {
           {/* Bottom Links */}
           <div className="mt-8 text-center text-[13px] text-gray-500">
             Belum punya akun?{" "}
-            <a href="#" className="text-[#006747] hover:text-[#006747]/80 font-medium">
+            <Link href="/register" className="text-[#006747] hover:text-[#006747]/80 font-medium">
               Daftar sebagai guru
-            </a>{" "}
+            </Link>{" "}
             ·{" "}
-            <a href="#" className="text-[#006747] hover:text-[#006747]/80 font-medium">
+            <Link href="/" className="text-[#006747] hover:text-[#006747]/80 font-medium">
               Beranda
-            </a>
+            </Link>
           </div>
         </div>
       </div>

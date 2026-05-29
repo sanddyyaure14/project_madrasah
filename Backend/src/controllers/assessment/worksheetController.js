@@ -45,8 +45,11 @@ const generateWorksheet = async (req, res) => {
             mata_pelajaran, topik, tipe_aktivitas, tingkat_kelas,
             durasi_menit, tujuan_pembelajaran, header_sekolah, petunjuk_khusus
         });
+        
+        // 2. Update status → PROCESSING
+            await WorksheetModel.updateRequestStatus(requestId, 'processing', {});
 
-        // 2. Panggil Groq AI
+        // 3. Panggil Groq AI
         const chatCompletion = await groq.chat.completions.create({
             messages: [
                 {
@@ -103,7 +106,7 @@ PENTING:
 
         const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
 
-        // 3. Simpan ke Database
+        // 4. Simpan ke Database
         const worksheetData = {
             id: worksheetId,
             request_id: requestId,
@@ -116,7 +119,7 @@ PENTING:
         };
         const savedWorksheet = await WorksheetModel.saveWorksheet(worksheetData);
 
-        // 4. Update Status Request
+        // 5. Update Status Request
         await WorksheetModel.updateRequestStatus(requestId, 'completed', savedWorksheet);
 
         res.status(201).json({
