@@ -8,7 +8,7 @@ export default function DashboardRedirector() {
 
   useEffect(() => {
     try {
-      const user = JSON.parse(localStorage.getItem("user"));
+      const user = JSON.parse(sessionStorage.getItem("user"));
       if (user && (user.role === "kepala_sekolah" || user.role === "kepsek")) {
         router.replace("/dashboard/kepsek");
       } else {

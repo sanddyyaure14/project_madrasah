@@ -8,7 +8,7 @@ export default function GuruDashboard() {
 
   useEffect(() => {
     try {
-      const userData = JSON.parse(localStorage.getItem("user"));
+      const userData = JSON.parse(sessionStorage.getItem("user"));
       if (userData) {
         setUser(userData);
       }

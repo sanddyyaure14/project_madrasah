@@ -33,13 +33,13 @@ export default function LoginPage() {
         throw new Error(data.message || "Login gagal, silakan coba lagi.");
       }
 
-      // Simpan token ke localStorage atau cookies jika diperlukan
+      // Simpan token ke sessionStorage atau cookies jika diperlukan
       if (data.accessToken) {
-        localStorage.setItem("accessToken", data.accessToken);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        sessionStorage.setItem("accessToken", data.accessToken);
+        sessionStorage.setItem("user", JSON.stringify(data.user));
         
         // Simpan flag login ke cookie untuk dibaca oleh middleware Next.js
-        document.cookie = `isLoggedIn=true; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 hari
+        document.cookie = `isLoggedIn=true; path=/`; // Session Cookie (terhapus saat browser ditutup)
       }
 
       // Redirect ke dashboard

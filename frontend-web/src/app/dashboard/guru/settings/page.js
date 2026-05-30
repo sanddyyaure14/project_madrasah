@@ -29,7 +29,7 @@ export default function GuruSettingsPage() {
     const fetchProfile = async () => {
       setIsLoading(true);
       try {
-        const token = localStorage.getItem("accessToken");
+        const token = sessionStorage.getItem("accessToken");
         if (!token) {
           setErrorMsg("Sesi tidak ditemukan. Silakan login ulang.");
           setIsLoading(false);
@@ -78,7 +78,7 @@ export default function GuruSettingsPage() {
     setErrorMsg("");
 
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = sessionStorage.getItem("accessToken");
       if (!token) {
         setErrorMsg("Sesi tidak ditemukan. Silakan login ulang.");
         return;
@@ -109,9 +109,9 @@ export default function GuruSettingsPage() {
         throw new Error(data.message || "Gagal menyimpan perubahan.");
       }
 
-      // Update localStorage agar nama di sidebar ikut berubah
-      const stored = JSON.parse(localStorage.getItem("user") || "{}");
-      localStorage.setItem(
+      // Update sessionStorage agar nama di sidebar ikut berubah
+      const stored = JSON.parse(sessionStorage.getItem("user") || "{}");
+      sessionStorage.setItem(
         "user",
         JSON.stringify({ ...stored, nama_lengkap: formData.nama_lengkap })
       );

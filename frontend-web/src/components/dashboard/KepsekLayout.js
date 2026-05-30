@@ -11,7 +11,7 @@ export default function KepsekLayout({ children }) {
 
   useEffect(() => {
     try {
-      const userData = JSON.parse(localStorage.getItem("user"));
+      const userData = JSON.parse(sessionStorage.getItem("user"));
       if (userData) {
         setUser(userData);
       }
@@ -19,8 +19,8 @@ export default function KepsekLayout({ children }) {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("accessToken");
+    sessionStorage.removeItem("user");
     document.cookie = "isLoggedIn=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.replace("/login");
   };
