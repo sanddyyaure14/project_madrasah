@@ -49,9 +49,9 @@ app.use('/api', guruRoutes);
 
 // Assessment (dilindungi verifyToken + authorizeRoles di dalam routenya)
 app.use('/api', mcRoutes);
-app.use('/api', writingRoutes);
+app.use('/api/assessment', writingRoutes);
 app.use('/api', rubicRoutes);
-app.use('/api', worksheetRoutes);
+app.use('/api/assessment', worksheetRoutes);
 
 // Content (dilindungi verifyToken + authorizeRoles di dalam routenya)
 app.use('/api/presentation', presentationRoutes);

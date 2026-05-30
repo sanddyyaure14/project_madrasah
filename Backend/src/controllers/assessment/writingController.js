@@ -21,7 +21,7 @@ const generateWritingFeedback = async (req, res) => {
             userId
         } = req.body;
 
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const finalUserId = req.user.id;
         const targetBahasa = bahasa_output || 'Indonesia';
 
         // =========================================================================

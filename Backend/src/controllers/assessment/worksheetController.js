@@ -87,6 +87,7 @@ Struktur JSON yang WAJIB diikuti (sesuai schema):
                 {
                     "no": 1,
                     "pertanyaan": "isi pertanyaan",
+                    "opsi": ["teks opsi A", "teks opsi B", "teks opsi C", "teks opsi D"],
                     "kolom_jawaban": "tersedia"
                 }
             ]
@@ -97,7 +98,9 @@ Struktur JSON yang WAJIB diikuti (sesuai schema):
 PENTING:
 - Buat aktivitas sesuai tipe: ${tipe_aktivitas.join(', ')}
 - Setiap aktivitas minimal 3 soal yang relevan
-- Gunakan kata "tujuan" bukan "tujuan_pembelajaran" di JSON`
+- Gunakan kata "tujuan" bukan "tujuan_pembelajaran" di JSON
+- Untuk aktivitas bertipe "Pilihan Ganda", setiap soal WAJIB memiliki field "opsi" berisi tepat 4 pilihan jawaban (array of string)
+- Untuk aktivitas bertipe esai/isian, field "opsi" diisi array kosong []`
                 }
             ],
             model: "llama-3.3-70b-versatile",

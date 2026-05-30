@@ -5,12 +5,11 @@ import Link from "next/link";
 export default function WritingFeedbackPage() {
   const [formData, setFormData] = useState({
     tingkat_kelas: "8",
-    jenis_tulisan: "Karangan Bebas",
+    jenis_tulisan: "narasi",
     fokus_feedback: "Tata Bahasa",
     tulisan_siswa: "",
     nama_siswa: "",
     bahasa_output: "Indonesia",
-    userId: "99999999-9999-9999-9999-999999999999" // Sesuaikan auth state jika sudah ada
   });
 
   const [loading, setLoading] = useState(false);
@@ -23,17 +22,22 @@ export default function WritingFeedbackPage() {
     setError(null);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login ulang.");
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
       const response = await fetch(`${apiUrl}/api/assessment/generate/writing-feedback`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
         body: JSON.stringify(formData),
       });
 
       const resData = await response.json();
       if (!response.ok) throw new Error(resData.message || "Gagal memproses feedback.");
-      
-      // Ambil data output hasil generasi dari backend Anda
+
       setResult(resData.data);
     } catch (err) {
       setError(err.message);
@@ -72,9 +76,10 @@ export default function WritingFeedbackPage() {
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Jenis Tulisan</label>
               <select className="w-full text-sm p-2 border border-gray-200 rounded-lg" onChange={(e) => setFormData({...formData, jenis_tulisan: e.target.value})}>
-                <option>Karangan Bebas</option>
-                <option>Esai Pendek</option>
-                <option>Narasi Dakwah</option>
+                <option value="narasi">Narasi</option>
+                <option value="deskripsi">Deskripsi</option>
+                <option value="eksposisi">Eksposisi</option>
+                <option value="argumentasi">Argumentasi</option>
               </select>
             </div>
             <div>
