@@ -438,9 +438,12 @@ export default function ToolPageScreen({ route, navigation }) {
     if (slug === 'presentation') {
       navigation.navigate('PresentationForm');
     }
+    if (slug === 'unit-plan') {
+      navigation.navigate('UnitPlanForm');
+    }
   }, [slug, navigation]);
 
-  if (slug === 'presentation') {
+  if (slug === 'presentation' || slug === 'unit-plan') {
     return null;
   }
 
