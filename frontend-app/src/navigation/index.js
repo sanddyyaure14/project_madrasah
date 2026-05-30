@@ -14,6 +14,8 @@ import ToolPageScreen from '../screens/ToolPageScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import PresentationFormScreen from '../screens/PresentationFormScreen';
 import PresentationPreviewScreen from '../screens/PresentationPreviewScreen';
+import UnitPlanFormScreen from '../screens/UnitPlanFormScreen';
+import UnitPlanPreviewScreen from '../screens/UnitPlanPreviewScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -99,7 +101,17 @@ function DashboardStack() {
         name="PresentationPreview"
         component={PresentationPreviewScreen}
         options={{ title: 'Preview Presentasi' }}
-      />      
+      />
+      <Stack.Screen
+        name="UnitPlanForm"
+        component={UnitPlanFormScreen}
+        options={{ title: 'Generator RPP' }}
+      />
+      <Stack.Screen
+        name="UnitPlanPreview"
+        component={UnitPlanPreviewScreen}
+        options={{ title: 'Preview RPP' }}
+      />
       <Stack.Screen
         name="ToolPage"
         component={ToolPageScreen}
