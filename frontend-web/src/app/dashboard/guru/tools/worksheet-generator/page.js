@@ -59,12 +59,25 @@ export default function WorksheetGeneratorPage() {
     }
   };
 
-  const handleCetak = () => {
+  const handleCetak = async () => {
     if (!worksheetId) return;
     const token = sessionStorage.getItem("accessToken");
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-    // Buka PDF di tab baru — backend stream PDF langsung
-    window.open(`${apiUrl}/api/assessment/worksheet/${worksheetId}/pdf?token=${token}`, "_blank");
+    try {
+      const res = await fetch(`${apiUrl}/api/assessment/worksheets/${worksheetId}/cetak-pdf`, {
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Gagal mengunduh PDF");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `LKS.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Gagal unduh PDF: " + err.message);
+    }
   };
 
   return (

@@ -302,9 +302,18 @@ const cetakPDF = async (req, res) => {
             soalList.forEach((s) => {
                 doc.text(`${s.no}. ${s.pertanyaan}`);
                 doc.moveDown(0.3);
-                // Kolom jawaban kosong
-                doc.moveTo(70, doc.y).lineTo(540, doc.y).stroke();
-                doc.moveDown(1);
+                // Jika ada opsi (pilihan ganda), cetak A B C D
+                if (Array.isArray(s.opsi) && s.opsi.length > 0) {
+                    const huruf = ['A', 'B', 'C', 'D'];
+                    s.opsi.forEach((opsi, idx) => {
+                        doc.text(`   ${huruf[idx] || idx + 1}. ${opsi}`);
+                    });
+                    doc.moveDown(0.5);
+                } else {
+                    // Kolom jawaban kosong untuk esai/isian
+                    doc.moveTo(70, doc.y).lineTo(540, doc.y).stroke();
+                    doc.moveDown(1);
+                }
             });
 
             doc.moveDown(0.5);
