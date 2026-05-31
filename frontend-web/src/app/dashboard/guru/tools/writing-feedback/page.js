@@ -22,7 +22,7 @@ export default function WritingFeedbackPage() {
     setError(null);
 
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = sessionStorage.getItem("accessToken");
       if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login ulang.");
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";

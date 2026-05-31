@@ -34,7 +34,7 @@ export default function WorksheetGeneratorPage() {
     setWorksheetId(null);
 
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = sessionStorage.getItem("accessToken");
       if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login ulang.");
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -61,7 +61,7 @@ export default function WorksheetGeneratorPage() {
 
   const handleCetak = () => {
     if (!worksheetId) return;
-    const token = localStorage.getItem("accessToken");
+    const token = sessionStorage.getItem("accessToken");
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
     // Buka PDF di tab baru — backend stream PDF langsung
     window.open(`${apiUrl}/api/assessment/worksheet/${worksheetId}/pdf?token=${token}`, "_blank");
