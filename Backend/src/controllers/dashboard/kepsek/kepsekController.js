@@ -45,11 +45,7 @@ const getDashboardSummary = async (req, res) => {
 // 1. Mengambil antrean guru yang daftar di madrasah milik kepsek tersebut
 const getRegistrationQueue = async (req, res) => {
     try {
-        // ID Instansi idealnya diambil dari token JWT Kepsek (misal: req.user.instansi_id)
-        // Untuk testing awal di Postman, kita tangkap dulu dari query string / body / default dummy
-        const instansiId = req.query.instansi_id || req.body.instansi_id || 'b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a';
-
-        const listGuru = await KepsekModel.getPendingTeachers(instansiId);
+        const listGuru = await KepsekModel.getPendingTeachers();
         
         return res.status(200).json({
             success: true,

@@ -58,13 +58,15 @@ class KepsekModel {
             const query = `
                 SELECT 
                     u.id, u.nama_lengkap, u.email, u.role, u.is_active,
-                    p.nip, p.mata_pelajaran, p.jenjang, p.kurikulum, p.no_hp, u.created_at
+                    p.nip, p.mata_pelajaran, p.jenjang, p.kurikulum, p.no_hp, u.created_at,
+                    i.nama AS nama_instansi
                 FROM users u
-                INNER JOIN user_profiles p ON u.id = p.user_id
-                WHERE u.role = 'guru' AND u.is_active = false AND p.instansi_id = $1
+                LEFT JOIN user_profiles p ON u.id = p.user_id
+                LEFT JOIN institutions i ON p.instansi_id = i.id
+                WHERE u.role = 'guru' AND u.is_active = false
                 ORDER BY u.created_at DESC;
             `;
-            const { rows } = await db.query(query, [instansiId]);
+            const { rows } = await db.query(query);
             return rows;
         } catch (error) {
             console.error("Error di KepsekModel.getPendingTeachers:", error);
