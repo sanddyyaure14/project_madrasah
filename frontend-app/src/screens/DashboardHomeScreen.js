@@ -62,7 +62,7 @@ function SuperAdminHome({ navigation }) {
       <View style={styles.statsGrid}>
         <StatCard icon="people" label="Total Guru" value={stats.guru} accent="primary" />
         <StatCard icon="school" label="Total Siswa" value={stats.siswa} accent="gold" />
-        <StatCard icon="book-open" label="Kelas Aktif" value={stats.kelas} accent="primary" />
+        <StatCard icon="book" label="Kelas Aktif" value={stats.kelas} accent="primary" />
         <StatCard icon="document-text" label="Dokumen Dibuat" value={stats.dokumen} accent="gold" />
         <StatCard icon="sparkles" label="Generate Bulan Ini" value={stats.generateBulanIni} accent="primary" />
         <StatCard icon="time" label="Jam Dihemat" value={`${stats.hematJam}j`} accent="gold" />
