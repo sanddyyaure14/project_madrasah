@@ -10,14 +10,14 @@ import { C, S } from '../lib/theme';
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
   const [role, setRole] = useState('guru');
-  const [email, setEmail] = useState('ustadz@madrasah.id');
-  const [password, setPassword] = useState('guru1234');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const PRESETS = {
-    superadmin: { email: 'kepala@madrasah.id', password: 'admin1234' },
-    guru: { email: 'ustadz@madrasah.id', password: 'guru1234' },
+    superadmin: { email: '', password: '' },
+    guru: { email: '', password: '' },
   };
 
   function switchRole(r) {
@@ -26,16 +26,28 @@ export default function LoginScreen({ navigation }) {
     setPassword(PRESETS[r].password);
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     setLoading(true);
-    setTimeout(() => {
-      const res = login(email, password);
-      setLoading(false);
-      if (!res.ok) {
-        Alert.alert('Gagal Masuk', res.error ?? 'Terjadi kesalahan.');
-      }
-      // Navigation handled by App.js (auth state change)
-    }, 400);
+    const res = await login(email, password);
+    setLoading(false);
+
+    if (!res.ok) {
+      Alert.alert('Gagal Masuk', res.error ?? 'Terjadi kesalahan.');
+      return;
+    }
+
+    // Validasi role yang dipilih harus sesuai dengan role di database
+    const expectedRole = role === 'superadmin' ? 'superadmin' : 'guru';
+    if (res.userRole !== expectedRole) {
+      Alert.alert(
+        'Role Tidak Sesuai',
+        role === 'superadmin'
+          ? 'Akun ini bukan Kepala Madrasah.'
+          : 'Akun ini bukan Guru. Silakan pilih role yang sesuai.'
+      );
+      return;
+    }
+    // Navigation handled by App.js (auth state change)
   }
 
   return (
@@ -135,13 +147,6 @@ export default function LoginScreen({ navigation }) {
             )}
           </TouchableOpacity>
 
-          {/* Demo box */}
-          <View style={styles.demoBox}>
-            <Text style={styles.demoTitle}>Akun demo</Text>
-            <Text style={styles.demoLine}>👑 Kepala: kepala@madrasah.id / admin1234</Text>
-            <Text style={styles.demoLine}>🧑‍🏫 Guru: ustadz@madrasah.id / guru1234</Text>
-          </View>
-
           <TouchableOpacity onPress={() => navigation.navigate('Register')}>
             <Text style={styles.registerLink}>
               Belum punya akun?{' '}
@@ -198,11 +203,5 @@ const styles = StyleSheet.create({
     paddingVertical: 14, borderRadius: 12, marginTop: 4,
   },
   submitText: { fontSize: 15, fontWeight: '700' },
-  demoBox: {
-    backgroundColor: '#f9fafb', borderWidth: 1, borderColor: C.border,
-    borderStyle: 'dashed', borderRadius: 10, padding: 14, gap: 4,
-  },
-  demoTitle: { fontSize: 13, fontWeight: '700', color: C.ink, marginBottom: 2 },
-  demoLine: { fontSize: 12, color: C.muted },
   registerLink: { textAlign: 'center', fontSize: 13, color: C.muted },
 });
