@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, ActivityIndicator, Alert,
@@ -422,7 +422,7 @@ const TOOL_FORMS = {
   'rubric': RubricForm,
   'writing-feedback': FeedbackForm,
   'worksheet': WorksheetForm,
-  'presentation': PresentationForm,
+  'presentation': () => null,
   'syllabus': SyllabusForm,
   'unit-plan': UnitPlanForm,
   'academic-content': AcademicForm,
@@ -431,7 +431,21 @@ const TOOL_FORMS = {
 export default function ToolPageScreen({ route, navigation }) {
   const { slug } = route.params;
   const tool = findTool(slug);
+
   if (!tool) return null;
+
+  useEffect(() => {
+    if (slug === 'presentation') {
+      navigation.navigate('PresentationForm');
+    }
+    if (slug === 'unit-plan') {
+      navigation.navigate('UnitPlanForm');
+    }
+  }, [slug, navigation]);
+
+  if (slug === 'presentation' || slug === 'unit-plan') {
+    return null;
+  }
 
   const iconName = ICON_MAP[tool.icon] ?? 'sparkles';
   const isGold = tool.accent === 'gold';
