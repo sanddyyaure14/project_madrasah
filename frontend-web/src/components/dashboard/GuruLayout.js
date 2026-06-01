@@ -30,8 +30,8 @@ export default function GuruLayout({ children }) {
   };
 
   const menuAsesmen = [
-    { label: "Multiple Choice", href: "#", icon: "📝" },
-    { label: "Rubric Generator", href: "#", icon: "📚" },
+    { label: "Multiple Choice", href: "/dashboard/guru/tools/multiple-choice", icon: "📝" },
+    { label: "Rubric Generator", href: "/dashboard/guru/tools/rubric-generator", icon: "📚" },
     { label: "Writing Feedback", href: "/dashboard/guru/tools/writing-feedback", icon: "✍" },
     { label: "Worksheet Generator", href: "/dashboard/guru/tools/worksheet-generator", icon: "📄" },
   ];
