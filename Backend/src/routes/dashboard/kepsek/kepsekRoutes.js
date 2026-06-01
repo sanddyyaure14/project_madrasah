@@ -31,3 +31,7 @@ router.get('/kepsek/history/:guruId', kepsekController.getHistoryByGuru);
 // 8. Statistik per guru
 router.get('/kepsek/statistik', kepsekController.getStatistikGuru);
 module.exports = router;
+
+// 9. Endpoint Kepsek untuk memberi atau update paket kuota bulanan guru
+// URL: POST http://localhost:3000/api/kepsek/quota/assign
+router.post('/kepsek/quota/assign', kepsekController.assignQuotaToTeacher);

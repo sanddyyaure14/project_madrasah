@@ -190,6 +190,57 @@ const getStatistikGuru = async (req, res) => {
         return res.status(500).json({ success: false, message: "Gagal memuat statistik.", error: error.message, data: null, meta: {} });
     }
 };
+
+// 8. ALOKASI KUOTA AI GURU (KLOP SKEMA USAGE_QUOTAS)
+const assignQuotaToTeacher = async (req, res) => {
+    try {
+        const { user_id, plan_type, monthly_limit } = req.body;
+
+        // 1. Validasi Input Wajib (Sesuai kolom NOT NULL kamu)
+        if (!user_id || !plan_type || !monthly_limit) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "user_id, plan_type, dan monthly_limit wajib diisi." 
+            });
+        }
+
+        // 2. Validasi ENUM plan_type agar aman dari error DB
+        const validPlans = ['free', 'basic', 'premium'];
+        if (!validPlans.includes(plan_type)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "plan_type harus bernilai 'free', 'basic', atau 'premium'." 
+            });
+        }
+
+        // 3. Hitung reset_date otomatis (1 bulan dari hari ini)
+        const reset_date = new Date();
+        reset_date.setMonth(reset_date.getMonth() + 1);
+
+        // 4. Kirim data ke Model (UPSERT)
+        const updatedQuota = await KepsekModel.upsertTeacherQuota({
+            user_id,
+            plan_type,
+            monthly_limit: parseInt(monthly_limit, 10),
+            reset_date
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Kuota berhasil dialokasikan untuk guru.",
+            data: updatedQuota
+        });
+
+    } catch (error) {
+        console.error("Error pada kepsekController.assignQuotaToTeacher:", error);
+        return res.status(500).json({ 
+            success: false, 
+            message: "Terjadi kesalahan server saat mengatur kuota.",
+            error: error.message 
+        });
+    }
+};
+
 // Pastikan semua fungsi diekspor di sini agar bisa dipanggil oleh Routes
 module.exports = { 
     getDashboardSummary,
@@ -199,5 +250,6 @@ module.exports = {
     getDetailGuru,
     getHistoryAllGuru,
     getHistoryByGuru,
-    getStatistikGuru
+    getStatistikGuru,
+    assignQuotaToTeacher
 };

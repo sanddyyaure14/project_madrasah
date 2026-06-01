@@ -283,6 +283,33 @@ static async getStatistikGuru(instansiId) {
         throw error;
     }
 }
+
+// =========================================================================
+    // 🌟 UPSERT KUOTA GURU (Sesuai skema tabel usage_quotas)
+    // =========================================================================
+    static async upsertTeacherQuota({ user_id, plan_type, monthly_limit, reset_date }) {
+        try {
+            const query = `
+                INSERT INTO usage_quotas (id, user_id, plan_type, monthly_limit, used_this_month, reset_date)
+                VALUES (gen_random_uuid(), $1, $2, $3, 0, $4)
+                ON CONFLICT (user_id) 
+                DO UPDATE SET 
+                    plan_type = EXCLUDED.plan_type,
+                    monthly_limit = EXCLUDED.monthly_limit,
+                    used_this_month = 0, -- Reset jumlah terpakai ke 0 saat kuota diperbarui
+                    reset_date = EXCLUDED.reset_date
+                RETURNING id, user_id, plan_type, monthly_limit, used_this_month, reset_date;
+            `;
+            const values = [user_id, plan_type, monthly_limit, reset_date];
+            const { rows } = await db.query(query, values);
+            return rows[0];
+        } catch (error) {
+            console.error("Error di KepsekModel.upsertTeacherQuota:", error);
+            throw error;
+        }
+    }
 }
+
+
     
 module.exports = KepsekModel;
