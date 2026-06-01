@@ -16,5 +16,18 @@ router.get('/kepsek/pending-teachers', kepsekController.getRegistrationQueue);
 // 3. Endpoint Kepsek untuk klik tombol ACC (Approve) atau Tolak (Reject)
 // URL: POST http://localhost:3000/api/kepsek/review-teacher
 router.post('/kepsek/review-teacher', kepsekController.reviewTeacherAccount);
+// 4. Daftar guru aktif
+router.get('/kepsek/guru', kepsekController.getDaftarGuru);
 
+// 5. Detail satu guru
+router.get('/kepsek/guru/:guruId', kepsekController.getDetailGuru);
+
+// 6. History semua guru (opsional filter: ?feature_type=rubric)
+router.get('/kepsek/history', kepsekController.getHistoryAllGuru);
+
+// 7. History satu guru
+router.get('/kepsek/history/:guruId', kepsekController.getHistoryByGuru);
+
+// 8. Statistik per guru
+router.get('/kepsek/statistik', kepsekController.getStatistikGuru);
 module.exports = router;

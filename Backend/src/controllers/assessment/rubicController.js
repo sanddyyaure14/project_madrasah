@@ -36,7 +36,17 @@ const generateRubric = async (req, res) => {
             return res.status(400).json({ success: false, message: 'skala_nilai wajib diisi. Pilihan: 1-4, 1-10, atau 1-100', data: null, meta: {} });
         }
 
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const finalUserId = req.user?.id || userId || '99999999-9999-9999-9999-999999999999';
+        // 0. CEK KUOTA
+        const quotaCheck = await RubicModel.checkUserQuota(finalUserId);
+        if (!quotaCheck.hasQuota) {
+            return res.status(403).json({
+                success: false,
+                message: "Kuota generate bulanan Anda telah habis.",
+                data: null,
+                meta: { remaining: 0, limit: quotaCheck.limit }
+            });
+        }
 
         // Tentukan jumlah level (default 4)
         const finalJumlahLevel = parseInt(jumlah_level) || 4;
@@ -51,7 +61,7 @@ const generateRubric = async (req, res) => {
         });
 
         // 2. Update status → PROCESSING
-await RubicModel.updateRequestStatus(requestId, 'processing', {});
+        await RubicModel.updateRequestStatus(requestId, 'processing', {});
 
         // 3. Panggil Groq AI
         const chatCompletion = await groq.chat.completions.create({
@@ -127,7 +137,8 @@ PENTING:
             },
             meta: {}
         });
-
+        // 6. Update usage_quotas
+    await RubicModel.incrementQuotaUsage(finalUserId);
     } catch (error) {
         console.error("Error Detail:", error);
         try {

@@ -112,6 +112,175 @@ class KepsekModel {
             client.release();
         }
     }
+    // D. Ambil semua guru aktif di madrasah kepsek
+static async getDaftarGuru(instansiId) {
+    try {
+        const query = `
+            SELECT 
+                u.id,
+                u.nama_lengkap,
+                u.email,
+                u.avatar_url,
+                u.is_active,
+                u.created_at,
+                u.last_login_at,
+                p.nip,
+                p.mata_pelajaran,
+                p.jenjang,
+                p.kurikulum,
+                p.no_hp,
+                COALESCE(uq.used_this_month, 0) AS total_generate_bulan_ini,
+                COALESCE(uq.monthly_limit, 0) AS monthly_limit,
+                uq.plan_type
+            FROM users u
+            INNER JOIN user_profiles p ON u.id = p.user_id
+            LEFT JOIN usage_quotas uq ON u.id = uq.user_id
+            WHERE u.role = 'guru' 
+                AND u.is_active = true 
+                AND p.instansi_id = $1
+            ORDER BY u.nama_lengkap ASC;
+        `;
+        const { rows } = await db.query(query, [instansiId]);
+        return rows;
+    } catch (error) {
+        console.error("Error di KepsekModel.getDaftarGuru:", error);
+        throw error;
+    }
 }
 
+// E. Ambil detail satu guru
+static async getDetailGuru(guruId, instansiId) {
+    try {
+        const query = `
+            SELECT 
+                u.id,
+                u.nama_lengkap,
+                u.email,
+                u.avatar_url,
+                u.is_active,
+                u.created_at,
+                u.last_login_at,
+                p.nip,
+                p.mata_pelajaran,
+                p.jenjang,
+                p.kurikulum,
+                p.no_hp,
+                COALESCE(uq.used_this_month, 0) AS total_generate_bulan_ini,
+                COALESCE(uq.monthly_limit, 0) AS monthly_limit,
+                uq.plan_type
+            FROM users u
+            INNER JOIN user_profiles p ON u.id = p.user_id
+            LEFT JOIN usage_quotas uq ON u.id = uq.user_id
+            WHERE u.id = $1
+                AND u.role = 'guru'
+                AND p.instansi_id = $2;
+        `;
+        const { rows } = await db.query(query, [guruId, instansiId]);
+        return rows[0];
+    } catch (error) {
+        console.error("Error di KepsekModel.getDetailGuru:", error);
+        throw error;
+    }
+}
+
+// F. Ambil semua history generate dari semua guru
+static async getHistoryAllGuru(instansiId, featureType = null) {
+    try {
+        let whereClause = `
+            WHERE u.role = 'guru'
+                AND u.is_active = true
+                AND p.instansi_id = $1
+                AND gr.status = 'completed'
+        `;
+        const params = [instansiId];
+
+        if (featureType) {
+            params.push(featureType);
+            whereClause += ` AND gr.feature_type = $${params.length}`;
+        }
+
+        const query = `
+            SELECT 
+                gr.id AS request_id,
+                gr.feature_type,
+                gr.status,
+                gr.created_at,
+                gr.completed_at,
+                gr.input_data,
+                u.id AS guru_id,
+                u.nama_lengkap AS nama_guru,
+                u.email AS email_guru
+            FROM generation_requests gr
+            INNER JOIN users u ON gr.user_id = u.id
+            INNER JOIN user_profiles p ON u.id = p.user_id
+            ${whereClause}
+            ORDER BY gr.created_at DESC;
+        `;
+        const { rows } = await db.query(query, params);
+        return rows;
+    } catch (error) {
+        console.error("Error di KepsekModel.getHistoryAllGuru:", error);
+        throw error;
+    }
+}
+
+// G. Ambil history generate milik satu guru
+static async getHistoryByGuru(guruId, instansiId) {
+    try {
+        const query = `
+            SELECT 
+                gr.id AS request_id,
+                gr.feature_type,
+                gr.status,
+                gr.created_at,
+                gr.completed_at,
+                gr.input_data,
+                u.nama_lengkap AS nama_guru
+            FROM generation_requests gr
+            INNER JOIN users u ON gr.user_id = u.id
+            INNER JOIN user_profiles p ON u.id = p.user_id
+            WHERE gr.user_id = $1
+                AND p.instansi_id = $2
+                AND gr.status = 'completed'
+            ORDER BY gr.created_at DESC;
+        `;
+        const { rows } = await db.query(query, [guruId, instansiId]);
+        return rows;
+    } catch (error) {
+        console.error("Error di KepsekModel.getHistoryByGuru:", error);
+        throw error;
+    }
+}
+
+// H. Statistik per guru
+static async getStatistikGuru(instansiId) {
+    try {
+        const query = `
+            SELECT 
+                u.id AS guru_id,
+                u.nama_lengkap,
+                COUNT(gr.id) AS total_generate,
+                COUNT(CASE WHEN gr.feature_type = 'rubric' THEN 1 END) AS total_rubric,
+                COUNT(CASE WHEN gr.feature_type = 'worksheet' THEN 1 END) AS total_worksheet,
+                COUNT(CASE WHEN gr.feature_type = 'multiple_choice' THEN 1 END) AS total_mc,
+                COUNT(CASE WHEN gr.feature_type = 'writing_feedback' THEN 1 END) AS total_writing,
+                MAX(gr.created_at) AS last_generate_at
+            FROM users u
+            INNER JOIN user_profiles p ON u.id = p.user_id
+            LEFT JOIN generation_requests gr ON u.id = gr.user_id AND gr.status = 'completed'
+            WHERE u.role = 'guru'
+                AND u.is_active = true
+                AND p.instansi_id = $1
+            GROUP BY u.id, u.nama_lengkap
+            ORDER BY total_generate DESC;
+        `;
+        const { rows } = await db.query(query, [instansiId]);
+        return rows;
+    } catch (error) {
+        console.error("Error di KepsekModel.getStatistikGuru:", error);
+        throw error;
+    }
+}
+}
+    
 module.exports = KepsekModel;

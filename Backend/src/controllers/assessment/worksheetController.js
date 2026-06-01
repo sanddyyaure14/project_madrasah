@@ -40,6 +40,16 @@ const generateWorksheet = async (req, res) => {
             return res.status(400).json({ success: false, message: 'tingkat_kelas wajib diisi', data: null, meta: {} });
         }
 
+        // 0. CEK KUOTA
+        const quotaCheck = await WorksheetModel.checkUserQuota(finalUserId);
+        if (!quotaCheck.hasQuota) {
+            return res.status(403).json({
+                success: false,
+                message: "Kuota generate bulanan Anda telah habis.",
+                data: null,
+                meta: { remaining: 0, limit: quotaCheck.limit }
+            });
+        }
         // 1. Log Request ke Database
         await WorksheetModel.createRequest(requestId, finalUserId, {
             mata_pelajaran, topik, tipe_aktivitas, tingkat_kelas,
@@ -124,7 +134,8 @@ PENTING:
 
         // 5. Update Status Request
         await WorksheetModel.updateRequestStatus(requestId, 'completed', savedWorksheet);
-
+        // 6. Update usage_quotas
+        await WorksheetModel.incrementQuotaUsage(finalUserId);
         res.status(201).json({
             success: true,
             message: "Worksheet berhasil dibuat dengan Groq Llama 3.3.",

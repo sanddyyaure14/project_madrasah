@@ -114,9 +114,94 @@ const reviewTeacherAccount = async (req, res) => {
     }
 };
 
+// 3. Daftar guru aktif
+const getDaftarGuru = async (req, res) => {
+    try {
+        const instansiId = req.query.instansi_id || req.body.instansi_id || 'b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a';
+        const guruList = await KepsekModel.getDaftarGuru(instansiId);
+        return res.status(200).json({
+            success: true,
+            message: "Berhasil memuat daftar guru aktif.",
+            data: guruList,
+            meta: { total: guruList.length }
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Gagal memuat daftar guru.", error: error.message, data: null, meta: {} });
+    }
+};
+
+// 4. Detail satu guru
+const getDetailGuru = async (req, res) => {
+    try {
+        const { guruId } = req.params;
+        const instansiId = req.query.instansi_id || req.body.instansi_id || 'b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a';
+        const guru = await KepsekModel.getDetailGuru(guruId, instansiId);
+        if (!guru) {
+            return res.status(404).json({ success: false, message: "Guru tidak ditemukan.", data: null, meta: {} });
+        }
+        return res.status(200).json({ success: true, message: "Berhasil memuat detail guru.", data: guru, meta: {} });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Gagal memuat detail guru.", error: error.message, data: null, meta: {} });
+    }
+};
+
+// 5. History semua guru
+const getHistoryAllGuru = async (req, res) => {
+    try {
+        const instansiId = req.query.instansi_id || req.body.instansi_id || 'b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a';
+        const featureType = req.query.feature_type || null;
+        const history = await KepsekModel.getHistoryAllGuru(instansiId, featureType);
+        return res.status(200).json({
+            success: true,
+            message: "Berhasil memuat history generate semua guru.",
+            data: history,
+            meta: { total: history.length, filter_feature: featureType || 'semua' }
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Gagal memuat history.", error: error.message, data: null, meta: {} });
+    }
+};
+
+// 6. History satu guru
+const getHistoryByGuru = async (req, res) => {
+    try {
+        const { guruId } = req.params;
+        const instansiId = req.query.instansi_id || req.body.instansi_id || 'b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a';
+        const history = await KepsekModel.getHistoryByGuru(guruId, instansiId);
+        return res.status(200).json({
+            success: true,
+            message: "Berhasil memuat history guru.",
+            data: history,
+            meta: { total: history.length }
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Gagal memuat history guru.", error: error.message, data: null, meta: {} });
+    }
+};
+
+// 7. Statistik per guru
+const getStatistikGuru = async (req, res) => {
+    try {
+        const instansiId = req.query.instansi_id || req.body.instansi_id || 'b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a';
+        const statistik = await KepsekModel.getStatistikGuru(instansiId);
+        return res.status(200).json({
+            success: true,
+            message: "Berhasil memuat statistik guru.",
+            data: statistik,
+            meta: { total_guru: statistik.length }
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Gagal memuat statistik.", error: error.message, data: null, meta: {} });
+    }
+};
 // Pastikan semua fungsi diekspor di sini agar bisa dipanggil oleh Routes
 module.exports = { 
     getDashboardSummary,
     getRegistrationQueue, // 🌟 Daftarkan fungsi baru
-    reviewTeacherAccount  // 🌟 Daftarkan fungsi baru
+    reviewTeacherAccount, // 🌟 Daftarkan fungsi baru
+    getDaftarGuru,
+    getDetailGuru,
+    getHistoryAllGuru,
+    getHistoryByGuru,
+    getStatistikGuru
 };
