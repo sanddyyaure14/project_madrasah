@@ -384,7 +384,7 @@ const exportToExcel = async (req, res) => {
             sheet.getColumn(i).width = 30; 
         }
 
-        // ... kode pembuat tabel excel di atas ...
+        // kode pembuat tabel excel di atas ...
 
         // 🌟 SEKARANG DIUBAH MENJADI SEPERTI INI:
         const sanitizedFileName = (rubric.jenis_tugas || 'Rubrik').replace(/[^a-zA-Z0-9]/g, '_');
