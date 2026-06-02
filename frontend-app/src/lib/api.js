@@ -3,7 +3,7 @@
 // Base URL: http://192.168.0.104:3000/api  (sesuaikan IP jika berubah)
 // =========================================================================
 
-const BASE_URL = 'http://192.168.0.104:3000/api';
+const BASE_URL = 'http://10.0.2.2:3000/api';
 
 // ---------------------------------------------------------------------------
 // Auth helper — untuk sekarang token disimpan di-memory via AuthContext.

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, ActivityIndicator, Alert,
@@ -430,8 +430,16 @@ const TOOL_FORMS = {
 
 export default function ToolPageScreen({ route, navigation }) {
   const { slug } = route.params;
+
+  // Redirect writing-feedback ke dedicated screen (Rules of Hooks: useEffect di level atas)
+  useEffect(() => {
+    if (slug === 'writing-feedback') {
+      navigation.replace('WritingFeedback');
+    }
+  }, [slug]);
+
   const tool = findTool(slug);
-  if (!tool) return null;
+  if (!tool || slug === 'writing-feedback') return null;
 
   const iconName = ICON_MAP[tool.icon] ?? 'sparkles';
   const isGold = tool.accent === 'gold';

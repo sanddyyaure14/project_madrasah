@@ -12,6 +12,9 @@ import TeachersScreen from '../screens/TeachersScreen';
 import ApprovalsScreen from '../screens/ApprovalsScreen';
 import ToolPageScreen from '../screens/ToolPageScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import WritingFeedbackScreen from '../screens/WritingFeedbackScreen';
+import MyDocsScreen from '../screens/MyDocsScreen';
+import FeedbackDetailScreen from '../screens/FeedbackDetailScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -57,20 +60,32 @@ function GuruTabs() {
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Dokumen" component={MyDocsPlaceholder} options={{ title: 'Dokumen Saya' }} />
+      <Tab.Screen name="Dokumen" component={DocsStack} options={{ headerShown: false }} />
       <Tab.Screen name="Profil" component={ProfileScreen} options={{ title: 'Profil Saya' }} />
     </Tab.Navigator>
   );
 }
 
-function MyDocsPlaceholder() {
-  const { View, Text, StyleSheet } = require('react-native');
+function DocsStack() {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}>
-      <Text style={{ fontSize: 32, marginBottom: 12 }}>📄</Text>
-      <Text style={{ fontSize: 18, fontWeight: '700', color: C.ink }}>Dokumen Saya</Text>
-      <Text style={{ fontSize: 14, color: C.muted, marginTop: 6 }}>Fitur segera hadir</Text>
-    </View>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: C.card },
+        headerTitleStyle: { fontSize: 17, fontWeight: '700', color: C.ink },
+        headerTintColor: C.primary,
+      }}
+    >
+      <Stack.Screen
+        name="MyDocsList"
+        component={MyDocsScreen}
+        options={{ title: 'Dokumen Saya' }}
+      />
+      <Stack.Screen
+        name="FeedbackDetail"
+        component={FeedbackDetailScreen}
+        options={{ title: 'Detail Feedback' }}
+      />
+    </Stack.Navigator>
   );
 }
 
@@ -94,6 +109,16 @@ function DashboardStack() {
         options={({ route }) => ({
           title: route.params?.slug?.replace(/-/g, ' ') ?? 'Tool',
         })}
+      />
+      <Stack.Screen
+        name="WritingFeedback"
+        component={WritingFeedbackScreen}
+        options={{ title: 'Writing Feedback' }}
+      />
+      <Stack.Screen
+        name="FeedbackDetail"
+        component={FeedbackDetailScreen}
+        options={{ title: 'Detail Feedback' }}
       />
       <Stack.Screen name="Teachers" component={TeachersScreen} options={{ title: 'Daftar Guru' }} />
       <Stack.Screen name="Approvals" component={ApprovalsScreen} options={{ title: 'Persetujuan' }} />
