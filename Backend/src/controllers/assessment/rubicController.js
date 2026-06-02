@@ -37,6 +37,7 @@ const generateRubric = async (req, res) => {
         }
 
         const finalUserId = req.user?.id || userId || '99999999-9999-9999-9999-999999999999';
+        
         // 0. CEK KUOTA
         const quotaCheck = await RubicModel.checkUserQuota(finalUserId);
         if (!quotaCheck.hasQuota) {
@@ -62,7 +63,8 @@ const generateRubric = async (req, res) => {
 
         // 2. Update status → PROCESSING
         await RubicModel.updateRequestStatus(requestId, 'processing', {});
-
+        const startTime = Date.now();
+        
         // 3. Panggil Groq AI
         const chatCompletion = await groq.chat.completions.create({
             messages: [
@@ -110,7 +112,16 @@ PENTING:
 
         const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
         const finalTujuanPembelajaran = tujuan_pembelajaran || aiResponse.tujuan_pembelajaran;
-
+        
+        // --- METRIK AI UNTUK LOGGING DATABASE ---
+        const processingTimeMs = Date.now() - startTime;
+        const tokenUsage = {
+            prompt_tokens:     chatCompletion.usage?.prompt_tokens || 0,
+            completion_tokens: chatCompletion.usage?.completion_tokens || 0,
+            total_tokens:      chatCompletion.usage?.total_tokens || 0
+        };
+        const promptUsed = `[system]: Ahli pendidikan madrasah, balas JSON murni. [user]: jenis_tugas=${jenis_tugas}, aspek=${aspek_penilaian.join(', ')}, skala=${skala_nilai}`;
+        
         // 4. Simpan ke Database
         const assessmentData = {
             id: rubicId,
@@ -123,8 +134,15 @@ PENTING:
         };
         const savedAssessment = await RubicModel.saveAssessment(assessmentData);
 
-        // 5. Update Status Request
-        await RubicModel.updateRequestStatus(requestId, 'completed', savedAssessment);
+        // 5. PERBAIKAN: Memanggil updateRequestCompleted agar semua metrik masuk ke database
+        await RubicModel.updateRequestCompleted(
+            requestId,
+            savedAssessment,
+            promptUsed,        
+            processingTimeMs,  
+            tokenUsage,        
+            chatCompletion.model 
+        );
 
         res.status(201).json({
             success: true,
@@ -137,8 +155,9 @@ PENTING:
             },
             meta: {}
         });
+        
         // 6. Update usage_quotas
-    await RubicModel.incrementQuotaUsage(finalUserId);
+        await RubicModel.incrementQuotaUsage(finalUserId);
     } catch (error) {
         console.error("Error Detail:", error);
         try {
@@ -161,8 +180,12 @@ PENTING:
 // =============================================
 const getAllRubrics = async (req, res) => {
     try {
-        const { userId } = req.body;
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const finalUserId = req.user?.id; 
+        
+        if (!finalUserId) {
+            return res.status(401).json({ success: false, message: "User tidak terautentikasi" });
+        }
+
         const rubrics = await RubicModel.getAllRubrics(finalUserId);
 
         res.status(200).json({
@@ -182,8 +205,11 @@ const getAllRubrics = async (req, res) => {
 const getRubricById = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userId } = req.body;
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const finalUserId = req.user?.id; 
+
+        if (!finalUserId) {
+            return res.status(401).json({ success: false, message: "User tidak terautentikasi" });
+        }
 
         const rubric = await RubicModel.getRubricById(id, finalUserId);
         if (!rubric) {
@@ -202,8 +228,12 @@ const getRubricById = async (req, res) => {
 const updateRubric = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userId, jenis_tugas, aspek_penilaian, skala_nilai, tujuan_pembelajaran, rubric_json } = req.body;
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const { jenis_tugas, aspek_penilaian, skala_nilai, tujuan_pembelajaran, rubric_json } = req.body;
+        const finalUserId = req.user?.id; 
+
+        if (!finalUserId) {
+            return res.status(401).json({ success: false, message: "User tidak terautentikasi" });
+        }
 
         if (!jenis_tugas || !aspek_penilaian || !skala_nilai || !rubric_json) {
             return res.status(400).json({ success: false, message: "jenis_tugas, aspek_penilaian, skala_nilai, dan rubric_json wajib diisi", data: null, meta: {} });
@@ -229,8 +259,11 @@ const updateRubric = async (req, res) => {
 const deleteRubric = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userId } = req.body;
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const finalUserId = req.user?.id; 
+
+        if (!finalUserId) {
+            return res.status(401).json({ success: false, message: "User tidak terautentikasi" });
+        }
 
         const deleted = await RubicModel.deleteRubric(id, finalUserId);
         if (!deleted) {
@@ -244,77 +277,134 @@ const deleteRubric = async (req, res) => {
 };
 
 // =============================================
-// GET - Export rubrik ke Excel
+// GET - Export rubrik ke Excel (VERSI SUPER REBOST & ANTI-CORRUPT)
 // =============================================
 const exportToExcel = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userId } = req.body;
-        const finalUserId = userId || '99999999-9999-9999-9999-999999999999';
+        const finalUserId = req.user?.id; 
+
+        if (!finalUserId) {
+            return res.status(401).json({ success: false, message: "User tidak terautentikasi" });
+        }
 
         const rubric = await RubicModel.getRubricById(id, finalUserId);
         if (!rubric) {
-            return res.status(404).json({ success: false, message: "Rubrik tidak ditemukan", data: null, meta: {} });
+            return res.status(404).json({ success: false, message: "Rubrik tidak ditemukan di database" });
         }
 
-        const rubricData = rubric.rubric_json;
+        // 🌟 FIX 1: AMBIL DATA DARI DATABASE & PARSE JIKA STRING
+        let rawData = rubric.rubric_json;
+        if (typeof rawData === 'string') {
+            try {
+                rawData = JSON.parse(rawData);
+            } catch (e) {
+                console.error("Gagal parse string rubric_json:", e);
+                rawData = {};
+            }
+        }
+        if (!rawData) rawData = {};
+
+        // 🌟 FIX 2: ADAPTASI BUNGKUS DATA (Membaca mentah atau yang dibungkus properti 'rubric')
+        let rubricData = rawData.rubric ? rawData.rubric : rawData;
+        
+        // Ambil daftar aspek secara fleksibel sesuai format Groq
+        const daftarAspek = rubricData.aspek || rubricData.aspek_penilaian || rubricData.kriteria || rawData.aspek || [];
+
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet('Rubrik Penilaian');
 
-        // Header utama
-        sheet.mergeCells('A1', `${String.fromCharCode(65 + (rubricData.aspek?.[0]?.level?.length || 4))}1`);
-        sheet.getCell('A1').value = rubricData.judul || `Rubrik Penilaian ${rubric.jenis_tugas}`;
+        // Header utama di baris 1
+        sheet.mergeCells('A1', 'F1');
+        sheet.getCell('A1').value = rubricData.judul || rawData.judul || `Rubrik Penilaian ${rubric.jenis_tugas}`;
         sheet.getCell('A1').font = { bold: true, size: 14 };
         sheet.getCell('A1').alignment = { horizontal: 'center' };
 
-        // Tujuan pembelajaran
-        sheet.getCell('A2').value = `Tujuan Pembelajaran: ${rubric.tujuan_pembelajaran || '-'}`;
+        // Tujuan pembelajaran di baris 2
+        sheet.getCell('A2').value = `Tujuan Pembelajaran: ${rubric.tujuan_pembelajaran || rubricData.tujuan_pembelajaran || '-'}`;
         sheet.getCell('A2').font = { italic: true };
 
-        sheet.addRow([]);
+        sheet.addRow([]); // Pembatas kosong
 
-        // Header tabel
-        const levels = rubricData.aspek?.[0]?.level?.map(l => l.nama) || ['Sangat Baik', 'Baik', 'Cukup', 'Perlu Bimbingan'];
-        const headerRow = sheet.addRow(['Aspek', 'Bobot (%)', ...levels]);
-        headerRow.eachCell(cell => {
-            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-            cell.alignment = { horizontal: 'center', wrapText: true };
-            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-        });
-
-        // Isi tabel per aspek
-        rubricData.aspek?.forEach((aspek, i) => {
-            const levelDeskripsi = aspek.level?.map(l => `${l.nama} (skor: ${l.skor})\n${l.deskripsi}`) || [];
-            const row = sheet.addRow([aspek.nama, aspek.bobot, ...levelDeskripsi]);
-            row.eachCell(cell => {
-                cell.alignment = { wrapText: true, vertical: 'top' };
-                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-            });
-            row.height = 80;
-        });
-
-        // Set lebar kolom
-        sheet.getColumn(1).width = 20;
-        sheet.getColumn(2).width = 12;
-        for (let i = 3; i <= levels.length + 2; i++) {
-            sheet.getColumn(i).width = 35;
+        // Ambil nama level secara dinamis dari aspek pertama
+        let levels = ['Level 4', 'Level 3', 'Level 2', 'Level 1'];
+        if (Array.isArray(daftarAspek) && daftarAspek.length > 0 && daftarAspek[0]) {
+            const levelData = daftarAspek[0].level || daftarAspek[0].levels || daftarAspek[0].kriteria_skor || [];
+            if (levelData.length > 0) {
+                levels = levelData.map(l => l.nama || `Skor ${l.skor}`);
+            }
         }
 
-        // Kirim file Excel
-        const fileName = `Rubrik_${rubric.jenis_tugas.replace(/\s+/g, '_')}.xlsx`;
+        // Membuat Header Tabel di Excel
+        const headerRow = sheet.addRow(['Aspek Penilaian', 'Bobot (%)', ...levels]);
+        headerRow.eachCell(cell => {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D6E4F' } }; // Hijau Madrasah
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = {
+                top: { style: 'thin' }, left: { style: 'thin' },
+                bottom: { style: 'thin' }, right: { style: 'thin' }
+            };
+        });
+        headerRow.height = 25;
+
+        // Memasukkan data aspek ke baris tabel
+        if (Array.isArray(daftarAspek) && daftarAspek.length > 0) {
+            daftarAspek.forEach((aspek) => {
+                if (!aspek) return;
+                const namaAspek = aspek.nama || aspek.aspek || 'Tanpa Nama Aspek';
+                const bobotAspek = aspek.bobot || '-';
+                
+                const levelData = aspek.level || aspek.levels || aspek.kriteria_skor || [];
+                const levelDeskripsi = levelData.map(l => {
+                    const skorText = l.skor !== undefined ? `(Skor: ${l.skor})` : '';
+                    const descText = l.deskripsi || l.kriteria || '';
+                    return `${l.nama || ''} ${skorText}\n${descText}`;
+                });
+
+                const row = sheet.addRow([namaAspek, bobotAspek, ...levelDeskripsi]);
+                row.eachCell(cell => {
+                    cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+                    cell.border = {
+                        top: { style: 'thin' }, left: { style: 'thin' },
+                        bottom: { style: 'thin' }, right: { style: 'thin' }
+                    };
+                });
+                row.height = 75; // Beri ruang tinggi baris agar deskripsi panjang muat
+            });
+        } else {
+            const emptyRow = sheet.addRow(['Data aspek gagal dipetakan ke dalam Excel', '', '', '', '', '']);
+            emptyRow.getCell(1).font = { italic: true, color: { argb: 'FF990000' } };
+        }
+
+        // Set Lebar Kolom
+        sheet.getColumn(1).width = 25; 
+        sheet.getColumn(2).width = 12; 
+        for (let i = 3; i <= levels.length + 2; i++) {
+            sheet.getColumn(i).width = 30; 
+        }
+
+        // ... kode pembuat tabel excel di atas ...
+
+        // 🌟 SEKARANG DIUBAH MENJADI SEPERTI INI:
+        const sanitizedFileName = (rubric.jenis_tugas || 'Rubrik').replace(/[^a-zA-Z0-9]/g, '_');
+        const fileName = `Rubrik_${sanitizedFileName}.xlsx`;
+
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+
+        // Wajib gunakan tanda kutip ganda (\") di dalam penulisan filename agar terbaca utuh oleh Postman/Browser
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
 
         await workbook.xlsx.write(res);
         res.end();
 
     } catch (error) {
         console.error("Error Export Excel:", error);
-        res.status(500).json({ success: false, message: "Gagal export ke Excel", error: error.message, data: null, meta: {} });
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, message: "Gagal export ke Excel akibat sistem internal", error: error.message });
+        }
     }
 };
-
 // =============================================
 // HELPER - Build level config berdasarkan skala & jumlah level
 // =============================================
