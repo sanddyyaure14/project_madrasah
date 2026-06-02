@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const pool = require('./config/db');
 
@@ -18,10 +19,10 @@ const unitPlanRoutes = require('./routes/content/unitPlanRoutes');
 const academicContentRoutes = require('./routes/content/academicContentRoutes');
 
 // Dashboard / Kepsek Routes
-const kepsekRoutes = require('./routes/dashboard/kepsekRoutes');
+const kepsekRoutes = require('./routes/dashboard/kepsek/kepsekRoutes');
 
 // Guru Routes (Profile, Dashboard, Dokumen Saya)
-const guruRoutes = require('./routes/guru/guruRoutes');
+const guruRoutes = require('./routes/dashboard/guru/guruRoutes');
 
 // Error Handlers
 const contentErrorHandler = require('./middlewares/content/contentErrorHandler');
@@ -33,6 +34,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
+app.use(cors());
 
 // --- ROUTES ---
 
@@ -49,7 +51,7 @@ app.use('/api', guruRoutes);
 app.use('/api', mcRoutes);
 app.use('/api', writingRoutes);
 app.use('/api', rubicRoutes);
-app.use('/api', worksheetRoutes);
+app.use('/api/assessment', worksheetRoutes);
 
 // Content (dilindungi verifyToken + authorizeRoles di dalam routenya)
 app.use('/api/presentation', presentationRoutes);

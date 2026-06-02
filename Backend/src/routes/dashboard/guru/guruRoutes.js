@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, authorizeRoles } = require('../../middlewares/authMiddleware');
-const guruController = require('../../controllers/guru/guruController');
+const { verifyToken, authorizeRoles } = require('../../../middlewares/authMiddleware');
+const guruController = require('../../../controllers/dashboard/guru/guruController');
 
 // Semua endpoint guru hanya bisa diakses oleh guru yang sudah login & aktif
 // verifyToken  → cek JWT valid
@@ -22,6 +22,15 @@ router.put(
     verifyToken,
     authorizeRoles('guru'),
     guruController.updateProfile
+);
+
+// ── DASHBOARD ──────────────────────────────────────────────────────────────
+// GET /api/guru/dashboard/summary      → Summary kuota dan total dokumen
+router.get(
+    '/guru/dashboard/summary',
+    verifyToken,
+    authorizeRoles('guru'),
+    guruController.getDashboardSummary
 );
 
 // ── DOKUMEN SAYA / HISTORY ─────────────────────────────────────────────────

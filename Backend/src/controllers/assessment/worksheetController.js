@@ -40,13 +40,26 @@ const generateWorksheet = async (req, res) => {
             return res.status(400).json({ success: false, message: 'tingkat_kelas wajib diisi', data: null, meta: {} });
         }
 
+        // 0. CEK KUOTA
+        const quotaCheck = await WorksheetModel.checkUserQuota(finalUserId);
+        if (!quotaCheck.hasQuota) {
+            return res.status(403).json({
+                success: false,
+                message: "Kuota generate bulanan Anda telah habis.",
+                data: null,
+                meta: { remaining: 0, limit: quotaCheck.limit }
+            });
+        }
         // 1. Log Request ke Database
         await WorksheetModel.createRequest(requestId, finalUserId, {
             mata_pelajaran, topik, tipe_aktivitas, tingkat_kelas,
             durasi_menit, tujuan_pembelajaran, header_sekolah, petunjuk_khusus
         });
+        
+        // 2. Update status → PROCESSING
+            await WorksheetModel.updateRequestStatus(requestId, 'processing', {});
 
-        // 2. Panggil Groq AI
+        // 3. Panggil Groq AI
         const chatCompletion = await groq.chat.completions.create({
             messages: [
                 {
@@ -84,6 +97,7 @@ Struktur JSON yang WAJIB diikuti (sesuai schema):
                 {
                     "no": 1,
                     "pertanyaan": "isi pertanyaan",
+                    "opsi": ["teks opsi A", "teks opsi B", "teks opsi C", "teks opsi D"],
                     "kolom_jawaban": "tersedia"
                 }
             ]
@@ -94,7 +108,9 @@ Struktur JSON yang WAJIB diikuti (sesuai schema):
 PENTING:
 - Buat aktivitas sesuai tipe: ${tipe_aktivitas.join(', ')}
 - Setiap aktivitas minimal 3 soal yang relevan
-- Gunakan kata "tujuan" bukan "tujuan_pembelajaran" di JSON`
+- Gunakan kata "tujuan" bukan "tujuan_pembelajaran" di JSON
+- Untuk aktivitas bertipe "Pilihan Ganda", setiap soal WAJIB memiliki field "opsi" berisi tepat 4 pilihan jawaban (array of string)
+- Untuk aktivitas bertipe esai/isian, field "opsi" diisi array kosong []`
                 }
             ],
             model: "llama-3.3-70b-versatile",
@@ -103,7 +119,7 @@ PENTING:
 
         const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
 
-        // 3. Simpan ke Database
+        // 4. Simpan ke Database
         const worksheetData = {
             id: worksheetId,
             request_id: requestId,
@@ -116,9 +132,10 @@ PENTING:
         };
         const savedWorksheet = await WorksheetModel.saveWorksheet(worksheetData);
 
-        // 4. Update Status Request
+        // 5. Update Status Request
         await WorksheetModel.updateRequestStatus(requestId, 'completed', savedWorksheet);
-
+        // 6. Update usage_quotas
+        await WorksheetModel.incrementQuotaUsage(finalUserId);
         res.status(201).json({
             success: true,
             message: "Worksheet berhasil dibuat dengan Groq Llama 3.3.",
@@ -296,9 +313,18 @@ const cetakPDF = async (req, res) => {
             soalList.forEach((s) => {
                 doc.text(`${s.no}. ${s.pertanyaan}`);
                 doc.moveDown(0.3);
-                // Kolom jawaban kosong
-                doc.moveTo(70, doc.y).lineTo(540, doc.y).stroke();
-                doc.moveDown(1);
+                // Jika ada opsi (pilihan ganda), cetak A B C D
+                if (Array.isArray(s.opsi) && s.opsi.length > 0) {
+                    const huruf = ['A', 'B', 'C', 'D'];
+                    s.opsi.forEach((opsi, idx) => {
+                        doc.text(`   ${huruf[idx] || idx + 1}. ${opsi}`);
+                    });
+                    doc.moveDown(0.5);
+                } else {
+                    // Kolom jawaban kosong untuk esai/isian
+                    doc.moveTo(70, doc.y).lineTo(540, doc.y).stroke();
+                    doc.moveDown(1);
+                }
             });
 
             doc.moveDown(0.5);

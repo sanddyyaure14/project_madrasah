@@ -1,13 +1,13 @@
 const pool = require('../../config/db');
 
-// 1. Catat request masuk ke generation_requests
+// 1. Catat request masuk ke generation_requests//
 
 const createRequest = async (requestId, userId, inputData) => {
     const query = `
         INSERT INTO generation_requests 
             (id, user_id, feature_type, input_data, status, created_at)
         VALUES 
-            ($1, $2, 'rubric', $3, 'processing', NOW())
+           ($1, $2, 'rubric', $3, 'pending', NOW())
         RETURNING *
     `;
     const values = [requestId, userId, JSON.stringify(inputData)];
@@ -15,7 +15,7 @@ const createRequest = async (requestId, userId, inputData) => {
     return result.rows[0];
 };
 
-// 2. Simpan hasil rubrik ke assessment_rubric
+// 2. Simpan hasil rubrik ke assessment_rubric//
 
 const saveAssessment = async (data) => {
     const query = `
@@ -152,6 +152,58 @@ const deleteRubric = async (rubricId, userId) => {
     return rubric.rows[0];
 };
 
+// 8. CEK KUOTA user sebelum generate
+const checkUserQuota = async (userId) => {
+    const query = `
+        SELECT monthly_limit, used_this_month, reset_date, plan_type
+        FROM usage_quotas
+        WHERE user_id = $1
+    `;
+    const result = await pool.query(query, [userId]);
+
+    if (!result.rows[0]) {
+        // Buat kuota default free jika belum ada
+        await pool.query(`
+            INSERT INTO usage_quotas (id, user_id, plan_type, monthly_limit, used_this_month, reset_date)
+            VALUES (gen_random_uuid(), $1, 'free', 10, 0, DATE_TRUNC('month', NOW()) + INTERVAL '1 month')
+        `, [userId]);
+        return { hasQuota: true, remaining: 10, plan_type: 'free' };
+    }
+
+    const quota = result.rows[0];
+
+    // Reset jika sudah melewati tanggal reset
+    if (new Date() >= new Date(quota.reset_date)) {
+        await pool.query(`
+            UPDATE usage_quotas 
+            SET used_this_month = 0, reset_date = DATE_TRUNC('month', NOW()) + INTERVAL '1 month'
+            WHERE user_id = $1
+        `, [userId]);
+        return { hasQuota: true, remaining: quota.monthly_limit, plan_type: quota.plan_type };
+    }
+
+    const remaining = quota.monthly_limit - quota.used_this_month;
+    return {
+        hasQuota: remaining > 0,
+        remaining,
+        used: quota.used_this_month,
+        limit: quota.monthly_limit,
+        plan_type: quota.plan_type
+    };
+};
+
+// 9. INCREMENT kuota setelah generate berhasil
+const incrementQuotaUsage = async (userId) => {
+    const query = `
+        UPDATE usage_quotas
+        SET used_this_month = used_this_month + 1
+        WHERE user_id = $1
+        RETURNING used_this_month, monthly_limit
+    `;
+    const result = await pool.query(query, [userId]);
+    return result.rows[0];
+};
+
 module.exports = {
     createRequest,
     saveAssessment,
@@ -159,5 +211,7 @@ module.exports = {
     getAllRubrics,
     getRubricById,
     updateRubric,
-    deleteRubric
+    deleteRubric,
+    checkUserQuota,
+    incrementQuotaUsage
 };

@@ -308,7 +308,7 @@ const updateMC = async (req, res) => {
             kompetensi_dasar: kompetensi_dasar !== undefined ? kompetensi_dasar : existingAssessment.kompetensi_dasar
         };
 
-        const result = await MCModel.saveAssessment(updatedData); 
+        const result = await MCModel.saveAssessmentAndDeductQuota(updatedData, null); 
 
         res.status(200).json({
             success: true,

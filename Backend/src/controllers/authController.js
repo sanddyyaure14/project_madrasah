@@ -114,7 +114,7 @@ const authController = {
             const accessToken = jwt.sign(
                 { id: user.id, role: user.role },
                 process.env.JWT_SECRET || 'DEFAULT_ACCESS_SECRET_KEY',
-                { expiresIn: '15m' }
+                { expiresIn: '7d' }
             );
             const refreshToken = jwt.sign(
                 { id: user.id },

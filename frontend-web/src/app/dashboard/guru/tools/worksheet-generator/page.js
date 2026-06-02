@@ -6,15 +6,15 @@ export default function WorksheetGeneratorPage() {
   const [formData, setFormData] = useState({
     mata_pelajaran: "",
     topik: "",
-    tipe_aktivitas: ["Pilihan Ganda"], 
+    tipe_aktivitas: ["Pilihan Ganda"],
     tingkat_kelas: "8",
     durasi_menit: 45,
     tujuan_pembelajaran: "",
-    userId: "99999999-9999-9999-9999-999999999999"
   });
 
   const [loading, setLoading] = useState(false);
-  const [worksheet, setWorksheet] = useState(null);
+  const [lks, setLks] = useState(null);
+  const [worksheetId, setWorksheetId] = useState(null);
   const [error, setError] = useState(null);
 
   const handleCheckboxChange = (e) => {
@@ -30,20 +30,28 @@ export default function WorksheetGeneratorPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setLks(null);
+    setWorksheetId(null);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const token = sessionStorage.getItem("accessToken");
+      if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login ulang.");
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
       const response = await fetch(`${apiUrl}/api/assessment/generate-worksheet`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
         body: JSON.stringify(formData),
       });
 
       const resData = await response.json();
       if (!response.ok) throw new Error(resData.message || "Gagal membuat worksheet.");
-      
-      // Mengambil data worksheet hasil generator dari backend
-      setWorksheet(resData.data);
+
+      setLks(resData.data?.worksheet);
+      setWorksheetId(resData.data?.worksheet_id);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -51,10 +59,31 @@ export default function WorksheetGeneratorPage() {
     }
   };
 
+  const handleCetak = async () => {
+    if (!worksheetId) return;
+    const token = sessionStorage.getItem("accessToken");
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+    try {
+      const res = await fetch(`${apiUrl}/api/assessment/worksheets/${worksheetId}/cetak-pdf`, {
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Gagal mengunduh PDF");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `LKS.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Gagal unduh PDF: " + err.message);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-4">
       <Link href="/" className="text-xs font-medium text-gray-500 hover:text-emerald-700">← Kembali ke Dashboard</Link>
-      
+
       <div className="flex items-center gap-3">
         <span className="text-2xl p-2 bg-amber-50 text-amber-600 rounded-xl">📄</span>
         <div>
@@ -76,7 +105,7 @@ export default function WorksheetGeneratorPage() {
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Topik Bahasan *</label>
             <input type="text" required placeholder="Contoh: Akhlak Terpuji kepada Orang Tua" className="w-full text-sm p-2 border border-gray-200 rounded-lg outline-none focus:border-emerald-600" onChange={(e) => setFormData({...formData, topik: e.target.value})} />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tingkat Kelas</label>
@@ -107,27 +136,69 @@ export default function WorksheetGeneratorPage() {
 
         {/* PRATINJAU HASIL */}
         <div className="lg:col-span-7 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          {worksheet ? (
+          {lks ? (
             <div className="border-2 border-emerald-900 p-5 rounded-lg space-y-4">
               <div className="text-center border-b-2 border-gray-800 pb-2">
                 <h3 className="font-bold text-base uppercase text-gray-900">Lembar Kerja Siswa (LKS)</h3>
+                <p className="font-semibold text-sm mt-1">{lks.judul}</p>
                 <p className="text-[10px] text-gray-500 font-mono mt-0.5">
-                  Mapel: {worksheet.mata_pelajaran} | Kelas: {worksheet.tingkat_kelas} | Waktu: {worksheet.durasi_menit} Menit
+                  Mapel: {lks.info?.mata_pelajaran} | Kelas: {lks.info?.kelas} | Waktu: {lks.info?.durasi}
                 </p>
               </div>
-              
-              {/* Render soal dari struktur data JSON backend Anda */}
-              <div className="space-y-4 text-xs whitespace-pre-wrap text-gray-800 leading-relaxed">
-                {/* Fallback jika backend mengembalikan bentuk teks string/objek */}
-                {typeof worksheet.questions_json === 'string' ? (
-                  <p>{worksheet.questions_json}</p>
-                ) : (
-                  <p>{JSON.stringify(worksheet.questions_json, null, 2)}</p>
-                )}
-              </div>
-              
-              <button onClick={() => window.print()} className="mt-4 text-[10px] bg-gray-800 text-white px-3 py-1 rounded hover:bg-black transition print:hidden">
-                🖨️ Cetak / Print LKS
+
+              {lks.tujuan && (
+                <div className="text-xs">
+                  <span className="font-bold">Tujuan: </span>{lks.tujuan}
+                </div>
+              )}
+
+              {lks.petunjuk && (
+                <div className="text-xs">
+                  <span className="font-bold">Petunjuk: </span>{lks.petunjuk}
+                </div>
+              )}
+
+              {Array.isArray(lks.aktivitas) && lks.aktivitas.map((akt, i) => (
+                <div key={i} className="space-y-2">
+                  <p className="text-xs font-bold uppercase text-emerald-900 border-b pb-1">
+                    Aktivitas {i + 1} — {akt.tipe}
+                  </p>
+                  <p className="text-xs italic text-gray-600">{akt.instruksi}</p>
+                  <ol className="space-y-3">
+                    {Array.isArray(akt.soal) && akt.soal.map((s) => {
+                      const isPG = akt.tipe?.toLowerCase().includes("pilihan");
+                      return (
+                        <li key={s.no} className="text-xs">
+                          <span>{s.no}. {s.pertanyaan}</span>
+                          {isPG ? (
+                            // Pilihan ganda: tampil opsi jika ada, fallback ke A-D kosong
+                            <ul className="mt-1 ml-4 space-y-0.5 text-gray-700">
+                              {Array.isArray(s.opsi) && s.opsi.length > 0
+                                ? s.opsi.map((opsi, j) => (
+                                    <li key={j}>{String.fromCharCode(65 + j)}. {opsi}</li>
+                                  ))
+                                : ["A. ...", "B. ...", "C. ...", "D. ..."].map((ph, j) => (
+                                    <li key={j} className="text-gray-300">{ph}</li>
+                                  ))
+                              }
+                            </ul>
+                          ) : (
+                            // Esai/isian: garis jawaban
+                            <div className="mt-1 border-b border-gray-400 w-full" />
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={handleCetak}
+                className="mt-4 text-[10px] bg-gray-800 text-white px-3 py-1 rounded hover:bg-black transition"
+              >
+                🖨️ Unduh PDF LKS
               </button>
             </div>
           ) : (

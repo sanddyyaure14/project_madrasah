@@ -1,40 +1,101 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  ActivityIndicator, Alert, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../lib/auth';
+import { API_URL } from '../lib/auth';
 import { PENDING } from '../lib/mockSchool';
 import { C, S } from '../lib/theme';
 
-const PENDING_TEACHERS_INIT = [
-  {
-    id: 't-1', name: 'Ust. Farid Hidayat', email: 'farid@madrasah.id',
-    madrasah: 'MTs Negeri 1 Jakarta', subject: 'Bahasa Arab',
-    nip: '198901234567', emailVerified: true, submittedAt: 'Hari ini, 10:20',
-  },
-  {
-    id: 't-2', name: 'Ustz. Nurul Hikmah', email: 'nurul@madrasah.id',
-    madrasah: 'MA Negeri 2 Surabaya', subject: 'Fiqih',
-    nip: '199512348901', emailVerified: false, submittedAt: 'Kemarin, 15:40',
-  },
-];
-
-function getInitials(name) {
-  return name.split(' ').map(s => s[0]).slice(0, 2).join('');
+function getInitials(name = '') {
+  return name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
 }
 
 export default function ApprovalsScreen() {
+  const { token, user } = useAuth();
   const [tab, setTab] = useState('akun');
   const [docs, setDocs] = useState(PENDING);
-  const [pendingTeachers, setPendingTeachers] = useState(PENDING_TEACHERS_INIT);
+  const [pendingTeachers, setPendingTeachers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null); // id guru yang sedang diproses
+  const [refreshing, setRefreshing] = useState(false);
 
-  function approveTeacher(id) {
-    setPendingTeachers(prev => prev.filter(t => t.id !== id));
+  // Ambil daftar guru pending dari backend
+  const fetchPendingTeachers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/kepsek/pending-teachers`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPendingTeachers(data.data ?? []);
+      }
+    } catch (error) {
+      console.error('Fetch pending teachers error:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (tab === 'akun') fetchPendingTeachers();
+  }, [tab]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchPendingTeachers();
+  };
+
+  // Approve atau Reject guru
+  async function reviewTeacher(targetUserId, action, namaGuru) {
+    Alert.alert(
+      action === 'approve' ? 'Setujui Guru?' : 'Tolak Guru?',
+      action === 'approve'
+        ? `Akun ${namaGuru} akan diaktifkan dan bisa login.`
+        : `Pendaftaran ${namaGuru} akan ditolak dan dihapus.`,
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: action === 'approve' ? 'Setujui' : 'Tolak',
+          style: action === 'approve' ? 'default' : 'destructive',
+          onPress: async () => {
+            setActionLoading(targetUserId);
+            try {
+              const res = await fetch(`${API_URL}/kepsek/review-teacher`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ targetUserId, action }),
+              });
+              const data = await res.json();
+              if (data.success) {
+                Alert.alert('Berhasil', data.message);
+                // Hapus dari list lokal
+                setPendingTeachers(prev => prev.filter(t => t.id !== targetUserId));
+              } else {
+                Alert.alert('Gagal', data.message);
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Tidak dapat terhubung ke server.');
+            } finally {
+              setActionLoading(null);
+            }
+          },
+        },
+      ]
+    );
   }
-  function rejectTeacher(id) {
-    setPendingTeachers(prev => prev.filter(t => t.id !== id));
-  }
-  function actDoc(id, approve) {
+
+  function actDoc(id) {
     setDocs(prev => prev.filter(d => d.id !== id));
   }
 
@@ -43,7 +104,7 @@ export default function ApprovalsScreen() {
       {/* Header */}
       <View style={styles.pageHeader}>
         <Text style={styles.pageTitle}>Pusat Persetujuan</Text>
-        <Text style={styles.pageSub}>Verifikasi akun guru baru dan tinjau dokumen sebelum dipublikasikan.</Text>
+        <Text style={styles.pageSub}>Verifikasi akun guru baru dan tinjau dokumen.</Text>
       </View>
 
       {/* Tabs */}
@@ -68,10 +129,16 @@ export default function ApprovalsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {/* Tab Akun Guru */}
         {tab === 'akun' && (
           <>
-            {pendingTeachers.length === 0 ? (
+            {loading ? (
+              <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />
+            ) : pendingTeachers.length === 0 ? (
               <View style={styles.empty}>
                 <Text style={styles.emptyArabic}>لا توجد طلبات</Text>
                 <Text style={styles.emptyText}>Tidak ada pendaftaran guru yang menunggu verifikasi.</Text>
@@ -81,27 +148,21 @@ export default function ApprovalsScreen() {
                 <View key={t.id} style={[styles.card, S.shadow]}>
                   <View style={styles.cardTop}>
                     <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>{getInitials(t.name)}</Text>
+                      <Text style={styles.avatarText}>{getInitials(t.nama_lengkap)}</Text>
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <View style={styles.nameRow}>
-                        <Text style={styles.cardName} numberOfLines={1}>{t.name}</Text>
-                        {t.emailVerified && (
-                          <View style={styles.verifiedBadge}>
-                            <Ionicons name="checkmark" size={10} color={C.primary} />
-                            <Text style={styles.verifiedText}>Email terverifikasi</Text>
-                          </View>
-                        )}
-                      </View>
+                      <Text style={styles.cardName} numberOfLines={1}>{t.nama_lengkap}</Text>
                       <Text style={styles.cardSub} numberOfLines={1}>{t.email}</Text>
                     </View>
                   </View>
+
                   <View style={styles.cardDetails}>
                     {[
-                      { icon: 'business', text: t.madrasah },
-                      { icon: 'book', text: t.subject },
-                      { icon: 'card', text: `NIP: ${t.nip}` },
-                      { icon: 'time', text: t.submittedAt },
+                      { icon: 'business', text: `Madrasah: ${t.nama_instansi ?? '-'}` },
+                      { icon: 'card', text: `NIP: ${t.nip ?? '-'}` },
+                      { icon: 'book', text: `Mapel: ${Array.isArray(t.mata_pelajaran) ? t.mata_pelajaran.join(', ') : (t.mata_pelajaran ?? '-')}` },
+                      { icon: 'school', text: `Jenjang: ${t.jenjang ?? '-'}` },
+                      { icon: 'time', text: `Daftar: ${t.created_at ? new Date(t.created_at).toLocaleDateString('id-ID') : '-'}` },
                     ].map((d, i) => (
                       <View key={i} style={styles.detailRow}>
                         <Ionicons name={d.icon} size={13} color={C.muted} />
@@ -109,14 +170,33 @@ export default function ApprovalsScreen() {
                       </View>
                     ))}
                   </View>
+
                   <View style={styles.cardActions}>
-                    <TouchableOpacity style={styles.btnReject} onPress={() => rejectTeacher(t.id)}>
-                      <Ionicons name="close" size={14} color={C.danger} />
-                      <Text style={styles.btnRejectText}>Tolak</Text>
+                    <TouchableOpacity
+                      style={styles.btnReject}
+                      onPress={() => reviewTeacher(t.id, 'reject', t.nama_lengkap)}
+                      disabled={actionLoading === t.id}
+                    >
+                      {actionLoading === t.id
+                        ? <ActivityIndicator size="small" color={C.danger} />
+                        : <>
+                            <Ionicons name="close" size={14} color={C.danger} />
+                            <Text style={styles.btnRejectText}>Tolak</Text>
+                          </>
+                      }
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.btnApprove} onPress={() => approveTeacher(t.id)}>
-                      <Ionicons name="checkmark" size={14} color="#fff" />
-                      <Text style={styles.btnApproveText}>Setujui</Text>
+                    <TouchableOpacity
+                      style={styles.btnApprove}
+                      onPress={() => reviewTeacher(t.id, 'approve', t.nama_lengkap)}
+                      disabled={actionLoading === t.id}
+                    >
+                      {actionLoading === t.id
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <>
+                            <Ionicons name="checkmark" size={14} color="#fff" />
+                            <Text style={styles.btnApproveText}>Setujui</Text>
+                          </>
+                      }
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -125,6 +205,7 @@ export default function ApprovalsScreen() {
           </>
         )}
 
+        {/* Tab Dokumen */}
         {tab === 'dokumen' && (
           <>
             {docs.length === 0 ? (
@@ -150,11 +231,11 @@ export default function ApprovalsScreen() {
                     </View>
                   </View>
                   <View style={styles.cardActions}>
-                    <TouchableOpacity style={styles.btnReject} onPress={() => actDoc(d.id, false)}>
+                    <TouchableOpacity style={styles.btnReject} onPress={() => actDoc(d.id)}>
                       <Ionicons name="close" size={14} color={C.danger} />
                       <Text style={styles.btnRejectText}>Tolak</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.btnApprove} onPress={() => actDoc(d.id, true)}>
+                    <TouchableOpacity style={styles.btnApprove} onPress={() => actDoc(d.id)}>
                       <Ionicons name="checkmark" size={14} color="#fff" />
                       <Text style={styles.btnApproveText}>Setujui</Text>
                     </TouchableOpacity>
@@ -174,10 +255,7 @@ const styles = StyleSheet.create({
   pageHeader: { padding: 20, paddingBottom: 12, backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border },
   pageTitle: { fontSize: 24, fontWeight: '700', color: C.ink },
   pageSub: { fontSize: 13, color: C.muted, marginTop: 4 },
-  tabRow: {
-    flexDirection: 'row', backgroundColor: C.card,
-    borderBottomWidth: 1, borderBottomColor: C.border,
-  },
+  tabRow: { flexDirection: 'row', backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border },
   tab: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent',
@@ -187,38 +265,33 @@ const styles = StyleSheet.create({
   tabTextActive: { color: C.primary },
   content: { padding: 16, gap: 12 },
   card: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 12 },
-  cardTop: { flexDirection: 'row', gap: 12 },
+  cardTop: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   avatar: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: C.goldLight,
+    width: 48, height: 48, borderRadius: 24, backgroundColor: C.goldLight ?? '#fef9c3',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  avatarText: { fontSize: 14, fontWeight: '700', color: C.goldFg },
+  avatarText: { fontSize: 14, fontWeight: '700', color: C.goldFg ?? '#854d0e' },
   docIcon: {
-    width: 48, height: 48, borderRadius: 12, backgroundColor: C.primaryLight,
+    width: 48, height: 48, borderRadius: 12, backgroundColor: C.primaryLight ?? '#eff6ff',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  cardName: { fontSize: 15, fontWeight: '700', color: C.ink, flex: 1 },
+  cardName: { fontSize: 15, fontWeight: '700', color: C.ink },
   cardSub: { fontSize: 12, color: C.muted, marginTop: 2 },
-  verifiedBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: C.primaryLight, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3,
-  },
-  verifiedText: { fontSize: 9, fontWeight: '700', color: C.primary, textTransform: 'uppercase' },
   typeBadge: { backgroundColor: '#f3f4f6', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   typeBadgeText: { fontSize: 10, fontWeight: '700', color: C.ink, textTransform: 'uppercase' },
   docTitle: { fontSize: 14, fontWeight: '600', color: C.ink, marginTop: 4 },
   docMeta: { fontSize: 12, color: C.muted, marginTop: 4 },
-  cardDetails: { gap: 6, borderTopWidth: 1, borderTopColor: C.separator, paddingTop: 12 },
+  cardDetails: { gap: 6, borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   detailText: { fontSize: 13, color: C.ink },
-  cardActions: { flexDirection: 'row', gap: 10, borderTopWidth: 1, borderTopColor: C.separator, paddingTop: 12 },
+  cardActions: { flexDirection: 'row', gap: 10, borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 },
   btnReject: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5',
     backgroundColor: '#fee2e2',
   },
-  btnRejectText: { fontSize: 13, fontWeight: '700', color: C.danger },
+  btnRejectText: { fontSize: 13, fontWeight: '700', color: C.danger ?? '#dc2626' },
   btnApprove: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primary,

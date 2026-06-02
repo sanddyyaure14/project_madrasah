@@ -1,4 +1,4 @@
-const GuruModel = require('../../models/guru/guruModel');
+const GuruModel = require('../../../models/dashboard/guru/guruModel');
 
 // =========================================================================
 // A. PROFILE GURU
@@ -214,9 +214,63 @@ const resolveContentData = (doc) => {
     return map[doc.feature_type] || null;
 };
 
+// =========================================================================
+// C. DASHBOARD SUMMARY
+// =========================================================================
+
+/**
+ * GET /api/guru/dashboard/summary
+ * Ambil summary kuota dan total dokumen untuk dashboard guru
+ */
+const getDashboardSummary = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Ambil data kuota dan jumlah dokumen secara paralel
+        const [quotaData, totalDocuments] = await Promise.all([
+            GuruModel.getQuotaUsage(userId),
+            GuruModel.countDocumentHistory(userId)
+        ]);
+
+        let kuotaTersedia = 0;
+        let limit = 0;
+        let digunakan = 0;
+
+        if (quotaData) {
+            limit = quotaData.monthly_limit;
+            digunakan = quotaData.used_this_month;
+            kuotaTersedia = limit - digunakan;
+            // Pastikan tidak minus jika berlebih
+            if (kuotaTersedia < 0) kuotaTersedia = 0;
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Dashboard summary berhasil dimuat.',
+            data: {
+                kuota: {
+                    tersedia: kuotaTersedia,
+                    digunakan: digunakan,
+                    limit_bulanan: limit,
+                    plan: quotaData ? quotaData.plan_type : 'free'
+                },
+                dokumen_tersimpan: totalDocuments
+            }
+        });
+    } catch (error) {
+        console.error('Error getDashboardSummary:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Gagal memuat dashboard summary.',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     getProfile,
     updateProfile,
     getDocuments,
-    getDocumentDetail
+    getDocumentDetail,
+    getDashboardSummary
 };

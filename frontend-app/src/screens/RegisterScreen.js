@@ -1,71 +1,121 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../lib/auth';
 import { C, S } from '../lib/theme';
 
 const STEPS = [
-  { n: 1, title: 'Registrasi Guru', sub: 'Input email + password', icon: 'person' },
-  { n: 2, title: 'Verifikasi Email', sub: 'Kode OTP dikirim ke email', icon: 'mail' },
-  { n: 3, title: 'Info Madrasah', sub: 'Detail pengajar', icon: 'school' },
-  { n: 4, title: 'Selesai', sub: 'Menunggu persetujuan admin', icon: 'checkmark-circle' },
+  { n: 1, title: 'Akun', icon: 'person' },
+  { n: 2, title: 'Profil', icon: 'school' },
+  { n: 3, title: 'Madrasah', icon: 'business' },
+  { n: 4, title: 'Selesai', icon: 'checkmark-circle' },
 ];
 
-const MAPEL = ['Fiqih', 'Akidah Akhlak', 'Al-Qur\'an Hadis', 'Bahasa Arab', 'SKI', 'Matematika', 'IPA Terpadu', 'Bahasa Indonesia'];
-const MADRASAH = ['MTs Negeri 1 Jakarta', 'MTs Al-Hikmah Bandung', 'MA Negeri 2 Surabaya', 'MI Darul Ulum Yogyakarta'];
+const MAPEL = [
+  'Fiqih', 'Akidah Akhlak', "Al-Qur'an Hadis", 'Bahasa Arab',
+  'SKI', 'Matematika', 'IPA Terpadu', 'Bahasa Indonesia',
+];
+
+const JENJANG = ['MI', 'MTs', 'MA'];
+const KURIKULUM = ['Merdeka', 'K13'];
 
 export default function RegisterScreen({ navigation }) {
+  const { register, getInstitutions } = useAuth();
+
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+
+  // Step 1 - Akun
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('');
+
+  // Step 2 - Profil Guru
   const [fullName, setFullName] = useState('');
   const [nip, setNip] = useState('');
+  const [noHp, setNoHp] = useState('');
   const [subject, setSubject] = useState(MAPEL[0]);
-  const [madrasah, setMadrasah] = useState(MADRASAH[0]);
+  const [jenjang, setJenjang] = useState(JENJANG[0]);
+  const [kurikulum, setKurikulum] = useState(KURIKULUM[0]);
 
-  function submitStep1() {
-    if (!email || !password) { Alert.alert('Error', 'Isi email dan password.'); return; }
-    if (password.length < 8) { Alert.alert('Error', 'Password minimal 8 karakter.'); return; }
-    setLoading(true);
-    setTimeout(() => {
-      const code = String(Math.floor(100000 + Math.random() * 900000));
-      setGeneratedOtp(code);
-      setLoading(false);
-      Alert.alert('Kode Terkirim!', `Kode demo Anda: ${code}`);
-      setStep(2);
-    }, 800);
+  // Step 3 - Madrasah
+  const [institutions, setInstitutions] = useState([]);
+  const [selectedInstitusi, setSelectedInstitusi] = useState(null);
+  const [loadingInstitusi, setLoadingInstitusi] = useState(false);
+
+  // Load daftar madrasah dari backend saat masuk step 3
+  useEffect(() => {
+    if (step === 3) {
+      setLoadingInstitusi(true);
+      getInstitutions().then(data => {
+        setInstitutions(data);
+        setLoadingInstitusi(false);
+      });
+    }
+  }, [step]);
+
+  function validateStep1() {
+    if (!email || !password) { Alert.alert('Error', 'Isi email dan password.'); return false; }
+    if (password.length < 8) { Alert.alert('Error', 'Password minimal 8 karakter.'); return false; }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) { Alert.alert('Error', 'Format email tidak valid.'); return false; }
+    return true;
   }
 
-  function submitStep2() {
-    if (otp !== generatedOtp) { Alert.alert('Error', 'Kode OTP tidak valid.'); return; }
-    setStep(3);
+  function validateStep2() {
+    if (!fullName) { Alert.alert('Error', 'Nama lengkap wajib diisi.'); return false; }
+    return true;
   }
 
-  function submitStep3() {
-    if (!fullName || !nip) { Alert.alert('Error', 'Isi semua field.'); return; }
+  function validateStep3() {
+    if (!selectedInstitusi) { Alert.alert('Error', 'Pilih madrasah terlebih dahulu.'); return false; }
+    return true;
+  }
+
+  async function submitRegistrasi() {
+    if (!validateStep3()) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setStep(4);
-    }, 1000);
+
+    const userData = {
+      nama_lengkap: fullName,
+      email,
+      password,
+      nip: nip || null,
+      mata_pelajaran: [subject],
+      jenjang,
+      kurikulum,
+      no_hp: noHp || null,
+      instansi_id: selectedInstitusi.id,
+    };
+
+    const res = await register(userData);
+    setLoading(false);
+
+    if (!res.ok) {
+      Alert.alert('Registrasi Gagal', res.error ?? 'Terjadi kesalahan.');
+      return;
+    }
+
+    setStep(4);
   }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Back */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => step === 1 ? navigation.goBack() : setStep(s => s - 1)}>
+
+        {/* Back button */}
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => step === 1 ? navigation.goBack() : setStep(s => s - 1)}
+        >
           <Ionicons name="arrow-back" size={16} color={C.muted} />
           <Text style={styles.backText}>Kembali</Text>
         </TouchableOpacity>
 
-        {/* Progress stepper */}
+        {/* Stepper */}
         <View style={styles.stepper}>
           {STEPS.map((s, i) => (
             <React.Fragment key={s.n}>
@@ -76,7 +126,7 @@ export default function RegisterScreen({ navigation }) {
                     : <Text style={[styles.stepNum, step >= s.n && { color: '#fff' }]}>{s.n}</Text>
                   }
                 </View>
-                <Text style={[styles.stepTitle, step === s.n && { color: C.primary, fontWeight: '700' }]} numberOfLines={1}>
+                <Text style={[styles.stepTitle, step === s.n && { color: C.primary, fontWeight: '700' }]}>
                   {s.title}
                 </Text>
               </View>
@@ -87,7 +137,7 @@ export default function RegisterScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Step 1: Email & Password */}
+        {/* ── STEP 1: Email & Password ── */}
         {step === 1 && (
           <View style={[styles.card, S.shadow]}>
             <Text style={styles.cardTitle}>Buat Akun Guru</Text>
@@ -105,6 +155,7 @@ export default function RegisterScreen({ navigation }) {
                 placeholderTextColor={C.mutedLight}
               />
             </View>
+
             <View style={styles.field}>
               <Text style={styles.label}>Password</Text>
               <View style={styles.pwWrap}>
@@ -121,56 +172,54 @@ export default function RegisterScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
             </View>
-            <TouchableOpacity style={styles.btn} onPress={submitStep1} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Kirim Kode Verifikasi</Text>}
+
+            <TouchableOpacity style={styles.btn} onPress={() => validateStep1() && setStep(2)}>
+              <Text style={styles.btnText}>Lanjut →</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Step 2: OTP */}
+        {/* ── STEP 2: Profil Guru ── */}
         {step === 2 && (
           <View style={[styles.card, S.shadow]}>
-            <Text style={styles.cardTitle}>Verifikasi Email</Text>
-            <Text style={styles.cardSub}>Kode OTP 6 digit telah dikirim ke {email}.</Text>
+            <Text style={styles.cardTitle}>Profil Pengajar</Text>
+            <Text style={styles.cardSub}>Lengkapi data diri untuk review Kepala Madrasah.</Text>
+
             <View style={styles.field}>
-              <Text style={styles.label}>Kode OTP</Text>
+              <Text style={styles.label}>Nama Lengkap + Gelar</Text>
               <TextInput
-                style={[styles.input, { fontSize: 24, letterSpacing: 8, textAlign: 'center', fontWeight: '700' }]}
-                value={otp}
-                onChangeText={setOtp}
-                keyboardType="numeric"
-                maxLength={6}
-                placeholder="000000"
+                style={styles.input}
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Ust. Ahmad Fauzi, S.Pd.I."
                 placeholderTextColor={C.mutedLight}
               />
             </View>
-            <TouchableOpacity style={styles.btn} onPress={submitStep2}>
-              <Text style={styles.btnText}>Verifikasi Kode</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
-        {/* Step 3: Info */}
-        {step === 3 && (
-          <View style={[styles.card, S.shadow]}>
-            <Text style={styles.cardTitle}>Informasi Pengajar</Text>
-            <Text style={styles.cardSub}>Lengkapi profil untuk review oleh Kepala Madrasah.</Text>
-            {[
-              { label: 'Nama Lengkap + Gelar', value: fullName, set: setFullName, placeholder: 'Ust. Ahmad Fauzi, S.Pd.I.' },
-              { label: 'NIP / NUPTK', value: nip, set: setNip, placeholder: '198901234567890', keyboard: 'numeric' },
-            ].map(f => (
-              <View key={f.label} style={styles.field}>
-                <Text style={styles.label}>{f.label}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={f.value}
-                  onChangeText={f.set}
-                  placeholder={f.placeholder}
-                  placeholderTextColor={C.mutedLight}
-                  keyboardType={f.keyboard ?? 'default'}
-                />
-              </View>
-            ))}
+            <View style={styles.field}>
+              <Text style={styles.label}>NIP / NUPTK (opsional)</Text>
+              <TextInput
+                style={styles.input}
+                value={nip}
+                onChangeText={setNip}
+                placeholder="198901234567890"
+                placeholderTextColor={C.mutedLight}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>No. HP (opsional)</Text>
+              <TextInput
+                style={styles.input}
+                value={noHp}
+                onChangeText={setNoHp}
+                placeholder="08xxxxxxxxxx"
+                placeholderTextColor={C.mutedLight}
+                keyboardType="phone-pad"
+              />
+            </View>
+
             <View style={styles.field}>
               <Text style={styles.label}>Mata Pelajaran</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -185,26 +234,89 @@ export default function RegisterScreen({ navigation }) {
                 ))}
               </ScrollView>
             </View>
+
             <View style={styles.field}>
-              <Text style={styles.label}>Madrasah</Text>
-              {MADRASAH.map(m => (
-                <TouchableOpacity
-                  key={m}
-                  style={[styles.madrasahOpt, madrasah === m && styles.madrasahOptActive]}
-                  onPress={() => setMadrasah(m)}
-                >
-                  <Text style={[styles.madrasahText, madrasah === m && { color: C.primary, fontWeight: '700' }]}>{m}</Text>
-                  {madrasah === m && <Ionicons name="checkmark-circle" size={18} color={C.primary} />}
-                </TouchableOpacity>
-              ))}
+              <Text style={styles.label}>Jenjang</Text>
+              <View style={styles.rowChips}>
+                {JENJANG.map(j => (
+                  <TouchableOpacity
+                    key={j}
+                    style={[styles.chip, jenjang === j && styles.chipActive]}
+                    onPress={() => setJenjang(j)}
+                  >
+                    <Text style={[styles.chipText, jenjang === j && styles.chipTextActive]}>{j}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-            <TouchableOpacity style={styles.btn} onPress={submitStep3} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Kirim untuk Diverifikasi</Text>}
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Kurikulum</Text>
+              <View style={styles.rowChips}>
+                {KURIKULUM.map(k => (
+                  <TouchableOpacity
+                    key={k}
+                    style={[styles.chip, kurikulum === k && styles.chipActive]}
+                    onPress={() => setKurikulum(k)}
+                  >
+                    <Text style={[styles.chipText, kurikulum === k && styles.chipTextActive]}>{k}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.btn} onPress={() => validateStep2() && setStep(3)}>
+              <Text style={styles.btnText}>Lanjut →</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Step 4: Done */}
+        {/* ── STEP 3: Pilih Madrasah ── */}
+        {step === 3 && (
+          <View style={[styles.card, S.shadow]}>
+            <Text style={styles.cardTitle}>Pilih Madrasah</Text>
+            <Text style={styles.cardSub}>Pilih madrasah tempat Anda mengajar.</Text>
+
+            {loadingInstitusi ? (
+              <ActivityIndicator color={C.primary} style={{ marginVertical: 20 }} />
+            ) : institutions.length === 0 ? (
+              <Text style={{ color: C.muted, textAlign: 'center', marginVertical: 20 }}>
+                Tidak ada madrasah tersedia. Hubungi admin.
+              </Text>
+            ) : (
+              institutions.map(inst => (
+                <TouchableOpacity
+                  key={inst.id}
+                  style={[styles.madrasahOpt, selectedInstitusi?.id === inst.id && styles.madrasahOptActive]}
+                  onPress={() => setSelectedInstitusi(inst)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.madrasahText, selectedInstitusi?.id === inst.id && { color: C.primary, fontWeight: '700' }]}>
+                      {inst.nama}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: C.muted }}>{inst.jenis} • {inst.kota}</Text>
+                  </View>
+                  {selectedInstitusi?.id === inst.id && (
+                    <Ionicons name="checkmark-circle" size={20} color={C.primary} />
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
+
+            <TouchableOpacity
+              style={[styles.btn, loading && { opacity: 0.7 }]}
+              onPress={submitRegistrasi}
+              disabled={loading}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.btnText}>Kirim untuk Diverifikasi</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── STEP 4: Selesai ── */}
         {step === 4 && (
           <View style={[styles.card, S.shadow, { alignItems: 'center', gap: 16 }]}>
             <View style={styles.doneIcon}>
@@ -216,14 +328,16 @@ export default function RegisterScreen({ navigation }) {
             </Text>
             <View style={styles.infoBox}>
               <Text style={styles.infoLine}>📧 {email}</Text>
-              <Text style={styles.infoLine}>🏫 {madrasah}</Text>
-              <Text style={styles.infoLine}>📚 {subject}</Text>
+              <Text style={styles.infoLine}>👤 {fullName}</Text>
+              <Text style={styles.infoLine}>🏫 {selectedInstitusi?.nama ?? '-'}</Text>
+              <Text style={styles.infoLine}>📚 {subject} • {jenjang}</Text>
             </View>
             <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('Login')}>
               <Text style={styles.btnText}>Kembali ke Login</Text>
             </TouchableOpacity>
           </View>
         )}
+
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -241,7 +355,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg,
   },
   stepCircleActive: { backgroundColor: C.primary, borderColor: C.primary },
-  stepCircleDone: { backgroundColor: C.success, borderColor: C.success },
+  stepCircleDone: { backgroundColor: C.success ?? '#22c55e', borderColor: C.success ?? '#22c55e' },
   stepNum: { fontSize: 13, fontWeight: '700', color: C.muted },
   stepTitle: { fontSize: 9, color: C.muted, textAlign: 'center' },
   stepLine: { height: 2, flex: 0.5, backgroundColor: C.border, marginBottom: 14 },
@@ -254,13 +368,16 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1, borderColor: C.border, borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.ink,
+    backgroundColor: '#fff',
   },
   pwWrap: {
     flexDirection: 'row', alignItems: 'center',
     borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14,
+    backgroundColor: '#fff',
   },
   btn: { backgroundColor: C.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  rowChips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: C.border },
   chipActive: { backgroundColor: C.primary, borderColor: C.primary },
   chipText: { fontSize: 13, color: C.ink },
@@ -270,9 +387,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10,
     borderWidth: 1, borderColor: C.border, backgroundColor: C.bg,
   },
-  madrasahOptActive: { borderColor: C.primary, backgroundColor: C.primaryLight },
+  madrasahOptActive: { borderColor: C.primary, backgroundColor: '#eff6ff' },
   madrasahText: { fontSize: 14, color: C.ink },
-  doneIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  doneIcon: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center',
+  },
   infoBox: { backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, gap: 6, width: '100%' },
   infoLine: { fontSize: 13, color: C.ink },
 });
