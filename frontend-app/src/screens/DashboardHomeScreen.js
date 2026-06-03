@@ -190,7 +190,19 @@ function GuruHome({ navigation }) {
         <Text style={styles.moduleLabel}>KONTEN</Text>
         <View style={styles.toolsGrid}>
           {contentTools.map(t => (
-            <ToolCard key={t.slug} tool={t} onPress={() => navigation.navigate('ToolPage', { slug: t.slug })} />
+            <ToolCard
+              key={t.slug}
+              tool={t}
+              onPress={() => {
+                if (t.slug === 'syllabus') {
+                  navigation.navigate('SyllabusForm');
+                } else if (t.slug === 'academic-content') {
+                  navigation.navigate('AcademicContentForm');
+                } else {
+                  navigation.navigate('ToolPage', { slug: t.slug });
+                }
+              }}
+            />
           ))}
         </View>
       </View>
@@ -210,12 +222,11 @@ const ICON_MAP = {
 };
 
 function ToolCard({ tool, onPress }) {
-  const isGold = tool.accent === 'gold';
   const iconName = ICON_MAP[tool.icon] ?? 'sparkles';
   return (
     <TouchableOpacity style={[styles.toolCard, S.shadow]} onPress={onPress} activeOpacity={0.85}>
-      <View style={[styles.toolIcon, isGold ? styles.toolIconGold : styles.toolIconEmerald]}>
-        <Ionicons name={iconName} size={20} color={isGold ? C.goldFg : C.primary} />
+      <View style={[styles.toolIcon, styles.toolIconEmerald]}>
+        <Ionicons name={iconName} size={20} color={C.primary} />
       </View>
       <Text style={styles.toolTitle}>{tool.title}</Text>
       <Text style={styles.toolSubtitle}>{tool.subtitle}</Text>

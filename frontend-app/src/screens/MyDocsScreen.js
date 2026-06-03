@@ -1,10 +1,9 @@
-/**
+﻿/**
  * MyDocsScreen.js
- * Dokumen Saya — list Writing Feedback + Worksheet
- * Tab filter: Semua | Writing Feedback | Worksheet
+ * Dokumen Saya — list Writing Feedback + Worksheet + Soal PG + Silabus + Konten Akademik
+ * Tab filter: Semua | Soal PG | Writing Feedback | Worksheet | Silabus | Konten
  * CRUD: list, delete, navigate to detail
  */
-
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
@@ -55,19 +54,32 @@ function EmptyState({ onGenerate }) {
 }
 
 // ─────────────────────────────────────────────
-// Document card — handle both types
+// Document card — handle all types
 // ─────────────────────────────────────────────
 function DocCard({ item, onPress, onDelete }) {
   const isWorksheet = item._type === 'worksheet';
   const isMC = item._type === 'mc';
+  const isSyllabus = item._type === 'syllabus';
+  const isAcademic = item._type === 'academic';
 
-  const accentColor = isMC ? '#ef4444' : isWorksheet ? C.primary : scoreColor(item.skor_total);
-  const score = isWorksheet || isMC ? null : parseFloat(item.skor_total || 0).toFixed(0);
+  const accentColor = isMC ? '#ef4444' : isWorksheet ? C.primary : isSyllabus ? C.primary : isAcademic ? '#1d4ed8' : scoreColor(item.skor_total);
+  const score = isWorksheet || isMC || isSyllabus || isAcademic ? null : parseFloat(item.skor_total || 0).toFixed(0);
+
+  // Parse academic content_json untuk judul
+  let academicTitle = 'Konten Akademik';
+  if (isAcademic) {
+    let cj = item.content_json || {};
+    if (typeof cj === 'string') { try { cj = JSON.parse(cj); } catch { cj = {}; } }
+    academicTitle = cj.judul || item.topik || 'Konten Akademik';
+  }
 
   return (
     <TouchableOpacity style={[styles.docCard, S.shadow]} onPress={onPress} activeOpacity={0.85}>
+      {/* Left accent */}
       <View style={[styles.docAccent, { backgroundColor: accentColor }]} />
+
       <View style={styles.docBody}>
+        {/* Top row: badge + score/tipe */}
         <View style={styles.docTop}>
           {isMC ? (
             <View style={[styles.docTypeBadge, { backgroundColor: '#fee2e2' }]}>
@@ -79,12 +91,23 @@ function DocCard({ item, onPress, onDelete }) {
               <Ionicons name="document-text-outline" size={11} color={C.gold} />
               <Text style={[styles.docTypeText, { color: '#92400e' }]}>Worksheet</Text>
             </View>
+          ) : isSyllabus ? (
+            <View style={[styles.docTypeBadge, { backgroundColor: '#f0fdf4' }]}>
+              <Ionicons name="bookmark-outline" size={11} color={C.primary} />
+              <Text style={[styles.docTypeText, { color: C.primary }]}>Silabus</Text>
+            </View>
+          ) : isAcademic ? (
+            <View style={[styles.docTypeBadge, { backgroundColor: '#eff6ff' }]}>
+              <Ionicons name="school-outline" size={11} color="#1d4ed8" />
+              <Text style={[styles.docTypeText, { color: '#1d4ed8' }]}>Konten Akademik</Text>
+            </View>
           ) : (
             <View style={styles.docTypeBadge}>
               <Ionicons name="create-outline" size={11} color={C.primary} />
               <Text style={styles.docTypeText}>Writing Feedback</Text>
             </View>
           )}
+
           {score !== null ? (
             <View style={[styles.scorePill, { backgroundColor: accentColor + '20', borderColor: accentColor }]}>
               <Text style={[styles.scorePillText, { color: accentColor }]}>{score}</Text>
@@ -92,15 +115,21 @@ function DocCard({ item, onPress, onDelete }) {
           ) : null}
         </View>
 
+        {/* Judul / Nama */}
         <Text style={styles.docTitle} numberOfLines={1}>
           {isMC
-            ? `${item.mata_pelajaran} — ${item.topik}`
+            ? `${item.mata_pelajaran} \u2014 ${item.topik}`
             : isWorksheet
               ? (item.judul || 'LKS')
-              : (item.nama_siswa || 'Siswa Anonim')
+              : isSyllabus
+                ? (item.mata_pelajaran || 'Silabus')
+                : isAcademic
+                  ? academicTitle
+                  : (item.nama_siswa || 'Siswa Anonim')
           }
         </Text>
 
+        {/* Meta row */}
         <View style={styles.docMeta}>
           {isMC ? (
             <>
@@ -128,6 +157,30 @@ function DocCard({ item, onPress, onDelete }) {
                 <Text style={styles.docMetaText}>{item.topik}</Text>
               </View>
             </>
+          ) : isSyllabus ? (
+            <>
+              <View style={styles.docMetaItem}>
+                <Ionicons name="school-outline" size={12} color={C.muted} />
+                <Text style={styles.docMetaText}>{item.jenjang} Kelas {item.tingkat_kelas}</Text>
+              </View>
+              <View style={styles.docMetaItem}>
+                <Ionicons name="calendar-outline" size={12} color={C.muted} />
+                <Text style={styles.docMetaText}>Sem. {item.semester}</Text>
+              </View>
+            </>
+          ) : isAcademic ? (
+            <>
+              <View style={styles.docMetaItem}>
+                <Ionicons name="list-outline" size={12} color={C.muted} />
+                <Text style={styles.docMetaText}>{item.jenis_konten}</Text>
+              </View>
+              {item.mata_pelajaran ? (
+                <View style={styles.docMetaItem}>
+                  <Ionicons name="book-outline" size={12} color={C.muted} />
+                  <Text style={styles.docMetaText}>{item.mata_pelajaran}</Text>
+                </View>
+              ) : null}
+            </>
           ) : (
             <>
               <View style={styles.docMetaItem}>
@@ -144,9 +197,29 @@ function DocCard({ item, onPress, onDelete }) {
             </>
           )}
         </View>
+
+        {/* Preview bawah */}
+        {isSyllabus ? (
+          <Text style={styles.docPreview} numberOfLines={1}>
+            {item.kurikulum}{item.tahun_ajaran ? ' - ' + item.tahun_ajaran : ''}
+          </Text>
+        ) : isAcademic ? (
+          (() => {
+            let cj = item.content_json || {};
+            if (typeof cj === 'string') { try { cj = JSON.parse(cj); } catch { cj = {}; } }
+            return cj.ringkasan ? <Text style={styles.docPreview} numberOfLines={2}>{cj.ringkasan}</Text> : null;
+          })()
+        ) : item.ringkasan ? (
+          <Text style={styles.docPreview} numberOfLines={2}>{item.ringkasan}</Text>
+        ) : null}
       </View>
 
-      <TouchableOpacity style={styles.docDelete} onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+      {/* Delete */}
+      <TouchableOpacity
+        style={styles.docDelete}
+        onPress={onDelete}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
         <Ionicons name="trash-outline" size={18} color={C.danger} />
       </TouchableOpacity>
     </TouchableOpacity>
@@ -195,13 +268,15 @@ export default function MyDocsScreen({ navigation }) {
     }
 
     try {
-      const [feedbacks, worksheets, mcDocs] = await Promise.all([
+      const [feedbacks, worksheets, mcDocs, syllabi, academics] = await Promise.all([
         safeFetch(`${API_URL}/feedback`),
         safeFetch(`${API_URL}/worksheet/worksheets`),
         safeFetch(`${API_URL}/assessment`),
+        safeFetch(`${API_URL}/syllabus`),
+        safeFetch(`${API_URL}/academic-content`),
       ]);
 
-      if (feedbacks === null && worksheets === null && mcDocs === null) {
+      if (feedbacks === null && worksheets === null && mcDocs === null && syllabi === null && academics === null) {
         setError('Tidak dapat terhubung ke server. Pastikan backend berjalan dan IP sudah benar.');
         setDocs([]);
         return;
@@ -211,6 +286,8 @@ export default function MyDocsScreen({ navigation }) {
         ...(feedbacks ?? []).map(f => ({ ...f, _type: 'feedback' })),
         ...(worksheets ?? []).map(w => ({ ...w, _type: 'worksheet' })),
         ...(mcDocs ?? []).map(m => ({ ...m, _type: 'mc' })),
+        ...(syllabi ?? []).map(s => ({ ...s, _type: 'syllabus' })),
+        ...(academics ?? []).map(a => ({ ...a, _type: 'academic' })),
       ];
       console.log('[MyDocs] Total docs:', combined.length);
       setDocs(combined);
@@ -233,7 +310,11 @@ export default function MyDocsScreen({ navigation }) {
       ? `${API_URL}/worksheet/worksheets/${id}`
       : type === 'mc'
         ? `${API_URL}/assessment/delete/${id}`
-        : `${API_URL}/feedback/delete/${id}`;
+        : type === 'syllabus'
+          ? `${API_URL}/syllabus/${id}`
+          : type === 'academic'
+            ? `${API_URL}/academic-content/${id}`
+            : `${API_URL}/feedback/delete/${id}`;
 
     Alert.alert('Hapus Dokumen', `Hapus "${nama}"? Tidak dapat dibatalkan.`, [
       { text: 'Batal', style: 'cancel' },
@@ -257,10 +338,16 @@ export default function MyDocsScreen({ navigation }) {
     if (activeTab === 'feedback' && d._type !== 'feedback') return false;
     if (activeTab === 'worksheet' && d._type !== 'worksheet') return false;
     if (activeTab === 'mc' && d._type !== 'mc') return false;
+    if (activeTab === 'syllabus' && d._type !== 'syllabus') return false;
+    if (activeTab === 'academic' && d._type !== 'academic') return false;
     const q = search.toLowerCase();
     const label = d._type === 'worksheet'
       ? `${d.judul || ''} ${d.mata_pelajaran || ''} ${d.topik || ''}`
-      : `${d.nama_siswa || ''} ${d.jenis_tulisan || ''} ${d.tingkat_kelas || ''}`;
+      : d._type === 'syllabus'
+        ? `${d.mata_pelajaran || ''} ${d.kurikulum || ''} ${d.jenjang || ''} ${d.tingkat_kelas || ''}`
+        : d._type === 'academic'
+          ? `${d.topik || ''} ${d.jenis_konten || ''} ${d.mata_pelajaran || ''}`
+          : `${d.nama_siswa || ''} ${d.jenis_tulisan || ''} ${d.tingkat_kelas || ''}`;
     return label.toLowerCase().includes(q);
   });
 
@@ -292,17 +379,34 @@ export default function MyDocsScreen({ navigation }) {
         ) : null}
       </View>
 
-      {/* Tab filter */}
-      <View style={styles.tabRow}>
-        {[['all', 'Semua'], ['mc', '📝 Soal PG'], ['feedback', '✍️ Writing Feedback'], ['worksheet', '📋 Worksheet']].map(([key, label]) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.tabBtn, activeTab === key && styles.tabBtnActive]}
-            onPress={() => setActiveTab(key)}
-          >
-            <Text style={[styles.tabBtnText, activeTab === key && styles.tabBtnTextActive]}>{label}</Text>
-          </TouchableOpacity>
-        ))}
+      {/* Tab filter — scrollable karena ada 6 tab */}
+      <View style={styles.tabContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabRow}
+        >
+          {[
+            ['all', 'Semua'],
+            ['mc', '📝 Soal PG'],
+            ['feedback', '✍️ Writing Feedback'],
+            ['worksheet', '📋 Worksheet'],
+            ['syllabus', '📚 Silabus'],
+            ['academic', '🎓 Konten'],
+          ].map(([key, label]) => (
+            <TouchableOpacity
+              key={key}
+              style={[
+                styles.tabBtn,
+                key === 'all' && styles.tabBtnAll,
+                activeTab === key && styles.tabBtnActive,
+              ]}
+              onPress={() => setActiveTab(key)}
+            >
+              <Text style={[styles.tabBtnText, activeTab === key && styles.tabBtnTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Counter + refresh */}
@@ -336,21 +440,29 @@ export default function MyDocsScreen({ navigation }) {
         ) : (
           filtered.map(item => (
             <DocCard
-              key={item.id}
+              key={item._type + '-' + item.id}
               item={item}
               onPress={() => item._type === 'worksheet'
                 ? navigation.navigate('WorksheetDetail', { id: item.id })
                 : item._type === 'mc'
                   ? navigation.navigate('MCDetail', { id: item.id })
-                  : navigation.navigate('FeedbackDetail', { id: item.id })
+                  : item._type === 'syllabus'
+                    ? navigation.navigate('SyllabusDetail', { id: item.id })
+                    : item._type === 'academic'
+                      ? navigation.navigate('AcademicContentDetail', { id: item.id })
+                      : navigation.navigate('FeedbackDetail', { id: item.id })
               }
               onDelete={() => handleDelete(
                 item.id,
                 item._type === 'worksheet'
                   ? (item.judul || 'LKS')
                   : item._type === 'mc'
-                    ? `${item.mata_pelajaran} — ${item.topik}`
-                    : (item.nama_siswa || 'Siswa Anonim'),
+                    ? `${item.mata_pelajaran} \u2014 ${item.topik}`
+                    : item._type === 'syllabus'
+                      ? (item.mata_pelajaran || 'Silabus')
+                      : item._type === 'academic'
+                        ? (item.topik || 'Konten Akademik')
+                        : (item.nama_siswa || 'Siswa Anonim'),
                 item._type
               )}
             />
@@ -376,17 +488,25 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, paddingVertical: 12, paddingHorizontal: 8, fontSize: 14, color: C.ink },
 
+  tabContainer: {
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 4,
+  },
   tabRow: {
-    flexDirection: 'row', gap: 8, paddingHorizontal: 12,
-    paddingBottom: 8, flexWrap: 'nowrap',
+    flexDirection: 'row', gap: 8,
+    paddingBottom: 2, paddingRight: 4,
   },
   tabBtn: {
-    flex: 1, paddingVertical: 8, borderRadius: 10,
+    paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12,
     borderWidth: 1, borderColor: C.border, backgroundColor: C.bg,
     alignItems: 'center', justifyContent: 'center',
   },
+  tabBtnAll: {
+    paddingHorizontal: 24,
+  },
   tabBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
-  tabBtnText: { fontSize: 11, color: C.muted, fontWeight: '600', textAlign: 'center' },
+  tabBtnText: { fontSize: 12, color: C.muted, fontWeight: '600', textAlign: 'center' },
   tabBtnTextActive: { color: '#fff' },
 
   counterRow: {

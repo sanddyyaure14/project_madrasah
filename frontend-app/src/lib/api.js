@@ -1,9 +1,9 @@
 // =========================================================================
 // API Service Layer — MadrasahAI
-// Base URL: http://192.168.0.104:3000/api  (sesuaikan IP jika berubah)
+// Base URL: http://192.168.137.80:3000/api  (sesuaikan IP jika berubah)
 // =========================================================================
 
-const BASE_URL = 'http://10.0.2.2:3000/api';
+const BASE_URL = 'http://192.168.137.80:3000/api';
 
 // ---------------------------------------------------------------------------
 // Auth helper — untuk sekarang token disimpan di-memory via AuthContext.
@@ -28,7 +28,7 @@ function authHeaders(extra = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Generic request helper
+// Generic request helper — untuk JSON response
 // ---------------------------------------------------------------------------
 async function request(method, path, body = null, isFormData = false) {
   const headers = isFormData
@@ -46,6 +46,21 @@ async function request(method, path, body = null, isFormData = false) {
     throw new Error(msg);
   }
   return json;
+}
+
+// ---------------------------------------------------------------------------
+// Download helper — untuk file binary (PDF / DOCX)
+// Membuka URL di browser sistem karena React Native tidak bisa
+// simpan file binary langsung tanpa expo-file-system.
+// ---------------------------------------------------------------------------
+export function openDownloadUrl(path) {
+  const url = `${BASE_URL}${path}`;
+  // Buka di browser bawaan HP — user bisa download dari sana
+  const { Linking } = require('react-native');
+  return Linking.openURL(
+    // Tambahkan token sebagai query param karena header tidak bisa dikirim dari Linking
+    `${url}?token=${encodeURIComponent(_token || '')}`
+  );
 }
 
 // =========================================================================
@@ -112,4 +127,86 @@ export async function deleteWritingFeedback(id) {
  */
 export async function getWritingShareText(id) {
   return request('GET', `/feedback/share/${id}`);
+}
+
+// =========================================================================
+// SYLLABUS
+// =========================================================================
+
+/**
+ * Generate silabus baru menggunakan AI.
+ * @param {object} params
+ * @param {string} params.mata_pelajaran   — nama mata pelajaran (wajib)
+ * @param {string} params.kurikulum        — "Merdeka Belajar" | "Kurikulum 2013"
+ * @param {string} params.jenjang          — "MI" | "MTs" | "MA"
+ * @param {string} params.tingkat_kelas    — misal "VII", "X"
+ * @param {string} params.semester         — "Ganjil" | "Genap"
+ * @param {string} params.tahun_ajaran     — misal "2024/2025"
+ * @param {string} [params.userId]         — UUID user
+ */
+export async function generateSyllabus(params) {
+  return request('POST', '/syllabus/generate', params);
+}
+
+/**
+ * Ambil semua riwayat silabus.
+ */
+export async function getAllSyllabi() {
+  return request('GET', '/syllabus');
+}
+
+/**
+ * Download silabus sebagai PDF — membuka browser untuk download.
+ * @param {string} id — UUID silabus
+ */
+export function downloadSyllabusPDF(id) {
+  return openDownloadUrl(`/syllabus/download/${id}/pdf`);
+}
+
+/**
+ * Download silabus sebagai DOCX — membuka browser untuk download.
+ * @param {string} id — UUID silabus
+ */
+export function downloadSyllabusDocx(id) {
+  return openDownloadUrl(`/syllabus/download/${id}/docx`);
+}
+
+// =========================================================================
+// ACADEMIC CONTENT
+// =========================================================================
+
+/**
+ * Generate konten akademik menggunakan AI.
+ * @param {object} params
+ * @param {string} params.jenis_konten   — "Materi Pembelajaran" | "Ringkasan" | "Contoh Soal" | "Kamus Istilah" | "Artikel"
+ * @param {string} params.topik          — topik konten (wajib)
+ * @param {string} [params.mapel]        — mata pelajaran (opsional)
+ * @param {string} [params.kelas]        — tingkat kelas (opsional)
+ * @param {string} [params.panjang]      — "singkat" | "sedang" | "panjang"
+ */
+export async function generateAcademicContent(params) {
+  return request('POST', '/academic-content/generate', params);
+}
+
+/**
+ * Ambil semua riwayat konten akademik.
+ */
+export async function getAllAcademicContents() {
+  return request('GET', '/academic-content');
+}
+
+/**
+ * Ambil konten akademik berdasarkan ID.
+ * @param {string} id
+ */
+export async function getAcademicContentById(id) {
+  return request('GET', `/academic-content/${id}`);
+}
+
+/**
+ * Download konten akademik sebagai PDF — membuka browser untuk download.
+ * @param {string} id
+ */
+export function downloadAcademicContentPDF(id) {
+  return openDownloadUrl(`/academic-content/download/${id}/pdf`);
 }
