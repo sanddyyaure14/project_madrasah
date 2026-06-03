@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
+import { setAuthToken, clearAuthToken } from './api';
 
-export const API_URL = 'http://10.0.2.2:3000/api';
+export const API_URL = 'http://192.168.137.80:3000/api';
 
 const AuthContext = createContext(null);
 
@@ -8,7 +9,6 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
 
-  // LOGIN → POST /auth/login → dapat JWT → simpan user & token
   async function login(email, password) {
     try {
       const res = await fetch(`${API_URL}/auth/login`, {
@@ -16,23 +16,12 @@ export function AuthProvider({ children }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-
       const data = await res.json();
-
-      if (!data.success) {
-        return { ok: false, error: data.message };
-      }
-
+      if (!data.success) return { ok: false, error: data.message };
       const mappedRole = data.user.role === 'kepala_sekolah' ? 'superadmin' : data.user.role;
-
-      setUser({
-        id: data.user.id,
-        name: data.user.nama_lengkap,
-        email: data.user.email,
-        role: mappedRole,
-      });
+      setUser({ id: data.user.id, name: data.user.nama_lengkap, email: data.user.email, role: mappedRole });
       setToken(data.accessToken);
-
+      setAuthToken(data.accessToken);
       return { ok: true, userRole: mappedRole };
     } catch (error) {
       console.error('Login error:', error);
@@ -40,7 +29,6 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // REGISTER → POST /auth/register → kirim data guru ke backend
   async function register(userData) {
     try {
       const res = await fetch(`${API_URL}/auth/register`, {
@@ -48,13 +36,8 @@ export function AuthProvider({ children }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),
       });
-
       const data = await res.json();
-
-      if (!data.success) {
-        return { ok: false, error: data.message };
-      }
-
+      if (!data.success) return { ok: false, error: data.message };
       return { ok: true };
     } catch (error) {
       console.error('Register error:', error);
@@ -62,7 +45,6 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // GET INSTITUTIONS → GET /auth/institutions → ambil daftar madrasah
   async function getInstitutions() {
     try {
       const res = await fetch(`${API_URL}/auth/institutions`);
@@ -78,6 +60,7 @@ export function AuthProvider({ children }) {
   function logout() {
     setUser(null);
     setToken(null);
+    clearAuthToken();
   }
 
   return (

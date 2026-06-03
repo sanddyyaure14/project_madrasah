@@ -6,8 +6,11 @@ const jwt = require('jsonwebtoken');
  */
 const verifyToken = (req, res, next) => {
     // Ambil token dari header Authorization: Bearer <token>
+    // atau dari query param ?token=<token> (untuk download file)
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const headerToken = authHeader && authHeader.split(' ')[1];
+    const queryToken = req.query.token;
+    const token = headerToken || queryToken;
 
     if (!token) {
         return res.status(401).json({
