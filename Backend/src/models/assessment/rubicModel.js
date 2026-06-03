@@ -1,13 +1,12 @@
 const pool = require('../../config/db');
 
-// 1. Catat request masuk ke generation_requests//
-
+// 1. Catat request masuk ke generation_requests
 const createRequest = async (requestId, userId, inputData) => {
     const query = `
         INSERT INTO generation_requests 
             (id, user_id, feature_type, input_data, status, created_at)
         VALUES 
-           ($1, $2, 'rubric', $3, 'pending', NOW())
+            ($1, $2, 'rubric', $3, 'pending', NOW())
         RETURNING *
     `;
     const values = [requestId, userId, JSON.stringify(inputData)];
@@ -15,8 +14,7 @@ const createRequest = async (requestId, userId, inputData) => {
     return result.rows[0];
 };
 
-// 2. Simpan hasil rubrik ke assessment_rubric//
-
+// 2. Simpan hasil rubrik ke assessment_rubric
 const saveAssessment = async (data) => {
     const query = `
         INSERT INTO assessment_rubric 
@@ -38,8 +36,7 @@ const saveAssessment = async (data) => {
     return result.rows[0];
 };
 
-// 3. Update status request (completed / failed)
-
+// 3. Update status request (basic update)
 const updateRequestStatus = async (requestId, status, outputData) => {
     const query = `
         UPDATE generation_requests
@@ -55,8 +52,34 @@ const updateRequestStatus = async (requestId, status, outputData) => {
     return result.rows[0];
 };
 
-// 4. GET ALL - Ambil semua rubrik milik user
+// 3b. Update Request Completed dengan data metrik LLM lengkap
+const updateRequestCompleted = async (requestId, outputData, promptUsed, processingTimeMs, tokenUsage, modelUsed) => {
+    const query = `
+        UPDATE generation_requests
+        SET 
+            status             = 'completed',
+            output_data        = $1,
+            prompt_used        = $2,
+            processing_time_ms = $3,
+            token_usage        = $4,
+            llm_model_used     = $5,
+            completed_at       = NOW()
+        WHERE id = $6
+        RETURNING *
+    `;
+    const values = [
+        JSON.stringify(outputData),
+        promptUsed,
+        processingTimeMs,
+        JSON.stringify(tokenUsage),
+        modelUsed,
+        requestId
+    ];
+    const result = await pool.query(query, values);
+    return result.rows[0];
+};
 
+// 4. GET ALL - Ambil semua rubrik milik user
 const getAllRubrics = async (userId) => {
     const query = `
         SELECT 
@@ -80,7 +103,6 @@ const getAllRubrics = async (userId) => {
 };
 
 // 5. GET BY ID - Ambil detail rubrik berdasarkan ID
-
 const getRubricById = async (rubricId, userId) => {
     const query = `
         SELECT 
@@ -104,7 +126,6 @@ const getRubricById = async (rubricId, userId) => {
 };
 
 // 6. UPDATE - Update rubrik berdasarkan ID
-
 const updateRubric = async (rubricId, userId, data) => {
     const query = `
         UPDATE assessment_rubric ar
@@ -134,7 +155,6 @@ const updateRubric = async (rubricId, userId, data) => {
 };
 
 // 7. DELETE - Hapus rubrik berdasarkan ID
-
 const deleteRubric = async (rubricId, userId) => {
     const getRubricQuery = `
         SELECT ar.id, ar.request_id 
@@ -162,7 +182,6 @@ const checkUserQuota = async (userId) => {
     const result = await pool.query(query, [userId]);
 
     if (!result.rows[0]) {
-        // Buat kuota default free jika belum ada
         await pool.query(`
             INSERT INTO usage_quotas (id, user_id, plan_type, monthly_limit, used_this_month, reset_date)
             VALUES (gen_random_uuid(), $1, 'free', 10, 0, DATE_TRUNC('month', NOW()) + INTERVAL '1 month')
@@ -172,7 +191,6 @@ const checkUserQuota = async (userId) => {
 
     const quota = result.rows[0];
 
-    // Reset jika sudah melewati tanggal reset
     if (new Date() >= new Date(quota.reset_date)) {
         await pool.query(`
             UPDATE usage_quotas 
@@ -208,6 +226,7 @@ module.exports = {
     createRequest,
     saveAssessment,
     updateRequestStatus,
+    updateRequestCompleted,
     getAllRubrics,
     getRubricById,
     updateRubric,

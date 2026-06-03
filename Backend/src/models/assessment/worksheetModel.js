@@ -1,15 +1,24 @@
 const pool = require('../../config/db');
 
-// 1. Catat request masuk ke generation_requests
-const createRequest = async (requestId, userId, inputData) => {
+// 1. Catat request masuk ke generation_requests dengan field baru
+const createRequest = async (requestId, userId, inputData, additionalData = {}) => {
     const query = `
         INSERT INTO generation_requests 
-            (id, user_id, feature_type, input_data, status, created_at)
+            (
+                id, user_id, feature_type, input_data, status, 
+                prompt_used, llm_model_used, created_at
+            )
         VALUES 
-            ($1, $2, 'worksheet', $3, 'pending', NOW())
+            ($1, $2, 'worksheet', $3, 'pending', $4, $5, NOW())
         RETURNING *
     `;
-    const values = [requestId, userId, JSON.stringify(inputData)];
+    const values = [
+        requestId, 
+        userId, 
+        JSON.stringify(inputData),
+        additionalData.prompt_used || null,
+        additionalData.llm_model_used || 'llama-3.3-70b-versatile'
+    ];
     const result = await pool.query(query, values);
     return result.rows[0];
 };
@@ -37,18 +46,28 @@ const saveWorksheet = async (data) => {
     return result.rows[0];
 };
 
-// 3. Update status request (completed / failed)
-const updateRequestStatus = async (requestId, status, outputData) => {
+// 3. Update status request (completed / failed) + Mengisi token_usage & metrics
+const updateRequestStatus = async (requestId, status, outputData, metrics = {}) => {
     const query = `
         UPDATE generation_requests
         SET 
             status = $1,
             output_data = $2,
+            error_message = $3,
+            processing_time_ms = $4,
+            token_usage = $5,
             completed_at = NOW()
-        WHERE id = $3
+        WHERE id = $6
         RETURNING *
     `;
-    const values = [status, JSON.stringify(outputData), requestId];
+    const values = [
+        status,                                                                 // $1
+        outputData ? JSON.stringify(outputData) : null,                         // $2
+        metrics.error_message || null,                                          // $3
+        metrics.processing_time_ms || null,                                     // $4
+        metrics.token_usage ? JSON.stringify(metrics.token_usage) : null,       // $5
+        requestId                                                               // $6
+    ];
     const result = await pool.query(query, values);
     return result.rows[0];
 };

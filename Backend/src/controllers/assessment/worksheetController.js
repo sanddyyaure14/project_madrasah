@@ -11,6 +11,10 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const generateWorksheet = async (req, res) => {
     const requestId = uuidv4();
     const worksheetId = uuidv4();
+    
+    // ⏱️ Catat waktu mulai pengerjaan untuk processing_time_ms
+    const startTime = Date.now();
+    const selectedModel = "llama-3.3-70b-versatile";
 
     try {
         const {
@@ -50,21 +54,30 @@ const generateWorksheet = async (req, res) => {
                 meta: { remaining: 0, limit: quotaCheck.limit }
             });
         }
-        // 1. Log Request ke Database
+
+        // Rekonstruksi prompt kasar yang digunakan sebagai log di `prompt_used`
+        const systemPrompt = "Anda adalah ahli pendidikan madrasah Indonesia yang membuat Lembar Kerja Siswa (LKS) detail dan siap cetak. Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun.";
+        const userPrompt = `Buatlah Lembar Kerja Siswa (LKS) dengan ketentuan berikut:\n- Mata Pelajaran: ${mata_pelajaran}\n- Topik: ${topik}\n- Tingkat Kelas: ${tingkat_kelas}\n- Tipe Aktivitas: ${tipe_aktivitas.join(', ')}`;
+        const fullPromptLog = `${systemPrompt}\n\n${userPrompt}`;
+
+        // 1. Log Request ke Database (Menyertakan fields penyesuaian skema baru)
         await WorksheetModel.createRequest(requestId, finalUserId, {
             mata_pelajaran, topik, tipe_aktivitas, tingkat_kelas,
             durasi_menit, tujuan_pembelajaran, header_sekolah, petunjuk_khusus
+        }, {
+            prompt_used: fullPromptLog,
+            llm_model_used: selectedModel
         });
         
         // 2. Update status → PROCESSING
-            await WorksheetModel.updateRequestStatus(requestId, 'processing', {});
+        await WorksheetModel.updateRequestStatus(requestId, 'processing', null);
 
         // 3. Panggil Groq AI
         const chatCompletion = await groq.chat.completions.create({
             messages: [
                 {
                     role: "system",
-                    content: "Anda adalah ahli pendidikan madrasah Indonesia yang membuat Lembar Kerja Siswa (LKS) detail dan siap cetak. Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun."
+                    content: systemPrompt
                 },
                 {
                     role: "user",
@@ -113,13 +126,13 @@ PENTING:
 - Untuk aktivitas bertipe esai/isian, field "opsi" diisi array kosong []`
                 }
             ],
-            model: "llama-3.3-70b-versatile",
+            model: selectedModel,
             response_format: { "type": "json_object" }
         });
 
         const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
 
-        // 4. Simpan ke Database
+        // 4. Simpan hasil worksheet ke tabel worksheets
         const worksheetData = {
             id: worksheetId,
             request_id: requestId,
@@ -130,12 +143,27 @@ PENTING:
             durasi_menit: durasi_menit || null,
             worksheet_json: aiResponse
         };
-        const savedWorksheet = await WorksheetModel.saveWorksheet(worksheetData);
+        await WorksheetModel.saveWorksheet(worksheetData);
 
-        // 5. Update Status Request
-        await WorksheetModel.updateRequestStatus(requestId, 'completed', savedWorksheet);
+        // ⏱️ Hitung durasi proses dan ambil data token usage dari API Groq
+        const endTime = Date.now();
+        const processingTimeMs = endTime - startTime;
+        const metrics = {
+            error_message: null,
+            processing_time_ms: processingTimeMs,
+            token_usage: {
+                prompt_tokens: chatCompletion.usage?.prompt_tokens || 0,
+                completion_tokens: chatCompletion.usage?.completion_tokens || 0,
+                total_tokens: chatCompletion.usage?.total_tokens || 0
+            }
+        };
+
+        // 5. Update Status Request → COMPLETED dengan payload data JSON yang benar
+        await WorksheetModel.updateRequestStatus(requestId, 'completed', aiResponse, metrics);
+
         // 6. Update usage_quotas
         await WorksheetModel.incrementQuotaUsage(finalUserId);
+
         res.status(201).json({
             success: true,
             message: "Worksheet berhasil dibuat dengan Groq Llama 3.3.",
@@ -149,11 +177,20 @@ PENTING:
 
     } catch (error) {
         console.error("Error Detail:", error);
+        const endTime = Date.now();
+        const processingTimeMs = endTime - startTime;
+
         try {
-            await WorksheetModel.updateRequestStatus(requestId, 'failed', { error: error.message });
+            // Catat log kegagalan ke database sesuai struktur core engine
+            await WorksheetModel.updateRequestStatus(requestId, 'failed', null, {
+                error_message: error.message,
+                processing_time_ms: processingTimeMs,
+                token_usage: null
+            });
         } catch (dbErr) {
-            console.error("Gagal update status fail ke DB");
+            console.error("Gagal update status fail ke DB", dbErr);
         }
+
         res.status(500).json({
             success: false,
             message: "Terjadi kesalahan pada proses AI atau Database",

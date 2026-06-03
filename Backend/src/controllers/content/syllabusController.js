@@ -59,28 +59,64 @@ const generateSyllabus = async (req, res) => {
     const requestId = uuidv4();
     const syllabusId = uuidv4();
 
+    // ⏱️ MULAI HITUNG WAKTU PROSES (Stopwatch Start)
+    const startTime = performance.now();
+    const selectedModel = "llama-3.3-70b-versatile";
+
     try {
         const {
-            mata_pelajaran, kurikulum, jenjang, tingkat_kelas, semester, tahun_ajaran, userId
+            mata_pelajaran, kurikulum, jenjang, tingkat_kelas, semester, tahun_ajaran
         } = req.body;
 
-        const finalUserId = userId || '00000000-0000-0000-0000-000000000000';
+        // userId diambil dari JWT token
+        const finalUserId = req.user.id;
         const mappedSemester = mapSemester(semester);
         const mappedKurikulum = mapKurikulum(kurikulum);
         const mappedJenjang = mapJenjang(jenjang);
 
-        // 1. Log Request ke Database
-        await SyllabusModel.createRequest(requestId, finalUserId, {
+        const inputDataForLog = {
             mata_pelajaran,
             kurikulum: mappedKurikulum,
             jenjang: mappedJenjang,
             tingkat_kelas,
             semester: mappedSemester,
             tahun_ajaran
+        };
+
+        // LANGKAH A: Tulis Log Request Awal (Pending)
+        await SyllabusModel.createRequest(requestId, finalUserId, inputDataForLog, {
+            llm_model_used: selectedModel
         });
 
-        // 2. Panggil Groq AI Llama 3.3
+        // LANGKAH B: Panggil Cek Kuota (FOR UPDATE)
+        const quota = await SyllabusModel.getUserQuota(finalUserId);
+        if (!quota) {
+            return res.status(403).json({
+                success: false,
+                message: "Akses ditolak. Profil kuota tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
 
+        if (quota.used_this_month >= quota.monthly_limit) {
+            const endTime = performance.now();
+            await SyllabusModel.updateRequestStatus(requestId, 'failed', { 
+                error_message: `Generate gagal! Kuota bulanan habis.`,
+                processing_time_ms: Math.round(endTime - startTime)
+            });
+            return res.status(403).json({
+                success: false,
+                message: "Generate gagal! Kuota bulanan Anda telah habis.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        // LANGKAH C: Naikkan status ke processing
+        await SyllabusModel.updateRequestStatus(requestId, 'processing');
+
+        // 2. Panggil Groq AI Llama 3.3
         const prompt = `Anda adalah seorang ahli penyusun kurikulum sekolah (Madrasah). Buatlah rancangan silabus terstruktur untuk:
 Mata Pelajaran: ${mata_pelajaran}
 Jenjang: ${mappedJenjang}
@@ -106,18 +142,20 @@ Anda WAJIB memberikan respons dalam format JSON murni dengan struktur berikut:
 }
 Sertakan minimal 4 minggu kegiatan pembelajaran.`;
 
+        const systemPrompt = "Anda adalah seorang ahli penyusun kurikulum sekolah (Madrasah). Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun.";
+
         const chatCompletion = await groq.chat.completions.create({
             messages: [
                 {
                     role: "system",
-                    content: "Anda adalah seorang ahli penyusun kurikulum sekolah (Madrasah). Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun."
+                    content: systemPrompt
                 },
                 {
                     role: "user",
                     content: prompt
                 }
             ],
-            model: "llama-3.3-70b-versatile",
+            model: selectedModel,
             response_format: { "type": "json_object" }
         });
         const aiResponseJSON = JSON.parse(chatCompletion.choices[0].message.content);
@@ -135,28 +173,61 @@ Sertakan minimal 4 minggu kegiatan pembelajaran.`;
             silabus_json: aiResponseJSON
         };
 
-        const savedSyllabus = await SyllabusModel.saveSyllabus(syllabusData);
+        const savedSyllabus = await SyllabusModel.saveSyllabusAndDeductQuota(syllabusData, finalUserId);
 
         // 4. Update Status Request
-        await SyllabusModel.updateRequestStatus(requestId, 'completed', savedSyllabus);
+        const endTime = performance.now();
+        const processingTimeMs = Math.round(endTime - startTime);
+        const tokenUsage = {
+            prompt_tokens: chatCompletion.usage?.prompt_tokens || 0,
+            completion_tokens: chatCompletion.usage?.completion_tokens || 0,
+            total_tokens: chatCompletion.usage?.total_tokens || 0
+        };
+
+        await SyllabusModel.updateRequestStatus(requestId, 'completed', {
+            output_data: savedSyllabus,
+            prompt_used: `System: ${systemPrompt}\nUser: ${prompt}`,
+            llm_model_used: selectedModel,
+            token_usage: tokenUsage,
+            processing_time_ms: processingTimeMs
+        });
+
+        const updatedQuota = await SyllabusModel.getUserQuota(finalUserId);
 
         res.status(201).json({
             success: true,
             message: "Silabus berhasil dibuat dengan Groq Llama 3.3.",
-            data: savedSyllabus
+            request_id: requestId,
+            status: "completed",
+            data: savedSyllabus,
+            meta: {
+                quota_info: updatedQuota ? {
+                    plan_type: updatedQuota.plan_type,
+                    monthly_limit: updatedQuota.monthly_limit,
+                    used_this_month: updatedQuota.used_this_month,
+                    remaining_quota: updatedQuota.monthly_limit - updatedQuota.used_this_month
+                } : {}
+            }
         });
 
     } catch (error) {
         console.error("Error Detail:", error);
+        const endTime = performance.now();
+        const processingTimeMs = Math.round(endTime - startTime);
         try {
-            await SyllabusModel.updateRequestStatus(requestId, 'failed', { error: error.message });
+            await SyllabusModel.updateRequestStatus(requestId, 'failed', { 
+                error_message: error.message,
+                processing_time_ms: processingTimeMs
+            });
         } catch (dbErr) {
             console.error("Gagal update status fail ke DB");
         }
         res.status(500).json({
             success: false,
             message: "Terjadi kesalahan pada proses AI atau Database",
-            error: error.message
+            error: error.message,
+            data: null,
+            meta: {}
         });
     }
 };
@@ -269,4 +340,96 @@ const downloadSyllabusDocx = async (req, res) => {
     }
 };
 
-module.exports = { generateSyllabus, getSyllabi, downloadSyllabusPDF, downloadSyllabusDocx };
+const getSyllabusById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const data = await SyllabusModel.getSyllabusById(id);
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: "Silabus tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Berhasil mengambil detail silabus.",
+            data: data,
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error fetching syllabus by id:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal mengambil data dari server.",
+            error: error.message
+        });
+    }
+};
+
+const updateSyllabus = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const existing = await SyllabusModel.getSyllabusById(id);
+        if (!existing) {
+            return res.status(404).json({
+                success: false,
+                message: "Silabus tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        const updated = await SyllabusModel.updateSyllabus(id, req.body);
+
+        res.status(200).json({
+            success: true,
+            message: "Silabus berhasil diperbarui.",
+            data: updated,
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error updating syllabus:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal memperbarui silabus.",
+            error: error.message
+        });
+    }
+};
+
+const deleteSyllabus = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deleted = await SyllabusModel.deleteSyllabus(id);
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                message: "Silabus tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Silabus berhasil dihapus.",
+            data: { id: deleted.id },
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error deleting syllabus:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal menghapus silabus.",
+            error: error.message
+        });
+    }
+};
+
+module.exports = { generateSyllabus, getSyllabi, getSyllabusById, updateSyllabus, deleteSyllabus, downloadSyllabusPDF, downloadSyllabusDocx };
