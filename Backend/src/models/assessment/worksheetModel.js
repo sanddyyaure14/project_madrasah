@@ -55,24 +55,7 @@ const updateRequestStatus = async (requestId, status, outputData) => {
 
 // 4. GET ALL - Ambil semua worksheet milik user
 const getAllWorksheets = async (userId) => {
-    const query = `
-        SELECT 
-            w.id,
-            w.request_id,
-            w.judul,
-            w.mata_pelajaran,
-            w.topik,
-            w.tipe_aktivitas,
-            w.durasi_menit,
-            w.worksheet_json,
-            gr.status,
-            gr.created_at,
-            gr.completed_at
-        FROM worksheets w
-        JOIN generation_requests gr ON w.request_id = gr.id
-        WHERE gr.user_id = $1
-        ORDER BY gr.created_at DESC
-    `;
+    const query = 'SELECT w.id, w.request_id, w.judul, w.mata_pelajaran, w.topik, w.tipe_aktivitas, w.durasi_menit, w.worksheet_json, gr.status, gr.created_at, gr.completed_at FROM worksheets w JOIN generation_requests gr ON w.request_id = gr.id WHERE gr.user_id = $1 ORDER BY gr.created_at DESC';
     const result = await pool.query(query, [userId]);
     return result.rows;
 };

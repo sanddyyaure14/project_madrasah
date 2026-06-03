@@ -15,6 +15,8 @@ import ProfileScreen from '../screens/ProfileScreen';
 import WritingFeedbackScreen from '../screens/WritingFeedbackScreen';
 import MyDocsScreen from '../screens/MyDocsScreen';
 import FeedbackDetailScreen from '../screens/FeedbackDetailScreen';
+import WorksheetScreen from '../screens/WorksheetScreen';
+import WorksheetDetailScreen from '../screens/WorksheetDetailScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -85,6 +87,11 @@ function DocsStack() {
         component={FeedbackDetailScreen}
         options={{ title: 'Detail Feedback' }}
       />
+      <Stack.Screen
+        name="WorksheetDetail"
+        component={WorksheetDetailScreen}
+        options={{ title: 'Detail Worksheet' }}
+      />
     </Stack.Navigator>
   );
 }
@@ -119,6 +126,16 @@ function DashboardStack() {
         name="FeedbackDetail"
         component={FeedbackDetailScreen}
         options={{ title: 'Detail Feedback' }}
+      />
+      <Stack.Screen
+        name="Worksheet"
+        component={WorksheetScreen}
+        options={{ title: 'Worksheet Generator' }}
+      />
+      <Stack.Screen
+        name="WorksheetDetail"
+        component={WorksheetDetailScreen}
+        options={{ title: 'Detail Worksheet' }}
       />
       <Stack.Screen name="Teachers" component={TeachersScreen} options={{ title: 'Daftar Guru' }} />
       <Stack.Screen name="Approvals" component={ApprovalsScreen} options={{ title: 'Persetujuan' }} />

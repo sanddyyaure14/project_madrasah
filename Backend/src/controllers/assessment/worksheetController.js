@@ -179,6 +179,7 @@ const getAllWorksheets = async (req, res) => {
             meta: { total: worksheets.length }
         });
     } catch (error) {
+        console.error("getAllWorksheets Error:", error.message, error.stack);
         res.status(500).json({ success: false, message: "Terjadi kesalahan saat mengambil data", error: error.message, data: null, meta: {} });
     }
 };

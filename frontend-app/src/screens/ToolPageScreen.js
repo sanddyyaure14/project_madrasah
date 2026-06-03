@@ -431,15 +431,14 @@ const TOOL_FORMS = {
 export default function ToolPageScreen({ route, navigation }) {
   const { slug } = route.params;
 
-  // Redirect writing-feedback ke dedicated screen (Rules of Hooks: useEffect di level atas)
+  // Redirect tools dengan dedicated screen (Rules of Hooks: useEffect di level atas)
   useEffect(() => {
-    if (slug === 'writing-feedback') {
-      navigation.replace('WritingFeedback');
-    }
+    if (slug === 'writing-feedback') navigation.replace('WritingFeedback');
+    if (slug === 'worksheet') navigation.replace('Worksheet');
   }, [slug]);
 
   const tool = findTool(slug);
-  if (!tool || slug === 'writing-feedback') return null;
+  if (!tool || slug === 'writing-feedback' || slug === 'worksheet') return null;
 
   const iconName = ICON_MAP[tool.icon] ?? 'sparkles';
   const isGold = tool.accent === 'gold';
