@@ -44,7 +44,7 @@ function EmptyState({ onGenerate }) {
       <Text style={styles.emptyEmoji}>📝</Text>
       <Text style={styles.emptyTitle}>Belum ada dokumen</Text>
       <Text style={styles.emptySub}>
-        Generate Writing Feedback atau Worksheet dan simpan hasilnya untuk muncul di sini.
+        Generate Writing Feedback, Worksheet, atau Soal PG dan simpan hasilnya untuk muncul di sini.
       </Text>
       <TouchableOpacity style={styles.emptyBtn} onPress={onGenerate}>
         <Ionicons name="sparkles" size={16} color="#fff" />
@@ -59,20 +59,22 @@ function EmptyState({ onGenerate }) {
 // ─────────────────────────────────────────────
 function DocCard({ item, onPress, onDelete }) {
   const isWorksheet = item._type === 'worksheet';
+  const isMC = item._type === 'mc';
 
-  // Warna & label untuk worksheet (hijau netral) vs feedback (score-based)
-  const accentColor = isWorksheet ? C.primary : scoreColor(item.skor_total);
-  const score = isWorksheet ? null : parseFloat(item.skor_total || 0).toFixed(0);
+  const accentColor = isMC ? '#ef4444' : isWorksheet ? C.primary : scoreColor(item.skor_total);
+  const score = isWorksheet || isMC ? null : parseFloat(item.skor_total || 0).toFixed(0);
 
   return (
     <TouchableOpacity style={[styles.docCard, S.shadow]} onPress={onPress} activeOpacity={0.85}>
-      {/* Left accent */}
       <View style={[styles.docAccent, { backgroundColor: accentColor }]} />
-
       <View style={styles.docBody}>
-        {/* Top row: badge + score/tipe */}
         <View style={styles.docTop}>
-          {isWorksheet ? (
+          {isMC ? (
+            <View style={[styles.docTypeBadge, { backgroundColor: '#fee2e2' }]}>
+              <Ionicons name="list-outline" size={11} color="#ef4444" />
+              <Text style={[styles.docTypeText, { color: '#ef4444' }]}>Soal PG</Text>
+            </View>
+          ) : isWorksheet ? (
             <View style={[styles.docTypeBadge, { backgroundColor: '#fef3c7' }]}>
               <Ionicons name="document-text-outline" size={11} color={C.gold} />
               <Text style={[styles.docTypeText, { color: '#92400e' }]}>Worksheet</Text>
@@ -83,7 +85,6 @@ function DocCard({ item, onPress, onDelete }) {
               <Text style={styles.docTypeText}>Writing Feedback</Text>
             </View>
           )}
-
           {score !== null ? (
             <View style={[styles.scorePill, { backgroundColor: accentColor + '20', borderColor: accentColor }]}>
               <Text style={[styles.scorePillText, { color: accentColor }]}>{score}</Text>
@@ -91,14 +92,32 @@ function DocCard({ item, onPress, onDelete }) {
           ) : null}
         </View>
 
-        {/* Judul / Nama */}
         <Text style={styles.docTitle} numberOfLines={1}>
-          {isWorksheet ? (item.judul || 'LKS') : (item.nama_siswa || 'Siswa Anonim')}
+          {isMC
+            ? `${item.mata_pelajaran} — ${item.topik}`
+            : isWorksheet
+              ? (item.judul || 'LKS')
+              : (item.nama_siswa || 'Siswa Anonim')
+          }
         </Text>
 
-        {/* Meta row */}
         <View style={styles.docMeta}>
-          {isWorksheet ? (
+          {isMC ? (
+            <>
+              <View style={styles.docMetaItem}>
+                <Ionicons name="layers-outline" size={12} color={C.muted} />
+                <Text style={styles.docMetaText}>Kelas {item.tingkat_kelas}</Text>
+              </View>
+              <View style={styles.docMetaItem}>
+                <Ionicons name="help-circle-outline" size={12} color={C.muted} />
+                <Text style={styles.docMetaText}>{item.jumlah_soal} soal</Text>
+              </View>
+              <View style={styles.docMetaItem}>
+                <Ionicons name="bar-chart-outline" size={12} color={C.muted} />
+                <Text style={styles.docMetaText}>{item.tingkat_kesulitan}</Text>
+              </View>
+            </>
+          ) : isWorksheet ? (
             <>
               <View style={styles.docMetaItem}>
                 <Ionicons name="book-outline" size={12} color={C.muted} />
@@ -125,23 +144,9 @@ function DocCard({ item, onPress, onDelete }) {
             </>
           )}
         </View>
-
-        {/* Preview bawah */}
-        {isWorksheet && item.tipe_aktivitas?.length > 0 ? (
-          <Text style={styles.docPreview} numberOfLines={1}>
-            Tipe: {item.tipe_aktivitas.join(', ')}
-          </Text>
-        ) : item.ringkasan ? (
-          <Text style={styles.docPreview} numberOfLines={2}>{item.ringkasan}</Text>
-        ) : null}
       </View>
 
-      {/* Delete */}
-      <TouchableOpacity
-        style={styles.docDelete}
-        onPress={onDelete}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
+      <TouchableOpacity style={styles.docDelete} onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
         <Ionicons name="trash-outline" size={18} color={C.danger} />
       </TouchableOpacity>
     </TouchableOpacity>
@@ -190,13 +195,13 @@ export default function MyDocsScreen({ navigation }) {
     }
 
     try {
-      const [feedbacks, worksheets] = await Promise.all([
+      const [feedbacks, worksheets, mcDocs] = await Promise.all([
         safeFetch(`${API_URL}/feedback`),
         safeFetch(`${API_URL}/worksheet/worksheets`),
+        safeFetch(`${API_URL}/assessment`),
       ]);
 
-      // Kalau keduanya null → network error
-      if (feedbacks === null && worksheets === null) {
+      if (feedbacks === null && worksheets === null && mcDocs === null) {
         setError('Tidak dapat terhubung ke server. Pastikan backend berjalan dan IP sudah benar.');
         setDocs([]);
         return;
@@ -205,6 +210,7 @@ export default function MyDocsScreen({ navigation }) {
       const combined = [
         ...(feedbacks ?? []).map(f => ({ ...f, _type: 'feedback' })),
         ...(worksheets ?? []).map(w => ({ ...w, _type: 'worksheet' })),
+        ...(mcDocs ?? []).map(m => ({ ...m, _type: 'mc' })),
       ];
       console.log('[MyDocs] Total docs:', combined.length);
       setDocs(combined);
@@ -225,7 +231,9 @@ export default function MyDocsScreen({ navigation }) {
   async function handleDelete(id, nama, type) {
     const url = type === 'worksheet'
       ? `${API_URL}/worksheet/worksheets/${id}`
-      : `${API_URL}/feedback/delete/${id}`;
+      : type === 'mc'
+        ? `${API_URL}/assessment/delete/${id}`
+        : `${API_URL}/feedback/delete/${id}`;
 
     Alert.alert('Hapus Dokumen', `Hapus "${nama}"? Tidak dapat dibatalkan.`, [
       { text: 'Batal', style: 'cancel' },
@@ -248,6 +256,7 @@ export default function MyDocsScreen({ navigation }) {
   const filtered = docs.filter(d => {
     if (activeTab === 'feedback' && d._type !== 'feedback') return false;
     if (activeTab === 'worksheet' && d._type !== 'worksheet') return false;
+    if (activeTab === 'mc' && d._type !== 'mc') return false;
     const q = search.toLowerCase();
     const label = d._type === 'worksheet'
       ? `${d.judul || ''} ${d.mata_pelajaran || ''} ${d.topik || ''}`
@@ -285,7 +294,7 @@ export default function MyDocsScreen({ navigation }) {
 
       {/* Tab filter */}
       <View style={styles.tabRow}>
-        {[['all', 'Semua'], ['feedback', '✍️ Writing Feedback'], ['worksheet', '📋 Worksheet']].map(([key, label]) => (
+        {[['all', 'Semua'], ['mc', '📝 Soal PG'], ['feedback', '✍️ Writing Feedback'], ['worksheet', '📋 Worksheet']].map(([key, label]) => (
           <TouchableOpacity
             key={key}
             style={[styles.tabBtn, activeTab === key && styles.tabBtnActive]}
@@ -331,11 +340,17 @@ export default function MyDocsScreen({ navigation }) {
               item={item}
               onPress={() => item._type === 'worksheet'
                 ? navigation.navigate('WorksheetDetail', { id: item.id })
-                : navigation.navigate('FeedbackDetail', { id: item.id })
+                : item._type === 'mc'
+                  ? navigation.navigate('MCDetail', { id: item.id })
+                  : navigation.navigate('FeedbackDetail', { id: item.id })
               }
               onDelete={() => handleDelete(
                 item.id,
-                item._type === 'worksheet' ? (item.judul || 'LKS') : (item.nama_siswa || 'Siswa Anonim'),
+                item._type === 'worksheet'
+                  ? (item.judul || 'LKS')
+                  : item._type === 'mc'
+                    ? `${item.mata_pelajaran} — ${item.topik}`
+                    : (item.nama_siswa || 'Siswa Anonim'),
                 item._type
               )}
             />

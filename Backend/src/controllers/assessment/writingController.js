@@ -232,7 +232,8 @@ const generateWritingFeedback = async (req, res) => {
 // 2. READ ALL
 const getAllFeedback = async (req, res) => {
     try {
-        const feedbacks = await WritingModel.getAllFeedback();
+        const userId = req.user.id;
+        const feedbacks = await WritingModel.getAllFeedback(userId);
         
         const formattedFeedbacks = feedbacks.map(item => {
             const fJson = typeof item.feedback_json === 'string' ? JSON.parse(item.feedback_json) : item.feedback_json;

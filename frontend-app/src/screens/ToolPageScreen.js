@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, ActivityIndicator, Alert,
+  TextInput, ActivityIndicator, Alert, Switch, Clipboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { findTool } from '../lib/tools';
+import { useAuth, API_URL } from '../lib/auth';
 import { C, S } from '../lib/theme';
 
 const ICON_MAP = {
@@ -271,28 +272,155 @@ PEMBAGIAN THAHARAH:
 // --- Tool Forms ---
 
 function MultipleChoiceForm() {
+  const { token } = useAuth();
   const [mapel, setMapel] = useState(MAPEL[0]);
   const [kelas, setKelas] = useState(KELAS[0]);
   const [topik, setTopik] = useState('');
   const [jumlah, setJumlah] = useState('10');
-  const { loading, result, generate } = useTool('multiple-choice');
+  const [kesulitan, setKesulitan] = useState('sedang');
+  const [kd, setKd] = useState('');
+  const [includeKunci, setIncludeKunci] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [error, setError] = useState('');
+  const KESULITAN = ['mudah', 'sedang', 'sulit'];
+
+  async function handleGenerate() {
+    if (!topik.trim()) { Alert.alert('Input Kurang', 'Topik/Materi wajib diisi.'); return; }
+    const jml = parseInt(jumlah);
+    if (isNaN(jml) || jml < 1 || jml > 50) { Alert.alert('Input Tidak Valid', 'Jumlah soal antara 1–50.'); return; }
+    setLoading(true); setQuestions([]); setError('');
+    try {
+      const res = await fetch(`${API_URL}/generate-mc`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          mata_pelajaran: mapel, tingkat_kelas: kelas, topik: topik.trim(),
+          jumlah_soal: jml, tingkat_kesulitan: kesulitan,
+          include_kunci: includeKunci, kompetensi_dasar: kd.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.message ?? 'Gagal generate soal.'); return; }
+      setQuestions(data.data?.questions ?? []);
+    } catch (e) {
+      setError('Tidak dapat terhubung ke server. Pastikan backend berjalan.');
+    } finally { setLoading(false); }
+  }
+
+  function copyAll() {
+    const text = questions.map(q => {
+      const pilihan = Object.entries(q.pilihan ?? {}).map(([k, v]) => `   ${k}. ${v}`).join('\n');
+      const kunci = q.kunci ? `\nJawaban: ${q.kunci}` : '';
+      const bahas = q.pembahasan ? `\nPembahasan: ${q.pembahasan}` : '';
+      return `${q.no}. ${q.soal}\n${pilihan}${kunci}${bahas}`;
+    }).join('\n\n');
+    Clipboard.setString(text);
+    Alert.alert('Tersalin!', 'Semua soal berhasil disalin.');
+  }
 
   return (
     <>
-      <Field label="Mata Pelajaran">
+      {/* Field inputs */}
+      <Field label="Mata Pelajaran *">
         <SelectF options={MAPEL} value={mapel} onSelect={setMapel} />
       </Field>
-      <Field label="Kelas">
+      <Field label="Kelas *">
         <SelectF options={KELAS} value={kelas} onSelect={setKelas} />
       </Field>
-      <Field label="Topik / Materi">
-        <TextF value={topik} onChangeText={setTopik} placeholder="cth. Thaharah, Wudhu, dll." />
+      <Field label="Topik / Materi *">
+        <TextF value={topik} onChangeText={setTopik} placeholder="cth. Thaharah, Wudhu, Shalat..." />
       </Field>
-      <Field label="Jumlah Soal">
-        <TextF value={jumlah} onChangeText={setJumlah} placeholder="10" />
+      <View style={mcS.row}>
+        <View style={{ flex: 1 }}>
+          <Field label="Jumlah Soal *">
+            <TextInput
+              style={styles.input}
+              value={jumlah}
+              onChangeText={setJumlah}
+              keyboardType="numeric"
+              placeholder="10"
+              placeholderTextColor={C.mutedLight}
+            />
+          </Field>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Field label="Kesulitan *">
+            <SelectF options={KESULITAN} value={kesulitan} onSelect={setKesulitan} />
+          </Field>
+        </View>
+      </View>
+      <Field label="Kompetensi Dasar (KD)">
+        <TextF value={kd} onChangeText={setKd} placeholder="cth. 3.1 Memahami ketentuan thaharah" multiline />
       </Field>
-      <GenerateBtn loading={loading} onPress={() => generate({ mapel, kelas, topik, jumlah })} />
-      <ResultBox text={result} onCopy={() => Alert.alert('Tersalin!', 'Hasil berhasil disalin.')} />
+      <View style={mcS.switchRow}>
+        <View>
+          <Text style={styles.fieldLabel}>Sertakan Kunci Jawaban</Text>
+          <Text style={mcS.switchSub}>Include kunci & pembahasan di output</Text>
+        </View>
+        <Switch value={includeKunci} onValueChange={setIncludeKunci}
+          trackColor={{ false: C.border, true: C.primary }} thumbColor="#fff" />
+      </View>
+
+      {/* Generate button */}
+      <TouchableOpacity style={[styles.generateBtn, loading && { opacity: 0.7 }]} onPress={handleGenerate} disabled={loading}>
+        {loading
+          ? <><ActivityIndicator color="#fff" size="small" /><Text style={styles.generateBtnText}>Sedang generate soal...</Text></>
+          : <><Ionicons name="sparkles" size={18} color="#fff" /><Text style={styles.generateBtnText}>Generate Soal</Text></>
+        }
+      </TouchableOpacity>
+
+      {/* Error */}
+      {error ? (
+        <View style={mcS.errorBox}>
+          <Ionicons name="alert-circle" size={16} color="#dc2626" />
+          <Text style={mcS.errorText}>{error}</Text>
+        </View>
+      ) : null}
+
+      {/* Output */}
+      {questions.length > 0 && (
+        <View style={mcS.resultWrap}>
+          <View style={mcS.resultHeader}>
+            <View>
+              <Text style={mcS.resultTitle}>📋 Hasil Soal</Text>
+              <Text style={mcS.resultSub}>{questions.length} soal · {mapel} Kelas {kelas}</Text>
+            </View>
+            <TouchableOpacity style={mcS.copyAllBtn} onPress={copyAll}>
+              <Ionicons name="copy-outline" size={14} color={C.primary} />
+              <Text style={mcS.copyAllText}>Salin Semua</Text>
+            </TouchableOpacity>
+          </View>
+          {questions.map((q, idx) => (
+            <View key={idx} style={mcS.qCard}>
+              <View style={mcS.qHeader}>
+                <View style={mcS.noBadge}><Text style={mcS.noText}>{q.no}</Text></View>
+                <Text style={mcS.soalText}>{q.soal}</Text>
+              </View>
+              <View style={mcS.pilihanList}>
+                {Object.entries(q.pilihan ?? {}).map(([key, val]) => {
+                  const isKunci = includeKunci && q.kunci === key;
+                  return (
+                    <View key={key} style={[mcS.pilihanRow, isKunci && mcS.pilihanKunci]}>
+                      <View style={[mcS.pilihanKey, isKunci && mcS.pilihanKeyActive]}>
+                        <Text style={[mcS.pilihanKeyText, isKunci && { color: '#fff' }]}>{key}</Text>
+                      </View>
+                      <Text style={[mcS.pilihanVal, isKunci && { color: C.primary, fontWeight: '600' }]}>{val}</Text>
+                      {isKunci && <Ionicons name="checkmark-circle" size={16} color={C.primary} />}
+                    </View>
+                  );
+                })}
+              </View>
+              {includeKunci && q.pembahasan ? (
+                <View style={mcS.pembahasanBox}>
+                  <Text style={mcS.pembahasanLabel}>💡 Pembahasan</Text>
+                  <Text style={mcS.pembahasanText}>{q.pembahasan}</Text>
+                </View>
+              ) : null}
+            </View>
+          ))}
+        </View>
+      )}
     </>
   );
 }
@@ -509,4 +637,49 @@ const styles = StyleSheet.create({
   copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: C.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#fff' },
   copyBtnText: { fontSize: 12, color: C.primary, fontWeight: '600' },
   resultText: { fontSize: 13, color: C.ink, lineHeight: 20 },
+});
+
+const mcS = StyleSheet.create({
+  infoBox: { backgroundColor: '#f9fafb', borderRadius: 14, padding: 16, gap: 8, borderWidth: 1, borderColor: C.border },
+  infoTitle: { fontSize: 16, fontWeight: '700', color: C.ink },
+  infoDesc: { fontSize: 13, color: C.muted, lineHeight: 19 },
+  schemaLabel: { fontSize: 10, fontWeight: '800', color: C.primary, textTransform: 'uppercase', letterSpacing: 1 },
+  schemaCode: { fontSize: 12, color: C.muted, fontFamily: 'monospace', lineHeight: 18 },
+  divider: { height: 1, backgroundColor: C.border },
+  sectionLabel: { fontSize: 10, fontWeight: '800', color: C.primary, textTransform: 'uppercase', letterSpacing: 1.5 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  chipText: { fontSize: 12, color: C.ink },
+  row: { flexDirection: 'row', gap: 10 },
+  switchRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: C.bg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: C.border,
+  },
+  switchSub: { fontSize: 11, color: C.muted, marginTop: 2 },
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#fee2e2', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#fca5a5',
+  },
+  errorText: { fontSize: 13, color: '#dc2626', flex: 1 },
+  resultWrap: { gap: 12 },
+  resultHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+  resultTitle: { fontSize: 16, fontWeight: '700', color: C.ink },
+  resultSub: { fontSize: 12, color: C.muted, marginTop: 2 },
+  copyAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: C.primary, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  copyAllText: { fontSize: 12, color: C.primary, fontWeight: '600' },
+  qCard: { backgroundColor: C.bg, borderRadius: 12, padding: 14, gap: 10, borderWidth: 1, borderColor: C.border },
+  qHeader: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  noBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  noText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  soalText: { fontSize: 14, color: C.ink, lineHeight: 21, flex: 1 },
+  pilihanList: { gap: 6, paddingLeft: 38 },
+  pilihanRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: C.border },
+  pilihanKunci: { backgroundColor: C.primaryLight, borderColor: C.primary },
+  pilihanKey: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
+  pilihanKeyActive: { backgroundColor: C.primary },
+  pilihanKeyText: { fontSize: 11, fontWeight: '700', color: C.ink },
+  pilihanVal: { fontSize: 13, color: C.ink, flex: 1 },
+  pembahasanBox: { backgroundColor: '#fffbeb', borderRadius: 8, padding: 10, gap: 4, borderLeftWidth: 3, borderLeftColor: C.gold },
+  pembahasanLabel: { fontSize: 11, fontWeight: '700', color: C.gold },
+  pembahasanText: { fontSize: 12, color: C.ink, lineHeight: 18 },
 });

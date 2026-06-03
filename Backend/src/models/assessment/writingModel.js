@@ -193,16 +193,17 @@ class WritingModel {
         }
     }
 
-    // 4. READ ALL: Mengambil seluruh riwayat feedback esai siswa (Ditingkatkan dengan COALESCE)
-    static async getAllFeedback() {
+    // 4. READ ALL: Mengambil seluruh riwayat feedback milik user yang login saja
+    static async getAllFeedback(userId) {
         try {
             const query = `
                 SELECT wf.*, COALESCE(gr.input_data->>'nama_siswa', 'Siswa Anonim') AS nama_siswa 
                 FROM writing_feedback wf
                 LEFT JOIN generation_requests gr ON wf.request_id = gr.id
+                WHERE gr.user_id = $1
                 ORDER BY wf.id DESC;
             `;
-            const result = await db.query(query);
+            const result = await db.query(query, [userId]);
             return result.rows;
         } catch (error) {
             console.error("Error di WritingModel (getAllFeedback):", error);
