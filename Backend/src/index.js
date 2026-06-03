@@ -51,7 +51,7 @@ app.use('/api', guruRoutes);
 app.use('/api', mcRoutes);
 app.use('/api', writingRoutes);
 app.use('/api', rubicRoutes);
-app.use('/api/assessment', worksheetRoutes);
+app.use('/api/worksheet', worksheetRoutes);
 
 // Content (dilindungi verifyToken + authorizeRoles di dalam routenya)
 app.use('/api/presentation', presentationRoutes);
