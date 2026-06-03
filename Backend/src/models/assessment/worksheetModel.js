@@ -204,6 +204,7 @@ const incrementQuotaUsage = async (userId) => {
     const result = await pool.query(query, [userId]);
     return result.rows[0];
 };
+
 module.exports = {
     createRequest,
     saveWorksheet,

@@ -267,9 +267,9 @@ const updateWorksheet = async (req, res) => {
     }
 };
 
-// =============================================
+// ==============================================
 // DELETE - Hapus worksheet
-// =============================================
+// ==============================================
 const deleteWorksheet = async (req, res) => {
     try {
         const { id } = req.params;
@@ -369,10 +369,11 @@ const cetakPDF = async (req, res) => {
         });
 
         doc.end();
-
+        
     } catch (error) {
         console.error("Error Cetak PDF:", error);
         res.status(500).json({ success: false, message: "Gagal mencetak PDF", error: error.message, data: null, meta: {} });
     }
 };
+
 module.exports = { generateWorksheet, getAllWorksheets, getWorksheetById, updateWorksheet, deleteWorksheet, cetakPDF };
