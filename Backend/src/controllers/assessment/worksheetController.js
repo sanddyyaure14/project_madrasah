@@ -12,7 +12,7 @@ const generateWorksheet = async (req, res) => {
     const requestId = uuidv4();
     const worksheetId = uuidv4();
     
-    // ⏱️ Catat waktu mulai pengerjaan untuk processing_time_ms
+    //  Catat waktu mulai pengerjaan untuk processing_time_ms
     const startTime = Date.now();
     const selectedModel = "llama-3.3-70b-versatile";
 
@@ -375,5 +375,4 @@ const cetakPDF = async (req, res) => {
         res.status(500).json({ success: false, message: "Gagal mencetak PDF", error: error.message, data: null, meta: {} });
     }
 };
-
 module.exports = { generateWorksheet, getAllWorksheets, getWorksheetById, updateWorksheet, deleteWorksheet, cetakPDF };
