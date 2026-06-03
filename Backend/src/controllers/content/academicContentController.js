@@ -60,22 +60,58 @@ const generateAcademicContent = async (req, res) => {
     const requestId = uuidv4();
     const contentId = uuidv4();
 
+    // ⏱️ MULAI HITUNG WAKTU PROSES (Stopwatch Start)
+    const startTime = performance.now();
+    const selectedModel = "llama-3.3-70b-versatile";
+
     try {
         const {
-            jenis_konten, topik, mapel, kelas, panjang, bahasa, gaya_bahasa, userId
+            jenis_konten, topik, mapel, kelas, panjang, bahasa, gaya_bahasa
         } = req.body;
 
-        const finalUserId = userId || '00000000-0000-0000-0000-000000000000';
+        // userId diambil dari JWT token
+        const finalUserId = req.user.id;
         const mappedJenis = mapJenisKonten(jenis_konten);
         const mappedPanjang = mapPanjangKonten(panjang);
 
-        // 1. Log Request ke Database
-        await AcademicContentModel.createRequest(requestId, finalUserId, {
+        const inputDataForLog = {
             jenis_konten: mappedJenis, topik, mapel, kelas, panjang: mappedPanjang, bahasa, gaya_bahasa
+        };
+
+        // LANGKAH A: Tulis Log Request Awal (Pending)
+        await AcademicContentModel.createRequest(requestId, finalUserId, inputDataForLog, {
+            llm_model_used: selectedModel
         });
 
-        // 2. Panggil Groq AI Llama 3.3
+        // LANGKAH B: Panggil Cek Kuota (FOR UPDATE)
+        const quota = await AcademicContentModel.getUserQuota(finalUserId);
+        if (!quota) {
+            return res.status(403).json({
+                success: false,
+                message: "Akses ditolak. Profil kuota tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
 
+        if (quota.used_this_month >= quota.monthly_limit) {
+            const endTime = performance.now();
+            await AcademicContentModel.updateRequestStatus(requestId, 'failed', { 
+                error_message: `Generate gagal! Kuota bulanan habis.`,
+                processing_time_ms: Math.round(endTime - startTime)
+            });
+            return res.status(403).json({
+                success: false,
+                message: "Generate gagal! Kuota bulanan Anda telah habis.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        // LANGKAH C: Naikkan status ke processing
+        await AcademicContentModel.updateRequestStatus(requestId, 'processing');
+
+        // 2. Panggil Groq AI Llama 3.3
         const prompt = `Anda adalah asisten pembuat materi akademik yang ahli. Buatlah konten dengan spesifikasi berikut:
 Jenis Konten: ${jenis_konten}
 Topik: "${topik}"
@@ -94,18 +130,20 @@ Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut:
     "referensi": ["referensi 1", "referensi 2"]
 }`;
 
+        const systemPrompt = "Anda adalah asisten pembuat materi akademik yang ahli. Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun.";
+
         const chatCompletion = await groq.chat.completions.create({
             messages: [
                 {
                     role: "system",
-                    content: "Anda adalah asisten pembuat materi akademik yang ahli. Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun."
+                    content: systemPrompt
                 },
                 {
                     role: "user",
                     content: prompt
                 }
             ],
-            model: "llama-3.3-70b-versatile",
+            model: selectedModel,
             response_format: { "type": "json_object" }
         });
         const aiResponse = JSON.parse(chatCompletion.choices[0].message.content);
@@ -122,30 +160,61 @@ Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut:
             content_json: aiResponse
         };
 
-        const savedContent = await AcademicContentModel.saveAcademicContent(contentData);
+        const savedContent = await AcademicContentModel.saveAcademicContentAndDeductQuota(contentData, finalUserId);
 
         // 4. Update Status Request
-        await AcademicContentModel.updateRequestStatus(requestId, 'completed', savedContent);
+        const endTime = performance.now();
+        const processingTimeMs = Math.round(endTime - startTime);
+        const tokenUsage = {
+            prompt_tokens: chatCompletion.usage?.prompt_tokens || 0,
+            completion_tokens: chatCompletion.usage?.completion_tokens || 0,
+            total_tokens: chatCompletion.usage?.total_tokens || 0
+        };
+
+        await AcademicContentModel.updateRequestStatus(requestId, 'completed', {
+            output_data: savedContent,
+            prompt_used: `System: ${systemPrompt}\nUser: ${prompt}`,
+            llm_model_used: selectedModel,
+            token_usage: tokenUsage,
+            processing_time_ms: processingTimeMs
+        });
+
+        const updatedQuota = await AcademicContentModel.getUserQuota(finalUserId);
 
         res.status(201).json({
             success: true,
             message: "Konten akademik berhasil dibuat dengan Groq Llama 3.3.",
-            data: savedContent
+            request_id: requestId,
+            status: "completed",
+            data: savedContent,
+            meta: {
+                quota_info: updatedQuota ? {
+                    plan_type: updatedQuota.plan_type,
+                    monthly_limit: updatedQuota.monthly_limit,
+                    used_this_month: updatedQuota.used_this_month,
+                    remaining_quota: updatedQuota.monthly_limit - updatedQuota.used_this_month
+                } : {}
+            }
         });
 
     } catch (error) {
         console.error("Error Detail:", error);
-
+        const endTime = performance.now();
+        const processingTimeMs = Math.round(endTime - startTime);
         try {
-            await AcademicContentModel.updateRequestStatus(requestId, 'failed', { error: error.message });
+            await AcademicContentModel.updateRequestStatus(requestId, 'failed', { 
+                error_message: error.message,
+                processing_time_ms: processingTimeMs
+            });
         } catch (dbErr) {
             console.error("Gagal update status fail ke DB");
         }
-
         res.status(500).json({
             success: false,
             message: "Terjadi kesalahan pada proses AI atau Database",
-            error: error.message
+            error: error.message,
+            data: null,
+            meta: {}
         });
     }
 };
@@ -213,4 +282,96 @@ const downloadAcademicContentPDF = async (req, res) => {
     }
 };
 
-module.exports = { generateAcademicContent, getAcademicContents, downloadAcademicContentPDF };
+const getAcademicContentById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const data = await AcademicContentModel.getAcademicContentById(id);
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: "Konten akademik tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Berhasil mengambil detail konten akademik.",
+            data: data,
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error fetching academic content by id:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal mengambil data dari server.",
+            error: error.message
+        });
+    }
+};
+
+const updateAcademicContent = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const existing = await AcademicContentModel.getAcademicContentById(id);
+        if (!existing) {
+            return res.status(404).json({
+                success: false,
+                message: "Konten akademik tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        const updated = await AcademicContentModel.updateAcademicContent(id, req.body);
+
+        res.status(200).json({
+            success: true,
+            message: "Konten akademik berhasil diperbarui.",
+            data: updated,
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error updating academic content:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal memperbarui konten akademik.",
+            error: error.message
+        });
+    }
+};
+
+const deleteAcademicContent = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deleted = await AcademicContentModel.deleteAcademicContent(id);
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                message: "Konten akademik tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Konten akademik berhasil dihapus.",
+            data: { id: deleted.id },
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error deleting academic content:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal menghapus konten akademik.",
+            error: error.message
+        });
+    }
+};
+
+module.exports = { generateAcademicContent, getAcademicContents, getAcademicContentById, updateAcademicContent, deleteAcademicContent, downloadAcademicContentPDF };

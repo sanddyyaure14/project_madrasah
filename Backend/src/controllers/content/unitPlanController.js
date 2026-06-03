@@ -11,20 +11,56 @@ const generateUnitPlan = async (req, res) => {
     const requestId = uuidv4();
     const unitPlanId = uuidv4();
 
+    // ⏱️ MULAI HITUNG WAKTU PROSES (Stopwatch Start)
+    const startTime = performance.now();
+    const selectedModel = "llama-3.3-70b-versatile";
+
     try {
         const {
-            judul_unit, mata_pelajaran, tingkat_kelas, tujuan_pembelajaran, jumlah_pertemuan, durasi_per_jp, userId
+            judul_unit, mata_pelajaran, tingkat_kelas, tujuan_pembelajaran, jumlah_pertemuan, durasi_per_jp
         } = req.body;
 
-        const finalUserId = userId || '00000000-0000-0000-0000-000000000000';
+        // userId diambil dari JWT token
+        const finalUserId = req.user.id;
 
-        // 1. Log Request ke Database
-        await UnitPlanModel.createRequest(requestId, finalUserId, {
+        const inputDataForLog = {
             judul_unit, mata_pelajaran, tingkat_kelas, tujuan_pembelajaran, jumlah_pertemuan, durasi_per_jp
+        };
+
+        // LANGKAH A: Tulis Log Request Awal (Pending)
+        await UnitPlanModel.createRequest(requestId, finalUserId, inputDataForLog, {
+            llm_model_used: selectedModel
         });
 
-        // 2. Panggil Groq AI Llama 3.3
+        // LANGKAH B: Panggil Cek Kuota (FOR UPDATE)
+        const quota = await UnitPlanModel.getUserQuota(finalUserId);
+        if (!quota) {
+            return res.status(403).json({
+                success: false,
+                message: "Akses ditolak. Profil kuota tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
 
+        if (quota.used_this_month >= quota.monthly_limit) {
+            const endTime = performance.now();
+            await UnitPlanModel.updateRequestStatus(requestId, 'failed', { 
+                error_message: `Generate gagal! Kuota bulanan habis.`,
+                processing_time_ms: Math.round(endTime - startTime)
+            });
+            return res.status(403).json({
+                success: false,
+                message: "Generate gagal! Kuota bulanan Anda telah habis.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        // LANGKAH C: Naikkan status ke processing
+        await UnitPlanModel.updateRequestStatus(requestId, 'processing');
+
+        // 2. Panggil Groq AI Llama 3.3
         const prompt = `Anda adalah seorang ahli penyusun Modul Ajar / RPP Kurikulum Merdeka (Madrasah). Buatlah rancangan Modul Ajar untuk:
 Mata Pelajaran: ${mata_pelajaran}
 Judul Materi/Unit: ${judul_unit}
@@ -62,18 +98,20 @@ Anda WAJIB memberikan respons dalam format JSON murni dengan struktur berikut:
     }
 }`;
 
+        const systemPrompt = "Anda adalah seorang ahli penyusun Modul Ajar / RPP Kurikulum Merdeka (Madrasah). Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun.";
+
         const chatCompletion = await groq.chat.completions.create({
             messages: [
                 {
                     role: "system",
-                    content: "Anda adalah seorang ahli penyusun Modul Ajar / RPP Kurikulum Merdeka (Madrasah). Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun."
+                    content: systemPrompt
                 },
                 {
                     role: "user",
                     content: prompt
                 }
             ],
-            model: "llama-3.3-70b-versatile",
+            model: selectedModel,
             response_format: { "type": "json_object" }
         });
         const aiResponseJSON = JSON.parse(chatCompletion.choices[0].message.content);
@@ -91,28 +129,61 @@ Anda WAJIB memberikan respons dalam format JSON murni dengan struktur berikut:
             unit_plan_json: aiResponseJSON
         };
 
-        const savedUnitPlan = await UnitPlanModel.saveUnitPlan(unitPlanData);
+        const savedUnitPlan = await UnitPlanModel.saveUnitPlanAndDeductQuota(unitPlanData, finalUserId);
 
         // 4. Update Status Request
-        await UnitPlanModel.updateRequestStatus(requestId, 'completed', savedUnitPlan);
+        const endTime = performance.now();
+        const processingTimeMs = Math.round(endTime - startTime);
+        const tokenUsage = {
+            prompt_tokens: chatCompletion.usage?.prompt_tokens || 0,
+            completion_tokens: chatCompletion.usage?.completion_tokens || 0,
+            total_tokens: chatCompletion.usage?.total_tokens || 0
+        };
+
+        await UnitPlanModel.updateRequestStatus(requestId, 'completed', {
+            output_data: savedUnitPlan,
+            prompt_used: `System: ${systemPrompt}\nUser: ${prompt}`,
+            llm_model_used: selectedModel,
+            token_usage: tokenUsage,
+            processing_time_ms: processingTimeMs
+        });
+
+        const updatedQuota = await UnitPlanModel.getUserQuota(finalUserId);
 
         res.status(201).json({
             success: true,
             message: "Modul Ajar (RPP) berhasil dibuat dengan Groq Llama 3.3.",
-            data: savedUnitPlan
+            request_id: requestId,
+            status: "completed",
+            data: savedUnitPlan,
+            meta: {
+                quota_info: updatedQuota ? {
+                    plan_type: updatedQuota.plan_type,
+                    monthly_limit: updatedQuota.monthly_limit,
+                    used_this_month: updatedQuota.used_this_month,
+                    remaining_quota: updatedQuota.monthly_limit - updatedQuota.used_this_month
+                } : {}
+            }
         });
 
     } catch (error) {
         console.error("Error Detail:", error);
+        const endTime = performance.now();
+        const processingTimeMs = Math.round(endTime - startTime);
         try {
-            await UnitPlanModel.updateRequestStatus(requestId, 'failed', { error: error.message });
+            await UnitPlanModel.updateRequestStatus(requestId, 'failed', { 
+                error_message: error.message,
+                processing_time_ms: processingTimeMs
+            });
         } catch (dbErr) {
             console.error("Gagal update status fail ke DB");
         }
         res.status(500).json({
             success: false,
             message: "Terjadi kesalahan pada proses AI atau Database",
-            error: error.message
+            error: error.message,
+            data: null,
+            meta: {}
         });
     }
 };
@@ -123,13 +194,107 @@ const getUnitPlans = async (req, res) => {
         res.status(200).json({
             success: true,
             message: "Berhasil mengambil data Modul Ajar (RPP).",
-            data: data
+            data: data,
+            meta: {}
         });
     } catch (error) {
         console.error("Error fetching unit plans:", error);
         res.status(500).json({
             success: false,
             message: "Gagal mengambil data dari server.",
+            error: error.message
+        });
+    }
+};
+
+const getUnitPlanById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const data = await UnitPlanModel.getUnitPlanById(id);
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: "Modul Ajar tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Berhasil mengambil detail Modul Ajar.",
+            data: data,
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error fetching unit plan by id:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal mengambil data dari server.",
+            error: error.message
+        });
+    }
+};
+
+const updateUnitPlan = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Pastikan data ada
+        const existing = await UnitPlanModel.getUnitPlanById(id);
+        if (!existing) {
+            return res.status(404).json({
+                success: false,
+                message: "Modul Ajar tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        const updated = await UnitPlanModel.updateUnitPlan(id, req.body);
+
+        res.status(200).json({
+            success: true,
+            message: "Modul Ajar berhasil diperbarui.",
+            data: updated,
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error updating unit plan:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal memperbarui Modul Ajar.",
+            error: error.message
+        });
+    }
+};
+
+const deleteUnitPlan = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deleted = await UnitPlanModel.deleteUnitPlan(id);
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                message: "Modul Ajar tidak ditemukan.",
+                data: null,
+                meta: {}
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Modul Ajar berhasil dihapus.",
+            data: { id: deleted.id },
+            meta: {}
+        });
+    } catch (error) {
+        console.error("Error deleting unit plan:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal menghapus Modul Ajar.",
             error: error.message
         });
     }
@@ -180,4 +345,4 @@ const downloadUnitPlanDocx = async (req, res) => {
     }
 };
 
-module.exports = { generateUnitPlan, getUnitPlans, downloadUnitPlanDocx };
+module.exports = { generateUnitPlan, getUnitPlans, getUnitPlanById, updateUnitPlan, deleteUnitPlan, downloadUnitPlanDocx };
