@@ -469,11 +469,12 @@ const exportToPDF = async (req, res) => {
 
 const getAllMC = async (req, res) => {
     try {
-        const assessments = await MCModel.getAllAssessment(); 
+        const userId = req.user.id;
+        const assessments = await MCModel.getAllAssessment(userId); 
 
         res.status(200).json({
             success: true,
-            message: "Haris Berhasil mengambil semua data riwayat assessment soal pilihan ganda.",
+            message: "Berhasil mengambil semua data riwayat assessment soal pilihan ganda.",
             data: assessments,
             meta: {}
         });

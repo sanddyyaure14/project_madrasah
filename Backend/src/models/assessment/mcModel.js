@@ -159,15 +159,16 @@ const MCModel = {
         }
     },
 
-    getAllAssessment: async () => {
+    getAllAssessment: async (userId) => {
         try {
             const query = `
                 SELECT amc.*, gr.user_id, gr.status AS request_status
                 FROM assessment_mc amc
                 LEFT JOIN generation_requests gr ON amc.request_id = gr.id
+                WHERE gr.user_id = $1
                 ORDER BY amc.id DESC;
             `; 
-            const result = await pool.query(query);
+            const result = await pool.query(query, [userId]);
             return result.rows;
         } catch (error) {
             console.error("Error di MCModel (getAllAssessment):", error);
