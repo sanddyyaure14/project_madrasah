@@ -2,34 +2,36 @@
 import { useState } from "react";
 import Link from "next/link";
 
-export default function WorksheetGeneratorPage() {
-  const [formData, setFormData] = useState({
-    mata_pelajaran: "",
-    topik: "",
-    tipe_aktivitas: ["Pilihan Ganda"],
-    tingkat_kelas: "8",
-    durasi_menit: 45,
-    tujuan_pembelajaran: "",
-  });
+const KELAS_OPTIONS = ['VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+const TIPE_OPTIONS = ['isian', 'esai', 'praktik', 'observasi'];
+const MAPEL_SUGGESTIONS = ['Akidah Akhlak', 'Al-Qur\'an Hadis', 'Fiqih', 'SKI', 'Bahasa Arab', 'Matematika', 'IPA', 'IPS', 'Bahasa Indonesia'];
 
+export default function WorksheetGeneratorPage() {
+  const [mapel, setMapel] = useState('');
+  const [topik, setTopik] = useState('');
+  const [kelas, setKelas] = useState('VII');
+  const [durasi, setDurasi] = useState(45);
+  const [tujuan, setTujuan] = useState('');
+  const [tipeSelected, setTipeSelected] = useState(['isian']);
   const [loading, setLoading] = useState(false);
   const [lks, setLks] = useState(null);
   const [worksheetId, setWorksheetId] = useState(null);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
 
-  const handleCheckboxChange = (e) => {
-    const { value, checked } = e.target;
-    if (checked) {
-      setFormData({ ...formData, tipe_aktivitas: [...formData.tipe_aktivitas, value] });
-    } else {
-      setFormData({ ...formData, tipe_aktivitas: formData.tipe_aktivitas.filter((t) => t !== value) });
-    }
-  };
+  function toggleTipe(opt) {
+    setTipeSelected(prev =>
+      prev.includes(opt)
+        ? prev.length > 1 ? prev.filter(t => t !== opt) : prev
+        : [...prev, opt]
+    );
+  }
 
   const handleGenerate = async (e) => {
     e.preventDefault();
+    if (!mapel.trim()) { setError('Mata pelajaran wajib diisi.'); return; }
+    if (!topik.trim()) { setError('Topik bahasan wajib diisi.'); return; }
+    setError('');
     setLoading(true);
-    setError(null);
     setLks(null);
     setWorksheetId(null);
 
@@ -38,18 +40,21 @@ export default function WorksheetGeneratorPage() {
       if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login ulang.");
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-      const response = await fetch(`${apiUrl}/api/assessment/generate-worksheet`, {
+      const response = await fetch(`${apiUrl}/api/worksheet/generate-worksheet`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({
+          mata_pelajaran: mapel.trim(),
+          topik: topik.trim(),
+          tingkat_kelas: kelas,
+          durasi_menit: durasi,
+          tipe_aktivitas: tipeSelected,
+          tujuan_pembelajaran: tujuan.trim(),
+        }),
       });
 
       const resData = await response.json();
       if (!response.ok) throw new Error(resData.message || "Gagal membuat worksheet.");
-
       setLks(resData.data?.worksheet);
       setWorksheetId(resData.data?.worksheet_id);
     } catch (err) {
@@ -59,12 +64,12 @@ export default function WorksheetGeneratorPage() {
     }
   };
 
-  const handleCetak = async () => {
+  const handleCetakPDF = async () => {
     if (!worksheetId) return;
     const token = sessionStorage.getItem("accessToken");
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
     try {
-      const res = await fetch(`${apiUrl}/api/assessment/worksheets/${worksheetId}/cetak-pdf`, {
+      const res = await fetch(`${apiUrl}/api/worksheet/worksheets/${worksheetId}/cetak-pdf`, {
         headers: { "Authorization": `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Gagal mengunduh PDF");
@@ -72,7 +77,7 @@ export default function WorksheetGeneratorPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `LKS.pdf`;
+      a.download = `LKS_${lks?.judul || 'worksheet'}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -80,130 +85,224 @@ export default function WorksheetGeneratorPage() {
     }
   };
 
-  return (
-    <div className="max-w-6xl mx-auto space-y-4">
-      <Link href="/" className="text-xs font-medium text-gray-500 hover:text-emerald-700">← Kembali ke Dashboard</Link>
+  function handleReset() {
+    setLks(null);
+    setWorksheetId(null);
+    setError('');
+  }
 
-      <div className="flex items-center gap-3">
-        <span className="text-2xl p-2 bg-amber-50 text-amber-600 rounded-xl">📄</span>
+  return (
+    <div className="max-w-6xl mx-auto space-y-5 pb-12">
+      <Link href="/" className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-emerald-700">
+        ← Kembali ke Dashboard
+      </Link>
+
+      {/* HERO */}
+      <div className="flex items-start gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center text-2xl shrink-0">📄</div>
         <div>
-          <h2 className="text-xl font-bold">Worksheet Generator</h2>
-          <p className="text-xs text-gray-500">Buat Lembar Kerja Siswa (LKS) Madrasah instan yang sinkron dengan database.</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Asesmen</p>
+          <h2 className="text-xl font-bold text-gray-900">Worksheet Generator</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Buat Lembar Kerja Siswa (LKS) Madrasah instan dan siap cetak</p>
         </div>
       </div>
 
-      {error && <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg font-medium">{error}</div>}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* ===== FORM ===== */}
+        <form onSubmit={handleGenerate} className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5 h-fit">
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2">
-        {/* INPUT PARAMS */}
-        <form onSubmit={handleGenerate} className="lg:col-span-5 bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4 h-fit">
+          {/* Mata pelajaran */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Mata Pelajaran (Mapel) *</label>
-            <input type="text" required placeholder="Contoh: Akidah Akhlak" className="w-full text-sm p-2 border border-gray-200 rounded-lg outline-none focus:border-emerald-600" onChange={(e) => setFormData({...formData, mata_pelajaran: e.target.value})} />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Topik Bahasan *</label>
-            <input type="text" required placeholder="Contoh: Akhlak Terpuji kepada Orang Tua" className="w-full text-sm p-2 border border-gray-200 rounded-lg outline-none focus:border-emerald-600" onChange={(e) => setFormData({...formData, topik: e.target.value})} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tingkat Kelas</label>
-              <input type="text" className="w-full text-sm p-2 border border-gray-200 rounded-lg" value={formData.tingkat_kelas} onChange={(e) => setFormData({...formData, tingkat_kelas: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Durasi (Menit)</label>
-              <input type="number" className="w-full text-sm p-2 border border-gray-200 rounded-lg" value={formData.durasi_menit} onChange={(e) => setFormData({...formData, durasi_menit: parseInt(e.target.value) || 0})} />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tipe Aktivitas (Dapat Memilih Banyak)</label>
-            <div className="mt-2 space-y-2 text-sm">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" value="Pilihan Ganda" defaultChecked onChange={handleCheckboxChange} /> Pilihan Ganda
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" value="Isian Esai" onChange={handleCheckboxChange} /> Isian / Esai Pendek
-              </label>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">
+              Mata Pelajaran <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text" value={mapel}
+              onChange={e => { setMapel(e.target.value); if (error) setError(''); }}
+              placeholder="cth. Akidah Akhlak"
+              className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50"
+            />
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {MAPEL_SUGGESTIONS.map(s => (
+                <button key={s} type="button" onClick={() => setMapel(s)}
+                  className="text-[10px] px-2.5 py-1 rounded-full border border-gray-200 text-gray-500 hover:border-emerald-400 hover:text-emerald-700 transition">
+                  {s}
+                </button>
+              ))}
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="w-full bg-[#006747] hover:bg-emerald-800 text-white font-medium py-2 rounded-lg text-sm transition">
-            {loading ? "Menyusun Soal via Groq AI..." : "🛠️ Generate LKS"}
+          {/* Topik */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">
+              Topik Bahasan <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text" value={topik}
+              onChange={e => { setTopik(e.target.value); if (error) setError(''); }}
+              placeholder="cth. Akhlak Terpuji kepada Orang Tua"
+              className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50"
+            />
+          </div>
+
+          {/* Kelas */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">Kelas <span className="text-red-500">*</span></label>
+            <div className="flex flex-wrap gap-2">
+              {KELAS_OPTIONS.map(opt => (
+                <button key={opt} type="button" onClick={() => setKelas(opt)}
+                  className={`px-4 py-2 rounded-full text-sm border transition font-medium
+                    ${kelas === opt ? 'bg-[#006747] text-white border-[#006747]' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-400'}`}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Durasi */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">Durasi (Menit)</label>
+            <input
+              type="number" value={durasi}
+              onChange={e => setDurasi(parseInt(e.target.value) || 0)}
+              className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50"
+            />
+          </div>
+
+          {/* Tipe aktivitas */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">
+              Tipe Aktivitas <span className="text-xs text-gray-400">(bisa lebih dari satu)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {TIPE_OPTIONS.map(opt => (
+                <button key={opt} type="button" onClick={() => toggleTipe(opt)}
+                  className={`px-4 py-2 rounded-full text-sm border transition font-medium capitalize
+                    ${tipeSelected.includes(opt) ? 'bg-[#006747] text-white border-[#006747]' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-400'}`}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-emerald-600 italic mt-1.5">Terpilih: {tipeSelected.join(', ')}</p>
+          </div>
+
+          {/* Tujuan pembelajaran (opsional) */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">Tujuan Pembelajaran <span className="text-xs text-gray-400">(opsional)</span></label>
+            <textarea
+              rows={2} value={tujuan}
+              onChange={e => setTujuan(e.target.value)}
+              placeholder="cth. Siswa mampu menjelaskan pengertian akhlak terpuji..."
+              className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 resize-none bg-gray-50"
+            />
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
+              <span className="text-red-500 text-sm">⚠</span>
+              <p className="text-xs text-red-700 font-medium">{error}</p>
+            </div>
+          )}
+
+          <button type="submit" disabled={loading}
+            className="w-full flex items-center justify-center gap-2 bg-[#006747] hover:bg-emerald-800 text-white font-bold py-4 rounded-xl text-sm transition disabled:opacity-70">
+            {loading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Menyusun LKS via Groq AI...
+              </>
+            ) : <>🛠️ Generate LKS</>}
           </button>
         </form>
 
-        {/* PRATINJAU HASIL */}
-        <div className="lg:col-span-7 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        {/* ===== PREVIEW ===== */}
+        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           {lks ? (
-            <div className="border-2 border-emerald-900 p-5 rounded-lg space-y-4">
-              <div className="text-center border-b-2 border-gray-800 pb-2">
-                <h3 className="font-bold text-base uppercase text-gray-900">Lembar Kerja Siswa (LKS)</h3>
-                <p className="font-semibold text-sm mt-1">{lks.judul}</p>
-                <p className="text-[10px] text-gray-500 font-mono mt-0.5">
-                  Mapel: {lks.info?.mata_pelajaran} | Kelas: {lks.info?.kelas} | Waktu: {lks.info?.durasi}
-                </p>
+            <div className="h-full flex flex-col">
+              {/* Toolbar */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
+                <p className="text-xs font-semibold text-gray-600">Pratinjau LKS</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={handleCetakPDF}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-1.5 rounded-lg transition">
+                    ⬇️ Unduh PDF
+                  </button>
+                  <button type="button" onClick={() => window.print()}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 px-3 py-1.5 rounded-lg transition print:hidden">
+                    🖨️ Print
+                  </button>
+                  <button type="button" onClick={handleReset}
+                    className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 transition">
+                    ✕ Baru
+                  </button>
+                </div>
               </div>
 
-              {lks.tujuan && (
-                <div className="text-xs">
-                  <span className="font-bold">Tujuan: </span>{lks.tujuan}
+              {/* LKS Content */}
+              <div className="overflow-y-auto flex-1 p-6 space-y-5 text-xs">
+                {/* Header LKS */}
+                <div className="text-center border-b-2 border-gray-800 pb-4">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Lembar Kerja Siswa (LKS)</p>
+                  <h3 className="font-bold text-sm text-gray-900 uppercase">{lks.judul}</h3>
+                  <div className="flex items-center justify-center gap-3 mt-2 flex-wrap">
+                    <span className="text-[10px] text-gray-500 font-mono">Mapel: {lks.info?.mata_pelajaran}</span>
+                    <span className="text-gray-300">|</span>
+                    <span className="text-[10px] text-gray-500 font-mono">Kelas: {lks.info?.kelas}</span>
+                    <span className="text-gray-300">|</span>
+                    <span className="text-[10px] text-gray-500 font-mono">Waktu: {lks.info?.durasi}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 font-mono mt-1">Topik: {lks.info?.topik}</p>
                 </div>
-              )}
 
-              {lks.petunjuk && (
-                <div className="text-xs">
-                  <span className="font-bold">Petunjuk: </span>{lks.petunjuk}
-                </div>
-              )}
+                {/* Tujuan */}
+                {lks.tujuan && (
+                  <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                    <p className="font-bold text-emerald-800 mb-1">Tujuan Pembelajaran:</p>
+                    <p className="text-gray-700 leading-relaxed">{lks.tujuan}</p>
+                  </div>
+                )}
 
-              {Array.isArray(lks.aktivitas) && lks.aktivitas.map((akt, i) => (
-                <div key={i} className="space-y-2">
-                  <p className="text-xs font-bold uppercase text-emerald-900 border-b pb-1">
-                    Aktivitas {i + 1} — {akt.tipe}
-                  </p>
-                  <p className="text-xs italic text-gray-600">{akt.instruksi}</p>
-                  <ol className="space-y-3">
-                    {Array.isArray(akt.soal) && akt.soal.map((s) => {
-                      const isPG = akt.tipe?.toLowerCase().includes("pilihan");
-                      return (
-                        <li key={s.no} className="text-xs">
-                          <span>{s.no}. {s.pertanyaan}</span>
-                          {isPG ? (
-                            // Pilihan ganda: tampil opsi jika ada, fallback ke A-D kosong
-                            <ul className="mt-1 ml-4 space-y-0.5 text-gray-700">
-                              {Array.isArray(s.opsi) && s.opsi.length > 0
-                                ? s.opsi.map((opsi, j) => (
-                                    <li key={j}>{String.fromCharCode(65 + j)}. {opsi}</li>
-                                  ))
-                                : ["A. ...", "B. ...", "C. ...", "D. ..."].map((ph, j) => (
-                                    <li key={j} className="text-gray-300">{ph}</li>
-                                  ))
-                              }
+                {/* Petunjuk */}
+                {lks.petunjuk && (
+                  <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+                    <p className="font-bold text-amber-800 mb-1">Petunjuk Pengerjaan:</p>
+                    <p className="text-gray-700 leading-relaxed">{lks.petunjuk}</p>
+                  </div>
+                )}
+
+                {/* Aktivitas */}
+                {lks.aktivitas?.map((akt, i) => (
+                  <div key={i} className="space-y-3">
+                    <div className="flex items-center gap-2 pb-1 border-b border-emerald-200">
+                      <span className="w-6 h-6 rounded-full bg-emerald-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                      <p className="font-bold text-emerald-900 uppercase tracking-wide text-[11px]">Aktivitas {i + 1} — {akt.tipe}</p>
+                    </div>
+                    <p className="text-gray-500 italic leading-relaxed">{akt.instruksi}</p>
+                    <div className="space-y-4">
+                      {akt.soal?.map((s) => (
+                        <div key={s.no}>
+                          <p className="text-gray-800 font-medium">{s.no}. {s.pertanyaan}</p>
+                          {Array.isArray(s.opsi) && s.opsi.length > 0 ? (
+                            <ul className="mt-1.5 ml-4 space-y-1">
+                              {s.opsi.map((opsi, j) => (
+                                <li key={j} className="text-gray-600">{String.fromCharCode(65 + j)}. {opsi}</li>
+                              ))}
                             </ul>
                           ) : (
-                            // Esai/isian: garis jawaban
-                            <div className="mt-1 border-b border-gray-400 w-full" />
+                            <div className="mt-2 border-b border-gray-300 w-full" />
                           )}
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </div>
-              ))}
-
-              <button
-                type="button"
-                onClick={handleCetak}
-                className="mt-4 text-[10px] bg-gray-800 text-white px-3 py-1 rounded hover:bg-black transition"
-              >
-                🖨️ Unduh PDF LKS
-              </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
-            <div className="h-72 flex items-center justify-center text-gray-400 text-xs border border-dashed rounded-lg">
-              Pratinjau lembar kerja instan siap cetak akan tampil di sini setelah digenerate.
+            <div className="h-full min-h-72 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
+              <span className="text-4xl">📋</span>
+              <p className="font-medium">Pratinjau LKS akan tampil di sini</p>
+              <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate LKS</p>
             </div>
           )}
         </div>
