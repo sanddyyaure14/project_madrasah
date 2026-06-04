@@ -229,9 +229,10 @@ const generateMC = async (req, res) => {
             success: true,
             message: "Haris Berhasil buat dengan Groq Llama 3.3.",
             request_id: requestId,
+            mc_id: mcId,
             status: "completed",
             data: {
-                questions: formattedQuestions // 🌟 Dijamin bersih tanpa key "kunci"/"pembahasan" jika false!
+                questions: formattedQuestions
             },
             meta: {
                 quota_info: {

@@ -10,11 +10,34 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, TextInput, Modal, Linking,
+  ActivityIndicator, Alert, TextInput, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useAuth, API_URL } from '../lib/auth';
 import { C, S } from '../lib/theme';
+
+async function downloadWithToken(url, token, filename) {
+  try {
+    const localUri = FileSystem.documentDirectory + filename;
+    const result = await FileSystem.downloadAsync(url, localUri, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (result.status !== 200) { Alert.alert('Gagal', 'Server menolak permintaan download.'); return; }
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
+      await Sharing.shareAsync(result.uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: `Buka ${filename}`,
+      });
+    } else {
+      Alert.alert('Selesai', `File tersimpan di: ${result.uri}`);
+    }
+  } catch (e) {
+    Alert.alert('Error', 'Gagal download: ' + e.message);
+  }
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function BadgeKesulitan({ level }) {
@@ -304,20 +327,10 @@ export default function MCDetailScreen({ route, navigation }) {
 
   async function handleDownload(withKunci) {
     setDownloading(true);
-    try {
-      // Backend endpoint untuk PDF
-      const url = `${API_URL}/assessment/print/${id}`;
-      // Buka di browser/external karena PDF stream dari backend
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-        setShowDownload(false);
-      } else {
-        Alert.alert('Info', `URL PDF: ${url}\n\nSalin URL ini dan buka di browser.`);
-      }
-    } catch {
-      Alert.alert('Error', 'Tidak dapat membuka PDF.');
-    } finally { setDownloading(false); }
+    setShowDownload(false);
+    const filename = `Soal_${assessment?.topik?.replace(/\s+/g, '_') ?? 'MC'}_${withKunci ? 'kunci' : 'tanpa_kunci'}.pdf`;
+    await downloadWithToken(`${API_URL}/assessment/print/${id}`, token, filename);
+    setDownloading(false);
   }
 
   if (loading) {
