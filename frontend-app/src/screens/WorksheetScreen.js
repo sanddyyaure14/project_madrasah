@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
+import { useNotifications } from '../lib/notifications';
 
 // ─────────────────────────────────────────────
 // Constants
@@ -262,6 +263,7 @@ function ResultPanel({ data, worksheetId, navigation, onReset }) {
 // ─────────────────────────────────────────────
 export default function WorksheetScreen({ navigation }) {
   const { user, token } = useAuth();
+  const { addNotification } = useNotifications();
 
   // Wajib
   const [mapel, setMapel] = useState('Fiqih');
@@ -336,6 +338,12 @@ export default function WorksheetScreen({ navigation }) {
       if (data.success && data.data) {
         setResult(data.data);
         setWorksheetId(data.data.worksheet_id);
+        addNotification({
+          title: 'Worksheet Berhasil Dibuat 📋',
+          message: `LKS ${mapel} Kelas ${kelas} — "${topik.trim()}" berhasil digenerate.`,
+          type: 'success',
+          icon: 'document-text',
+        });
         setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
       } else {
         setError(data.message || 'Gagal generate worksheet.');
@@ -366,6 +374,12 @@ export default function WorksheetScreen({ navigation }) {
   }
 
   function handleSave() {
+    addNotification({
+      title: 'LKS Tersimpan 📄',
+      message: `Worksheet ${mapel} Kelas ${kelas} berhasil disimpan di Dokumen Saya.`,
+      type: 'info',
+      icon: 'bookmark',
+    });
     Alert.alert(
       'Tersimpan ✅',
       'LKS berhasil disimpan di Dokumen Saya.',

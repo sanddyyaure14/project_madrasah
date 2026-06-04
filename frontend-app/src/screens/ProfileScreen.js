@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth, API_URL } from '../lib/auth';
+import { useNotifications } from '../lib/notifications';
 import { C, S } from '../lib/theme';
 
 function getInitials(name) {
@@ -48,6 +49,7 @@ function InfoRow({ icon, label, value }) {
 
 export default function ProfileScreen({ navigation }) {
   const { user, token, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const isSuper = user?.role === 'superadmin';
 
   const [profile, setProfile] = useState(null);
@@ -173,12 +175,13 @@ export default function ProfileScreen({ navigation }) {
         <MenuItem
           icon="lock-closed"
           label="Ubah Password"
-          onPress={() => Alert.alert('Info', 'Hubungi admin untuk mengubah password.')}
+          onPress={() => navigation.navigate('ChangePassword')}
         />
         <MenuItem
           icon="notifications"
           label="Notifikasi"
-          onPress={() => Alert.alert('Info', 'Fitur notifikasi segera hadir.')}
+          value={unreadCount > 0 ? `${unreadCount} baru` : null}
+          onPress={() => navigation.navigate('Notifications')}
         />
       </View>
 

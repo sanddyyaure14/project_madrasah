@@ -211,6 +211,27 @@ const GuruModel = {
         return rows;
     },
 
+    /**
+     * Ambil password hash untuk verifikasi ubah password
+     */
+    getUserPasswordHash: async (userId) => {
+        const { rows } = await db.query(
+            'SELECT id, password_hash FROM users WHERE id = $1',
+            [userId]
+        );
+        return rows[0] || null;
+    },
+
+    /**
+     * Update password hash user
+     */
+    updatePassword: async (userId, newPasswordHash) => {
+        await db.query(
+            'UPDATE users SET password_hash = $2 WHERE id = $1',
+            [userId, newPasswordHash]
+        );
+    },
+
     // =========================================================================
     // C. DASHBOARD / QUOTA
     // =========================================================================

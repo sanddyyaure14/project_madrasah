@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
+import { useNotifications } from '../lib/notifications';
 
 // ─────────────────────────────────────────────
 // Constants
@@ -73,6 +74,7 @@ function Field({ label, children, hint }) {
 // ─────────────────────────────────────────────
 export default function EditProfileScreen({ navigation }) {
   const { user, token, setUser } = useAuth();
+  const { addNotification } = useNotifications();
 
   // Form state
   const [namaLengkap, setNamaLengkap] = useState('');
@@ -123,9 +125,6 @@ export default function EditProfileScreen({ navigation }) {
       setLoadingProfile(false);
     }
   }
-      setLoadingProfile(false);
-    }
-  }
 
   function toggleMapel(opt) {
     setMapelSelected(prev =>
@@ -167,6 +166,12 @@ export default function EditProfileScreen({ navigation }) {
         if (setUser && json.data?.nama_lengkap) {
           setUser(prev => ({ ...prev, name: json.data.nama_lengkap }));
         }
+        addNotification({
+          title: 'Profil Diperbarui ✅',
+          message: 'Data profil kamu berhasil disimpan.',
+          type: 'success',
+          icon: 'person-circle',
+        });
         Alert.alert('Berhasil ✅', 'Profil berhasil diperbarui.', [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);

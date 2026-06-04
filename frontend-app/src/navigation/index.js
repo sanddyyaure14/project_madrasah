@@ -18,6 +18,9 @@ import FeedbackDetailScreen from '../screens/FeedbackDetailScreen';
 import WorksheetScreen from '../screens/WorksheetScreen';
 import WorksheetDetailScreen from '../screens/WorksheetDetailScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import { useNotifications } from '../lib/notifications';
 import MCDetailScreen from '../screens/MCDetailScreen';
 import SyllabusFormScreen from '../screens/SyllabusFormScreen';
 import SyllabusPreviewScreen from '../screens/SyllabusPreviewScreen';
@@ -56,6 +59,7 @@ function SuperAdminTabs() {
 }
 
 function GuruTabs() {
+  const { unreadCount } = useNotifications();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -73,7 +77,15 @@ function GuruTabs() {
     >
       <Tab.Screen name="Dashboard" component={DashboardStack} options={{ headerShown: false }} />
       <Tab.Screen name="Dokumen" component={DocsStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Profil" component={ProfilStack} options={{ headerShown: false }} />
+      <Tab.Screen
+        name="Profil"
+        component={ProfilStack}
+        options={{
+          headerShown: false,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#dc2626', fontSize: 10 },
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -142,6 +154,8 @@ function ProfilStack() {
     >
       <Stack.Screen name="ProfileHome" component={ProfileScreen} options={{ title: 'Profil Saya' }} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profil' }} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Ubah Password' }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifikasi' }} />
     </Stack.Navigator>
   );
 }
