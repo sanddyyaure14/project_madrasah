@@ -3,7 +3,9 @@ import { useState } from "react";
 import Link from "next/link";
 
 const KELAS_OPTIONS = ['VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-const TIPE_OPTIONS = ['isian', 'esai', 'praktik', 'observasi'];
+
+const TIPE_OPTIONS = ['pilihan ganda', 'isian', 'esai', 'praktik', 'observasi'];
+
 const MAPEL_SUGGESTIONS = ['Akidah Akhlak', 'Al-Qur\'an Hadis', 'Fiqih', 'SKI', 'Bahasa Arab', 'Matematika', 'IPA', 'IPS', 'Bahasa Indonesia'];
 
 export default function WorksheetGeneratorPage() {
