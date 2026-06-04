@@ -4,6 +4,7 @@ const Groq = require('groq-sdk');
 const path = require('path');
 const fs = require('fs');
 const { generateAcademicContentPDF } = require('../../utils/pdfGenerator');
+const { generateAcademicContentDocx } = require('../../utils/docxGenerator');
 
 // Inisialisasi Groq menggunakan API Key
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -220,7 +221,7 @@ const generateAcademicContent = async (req, res) => {
 
 const getAcademicContents = async (req, res) => {
     try {
-        const data = await AcademicContentModel.getAllAcademicContents();
+        const data = await AcademicContentModel.getAllAcademicContents(req.user.id);
         res.status(200).json({
             success: true,
             message: "Berhasil mengambil data konten akademik.",
@@ -241,7 +242,7 @@ const downloadAcademicContentPDF = async (req, res) => {
         const { id } = req.params;
         
         // Ambil data dari database
-        const contentData = await AcademicContentModel.getAcademicContentById(id);
+        const contentData = await AcademicContentModel.getAcademicContentById(id, req.user.id);
         
         if (!contentData) {
             return res.status(404).json({
@@ -284,7 +285,7 @@ const downloadAcademicContentPDF = async (req, res) => {
 const getAcademicContentById = async (req, res) => {
     try {
         const { id } = req.params;
-        const data = await AcademicContentModel.getAcademicContentById(id);
+        const data = await AcademicContentModel.getAcademicContentById(id, req.user.id);
 
         if (!data) {
             return res.status(404).json({
@@ -315,7 +316,7 @@ const updateAcademicContent = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const existing = await AcademicContentModel.getAcademicContentById(id);
+        const existing = await AcademicContentModel.getAcademicContentById(id, req.user.id);
         if (!existing) {
             return res.status(404).json({
                 success: false,
@@ -325,7 +326,7 @@ const updateAcademicContent = async (req, res) => {
             });
         }
 
-        const updated = await AcademicContentModel.updateAcademicContent(id, req.body);
+        const updated = await AcademicContentModel.updateAcademicContent(id, req.user.id, req.body);
 
         res.status(200).json({
             success: true,
@@ -347,7 +348,7 @@ const deleteAcademicContent = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const deleted = await AcademicContentModel.deleteAcademicContent(id);
+        const deleted = await AcademicContentModel.deleteAcademicContent(id, req.user.id);
         if (!deleted) {
             return res.status(404).json({
                 success: false,
@@ -373,4 +374,51 @@ const deleteAcademicContent = async (req, res) => {
     }
 };
 
-module.exports = { generateAcademicContent, getAcademicContents, getAcademicContentById, updateAcademicContent, deleteAcademicContent, downloadAcademicContentPDF };
+const downloadAcademicContentDocx = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Ambil data dari database
+        const contentData = await AcademicContentModel.getAcademicContentById(id, req.user.id);
+
+        if (!contentData) {
+            return res.status(404).json({
+                success: false,
+                message: "Konten akademik tidak ditemukan"
+            });
+        }
+
+        // Buat folder temp jika belum ada
+        const tempDir = path.join(__dirname, '../../../temp');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        // Generate DOCX
+        const fileName = `academic_content_${id}.docx`;
+        const filePath = path.join(tempDir, fileName);
+
+        await generateAcademicContentDocx(contentData, filePath);
+
+        // Download file
+        res.download(filePath, fileName, (err) => {
+            if (err) {
+                console.error("Error downloading file:", err);
+            }
+            // Hapus file setelah download
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        });
+
+    } catch (error) {
+        console.error("Error generating DOCX:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal generate DOCX",
+            error: error.message
+        });
+    }
+};
+
+module.exports = { generateAcademicContent, getAcademicContents, getAcademicContentById, updateAcademicContent, deleteAcademicContent, downloadAcademicContentPDF, downloadAcademicContentDocx };

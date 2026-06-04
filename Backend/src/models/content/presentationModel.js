@@ -118,41 +118,56 @@ const PresentationModel = {
     },
 
     // 4. Ambil semua data presentasi (GET)
-    getAllPresentations: async () => {
-        const query = `SELECT * FROM presentations ORDER BY id DESC;`;
-        const result = await pool.query(query);
+    getAllPresentations: async (userId) => {
+        const query = `
+            SELECT p.* 
+            FROM presentations p
+            JOIN generation_requests gr ON p.request_id = gr.id
+            WHERE gr.user_id = $1
+            ORDER BY p.id DESC;
+        `;
+        const result = await pool.query(query, [userId]);
         return result.rows;
     },
 
     // 5. Ambil data presentasi berdasarkan ID (GET BY ID)
-    getPresentationById: async (id) => {
-        const query = `SELECT * FROM presentations WHERE id = $1;`;
-        const result = await pool.query(query, [id]);
+    getPresentationById: async (id, userId) => {
+        const query = `
+            SELECT p.* 
+            FROM presentations p
+            JOIN generation_requests gr ON p.request_id = gr.id
+            WHERE p.id = $1 AND gr.user_id = $2;
+        `;
+        const result = await pool.query(query, [id, userId]);
         return result.rows[0];
     },
 
     // 6. Update presentasi berdasarkan ID (PUT)
-    updatePresentation: async (id, data) => {
+    updatePresentation: async (id, userId, data) => {
         const {
             topik, jumlah_slide, tujuan,
             audiens, slides_json, include_catatan
         } = data;
 
         const query = `
-            UPDATE presentations 
+            UPDATE presentations p
             SET 
-                topik           = COALESCE($2, topik),
-                jumlah_slide    = COALESCE($3, jumlah_slide),
-                tujuan          = COALESCE($4, tujuan),
-                audiens         = COALESCE($5, audiens),
-                slides_json     = COALESCE($6, slides_json),
-                include_catatan = COALESCE($7, include_catatan)
-            WHERE id = $1
-            RETURNING *;
+                topik           = COALESCE($3, p.topik),
+                jumlah_slide    = COALESCE($4, p.jumlah_slide),
+                tujuan          = COALESCE($5, p.tujuan),
+                audiens         = COALESCE($6, p.audiens),
+                slides_json     = COALESCE($7, p.slides_json),
+                include_catatan = COALESCE($8, p.include_catatan)
+            FROM generation_requests gr
+            WHERE p.request_id = gr.id
+              AND p.id = $1
+              AND gr.user_id = $2
+            RETURNING p.*;
         `;
 
         const values = [
             id,
+            userId,
             topik || null,
             jumlah_slide || null,
             tujuan || null,
@@ -166,11 +181,19 @@ const PresentationModel = {
     },
 
     // 7. Hapus presentasi berdasarkan ID (DELETE)
-    deletePresentation: async (id) => {
-        const existing = await pool.query(`SELECT id FROM presentations WHERE id = $1`, [id]);
+    deletePresentation: async (id, userId) => {
+        const existingQuery = `
+            SELECT p.id, p.request_id 
+            FROM presentations p
+            JOIN generation_requests gr ON p.request_id = gr.id
+            WHERE p.id = $1 AND gr.user_id = $2;
+        `;
+        const existing = await pool.query(existingQuery, [id, userId]);
         if (!existing.rows[0]) return null;
 
+        const requestId = existing.rows[0].request_id;
         await pool.query(`DELETE FROM presentations WHERE id = $1`, [id]);
+        await pool.query(`DELETE FROM generation_requests WHERE id = $1`, [requestId]);
         return existing.rows[0];
     }
 };

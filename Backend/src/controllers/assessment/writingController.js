@@ -285,12 +285,12 @@ const getAllFeedback = async (req, res) => {
 const getFeedbackById = async (req, res) => {
     try {
         const { id } = req.params;
-        const feedback = await WritingModel.getFeedbackById(id);
+        const feedback = await WritingModel.getFeedbackById(id, req.user.id);
 
         if (!feedback) {
             return res.status(404).json({
                 success: false,
-                message: `Data riwayat umpan balik dengan ID ${id} tidak ditemukan.`,
+                message: `Data riwayat umpan balik dengan ID ${id} tidak ditemukan atau bukan milik Anda.`,
                 data: null,
                 meta: {}
             });
@@ -369,7 +369,17 @@ const updateFeedback = async (req, res) => {
         };
 
         const skorKeseluruhanBaru = Number(skor_total).toFixed(2);
-        const updatedData = await WritingModel.updateFeedback(id, payloadJson, skorKeseluruhanBaru);
+        const updatedData = await WritingModel.updateFeedback(id, req.user.id, payloadJson, skorKeseluruhanBaru);
+
+        if (!updatedData) {
+            return res.status(404).json({
+                success: false,
+                message: "Umpan balik tidak ditemukan atau bukan milik Anda.",
+                data: null,
+                meta: {}
+            });
+        }
+
         const fJson = typeof updatedData.feedback_json === 'string' ? JSON.parse(updatedData.feedback_json) : updatedData.feedback_json;
 
         const aspekResponseNormalized = fJson && Array.isArray(fJson.aspek)
@@ -418,12 +428,12 @@ const updateFeedback = async (req, res) => {
 const deleteFeedback = async (req, res) => {
     try {
         const { id } = req.params;
-        const deleted = await WritingModel.deleteFeedback(id);
+        const deleted = await WritingModel.deleteFeedback(id, req.user.id);
 
         if (!deleted) {
             return res.status(404).json({
                 success: false,
-                message: `Data umpan balik dengan ID ${id} tidak ditemukan atau sudah dihapus sebelumnya.`,
+                message: `Data umpan balik dengan ID ${id} tidak ditemukan atau bukan milik Anda.`,
                 data: null,
                 meta: {}
             });
@@ -451,12 +461,12 @@ const deleteFeedback = async (req, res) => {
 const getFeedbackShareText = async (req, res) => {
     try {
         const { id } = req.params;
-        const feedback = await WritingModel.getFeedbackById(id);
+        const feedback = await WritingModel.getFeedbackById(id, req.user.id);
 
         if (!feedback) {
             return res.status(404).json({
                 success: false,
-                message: `Data ulasan dengan ID ${id} tidak ditemukan.`,
+                message: `Data ulasan dengan ID ${id} tidak ditemukan atau bukan milik Anda.`,
                 data: null,
                 meta: {}
             });

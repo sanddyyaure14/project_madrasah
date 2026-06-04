@@ -103,42 +103,57 @@ const SyllabusModel = {
     },
 
     // 4. Ambil semua data silabus (GET)
-    getAllSyllabi: async () => {
-        const query = `SELECT * FROM syllabi ORDER BY id DESC;`;
-        const result = await pool.query(query);
+    getAllSyllabi: async (userId) => {
+        const query = `
+            SELECT s.* 
+            FROM syllabi s
+            JOIN generation_requests gr ON s.request_id = gr.id
+            WHERE gr.user_id = $1
+            ORDER BY s.id DESC;
+        `;
+        const result = await pool.query(query, [userId]);
         return result.rows;
     },
 
     // 5. Ambil data silabus berdasarkan ID (GET BY ID)
-    getSyllabusById: async (id) => {
-        const query = `SELECT * FROM syllabi WHERE id = $1;`;
-        const result = await pool.query(query, [id]);
+    getSyllabusById: async (id, userId) => {
+        const query = `
+            SELECT s.* 
+            FROM syllabi s
+            JOIN generation_requests gr ON s.request_id = gr.id
+            WHERE s.id = $1 AND gr.user_id = $2;
+        `;
+        const result = await pool.query(query, [id, userId]);
         return result.rows[0];
     },
 
     // 6. Update silabus berdasarkan ID (PUT)
-    updateSyllabus: async (id, data) => {
+    updateSyllabus: async (id, userId, data) => {
         const {
             kurikulum, semester, silabus_json,
             jenjang, mata_pelajaran, tahun_ajaran, tingkat_kelas
         } = data;
 
         const query = `
-            UPDATE syllabi 
+            UPDATE syllabi s
             SET 
-                kurikulum       = COALESCE($2, kurikulum),
-                semester        = COALESCE($3, semester),
-                silabus_json    = COALESCE($4, silabus_json),
-                jenjang         = COALESCE($5, jenjang),
-                mata_pelajaran  = COALESCE($6, mata_pelajaran),
-                tahun_ajaran    = COALESCE($7, tahun_ajaran),
-                tingkat_kelas   = COALESCE($8, tingkat_kelas)
-            WHERE id = $1
-            RETURNING *;
+                kurikulum       = COALESCE($3, s.kurikulum),
+                semester        = COALESCE($4, s.semester),
+                silabus_json    = COALESCE($5, s.silabus_json),
+                jenjang         = COALESCE($6, s.jenjang),
+                mata_pelajaran  = COALESCE($7, s.mata_pelajaran),
+                tahun_ajaran    = COALESCE($8, s.tahun_ajaran),
+                tingkat_kelas   = COALESCE($9, s.tingkat_kelas)
+            FROM generation_requests gr
+            WHERE s.request_id = gr.id
+              AND s.id = $1
+              AND gr.user_id = $2
+            RETURNING s.*;
         `;
 
         const values = [
             id,
+            userId,
             kurikulum || null,
             semester || null,
             silabus_json ? JSON.stringify(silabus_json) : null,
@@ -153,11 +168,19 @@ const SyllabusModel = {
     },
 
     // 7. Hapus silabus berdasarkan ID (DELETE)
-    deleteSyllabus: async (id) => {
-        const existing = await pool.query(`SELECT id FROM syllabi WHERE id = $1`, [id]);
+    deleteSyllabus: async (id, userId) => {
+        const existingQuery = `
+            SELECT s.id, s.request_id 
+            FROM syllabi s
+            JOIN generation_requests gr ON s.request_id = gr.id
+            WHERE s.id = $1 AND gr.user_id = $2;
+        `;
+        const existing = await pool.query(existingQuery, [id, userId]);
         if (!existing.rows[0]) return null;
 
+        const requestId = existing.rows[0].request_id;
         await pool.query(`DELETE FROM syllabi WHERE id = $1`, [id]);
+        await pool.query(`DELETE FROM generation_requests WHERE id = $1`, [requestId]);
         return existing.rows[0];
     }
 };

@@ -360,7 +360,144 @@ const generateUnitPlanDocx = async (unitPlanData, outputPath) => {
     }
 };
 
+/**
+ * Generate DOCX untuk Academic Content
+ */
+const generateAcademicContentDocx = async (contentData, outputPath) => {
+    try {
+        const sections = [];
+        const json = contentData.content_json || {};
+
+        sections.push(
+            new Paragraph({
+                text: 'KONTEN AKADEMIK',
+                heading: HeadingLevel.HEADING_1,
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 200 }
+            }),
+            new Paragraph({
+                text: json.judul || contentData.topik || 'Konten Akademik',
+                heading: HeadingLevel.HEADING_2,
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 300 }
+            }),
+            new Paragraph({
+                children: [
+                    new TextRun({ text: 'Mata Pelajaran: ', bold: true }),
+                    new TextRun(contentData.mata_pelajaran || 'Umum')
+                ], spacing: { after: 80 }
+            }),
+            new Paragraph({
+                children: [
+                    new TextRun({ text: 'Kelas: ', bold: true }),
+                    new TextRun(contentData.tingkat_kelas || '-')
+                ], spacing: { after: 80 }
+            }),
+            new Paragraph({
+                children: [
+                    new TextRun({ text: 'Jenis Konten: ', bold: true }),
+                    new TextRun(contentData.jenis_konten || '-')
+                ], spacing: { after: 200 }
+            })
+        );
+
+        // Ringkasan
+        if (json.ringkasan) {
+            sections.push(
+                new Paragraph({ text: 'Ringkasan', heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 150 } }),
+                new Paragraph({ text: json.ringkasan, spacing: { after: 200 } })
+            );
+        }
+
+        // Pendahuluan / Konten (penjelasan)
+        if (json.pendahuluan) {
+            sections.push(
+                new Paragraph({ text: 'Pendahuluan', heading: HeadingLevel.HEADING_3, spacing: { before: 200, after: 100 } }),
+                new Paragraph({ text: json.pendahuluan, spacing: { after: 150 } })
+            );
+        }
+        if (json.konten) {
+            sections.push(
+                new Paragraph({ text: 'Penjelasan Lengkap', heading: HeadingLevel.HEADING_3, spacing: { before: 200, after: 100 } }),
+                ...json.konten.split(/\n\n|\n/).filter(p => p.trim()).map(p =>
+                    new Paragraph({ text: p.trim(), spacing: { after: 100 } })
+                )
+            );
+        }
+        if (json.contoh_penerapan) {
+            sections.push(
+                new Paragraph({ text: 'Contoh Penerapan', heading: HeadingLevel.HEADING_3, spacing: { before: 200, after: 100 } }),
+                new Paragraph({ text: json.contoh_penerapan, spacing: { after: 150 } })
+            );
+        }
+
+        // Poin Penting (ringkasan)
+        if (json.poin_penting && json.poin_penting.length > 0) {
+            sections.push(new Paragraph({ text: 'Poin-Poin Penting', heading: HeadingLevel.HEADING_3, spacing: { before: 200, after: 100 } }));
+            json.poin_penting.forEach((poin, i) => {
+                sections.push(
+                    new Paragraph({ children: [new TextRun({ text: `${i+1}. ${poin.subjudul}`, bold: true })], spacing: { before: 100, after: 50 } }),
+                    new Paragraph({ text: poin.isi, spacing: { after: 100 } })
+                );
+            });
+        }
+        if (json.kesimpulan) {
+            sections.push(
+                new Paragraph({ text: 'Kesimpulan', heading: HeadingLevel.HEADING_3, spacing: { before: 200, after: 100 } }),
+                new Paragraph({ text: json.kesimpulan, spacing: { after: 150 } })
+            );
+        }
+
+        // Soal (contoh_soal)
+        if (json.soal && json.soal.length > 0) {
+            sections.push(new Paragraph({ text: 'Contoh Soal', heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 200 } }));
+            json.soal.forEach((soal, i) => {
+                sections.push(new Paragraph({ children: [new TextRun({ text: `${soal.nomor || i+1}. ${soal.pertanyaan}`, bold: true })], spacing: { before: 150, after: 80 } }));
+                if (soal.pilihan) {
+                    Object.entries(soal.pilihan).forEach(([k, v]) => {
+                        sections.push(new Paragraph({ text: `   ${k}. ${v}`, spacing: { after: 40 } }));
+                    });
+                }
+                if (soal.jawaban) {
+                    sections.push(new Paragraph({ children: [new TextRun({ text: `Jawaban: ${soal.jawaban}`, bold: true, color: '006747' })], spacing: { after: 40 } }));
+                }
+                if (soal.pembahasan) {
+                    sections.push(new Paragraph({ text: `Pembahasan: ${soal.pembahasan}`, spacing: { after: 100 } }));
+                }
+            });
+        }
+
+        // Glosarium (kamus)
+        if (json.istilah && json.istilah.length > 0) {
+            sections.push(new Paragraph({ text: 'Glosarium', heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 200 } }));
+            json.istilah.forEach(item => {
+                sections.push(
+                    new Paragraph({ children: [new TextRun({ text: item.kata, bold: true })], spacing: { before: 100, after: 40 } }),
+                    new Paragraph({ text: item.definisi, spacing: { after: 40 } }),
+                    ...(item.contoh ? [new Paragraph({ children: [new TextRun({ text: `Contoh: ${item.contoh}`, italics: true, color: '6b7280' })], spacing: { after: 80 } })] : [])
+                );
+            });
+        }
+
+        // Kata Kunci
+        if (json.kata_kunci && json.kata_kunci.length > 0) {
+            sections.push(
+                new Paragraph({ text: 'Kata Kunci', heading: HeadingLevel.HEADING_3, spacing: { before: 300, after: 100 } }),
+                new Paragraph({ text: json.kata_kunci.join(' · '), spacing: { after: 100 } })
+            );
+        }
+
+        const doc = new Document({ sections: [{ properties: {}, children: sections }] });
+        const buffer = await Packer.toBuffer(doc);
+        fs.writeFileSync(outputPath, buffer);
+        return outputPath;
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
     generateSyllabusDocx,
-    generateUnitPlanDocx
+    generateUnitPlanDocx,
+    generateAcademicContentDocx
 };

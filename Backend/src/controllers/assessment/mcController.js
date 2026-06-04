@@ -285,12 +285,12 @@ const updateMC = async (req, res) => {
             });
         }
 
-        const existingAssessment = await MCModel.getAssessmentById(id);
+        const existingAssessment = await MCModel.getAssessmentById(id, req.user.id);
 
         if (!existingAssessment) {
             return res.status(404).json({
                 success: false,
-                message: `Data assessment dengan ID ${id} tidak ditemukan di database.`,
+                message: `Data assessment dengan ID ${id} tidak ditemukan atau bukan milik Anda.`,
                 data: null,
                 meta: {}
             });
@@ -333,12 +333,12 @@ const updateMC = async (req, res) => {
 const getMCById = async (req, res) => {
     try {
         const { id } = req.params; 
-        const assessment = await MCModel.getAssessmentById(id); 
+        const assessment = await MCModel.getAssessmentById(id, req.user.id); 
 
         if (!assessment) {
             return res.status(404).json({
                 success: false,
-                message: `Data assessment dengan ID ${id} tidak ditemukan.`,
+                message: `Data assessment dengan ID ${id} tidak ditemukan atau bukan milik Anda.`,
                 data: null,
                 meta: {}
             });
@@ -376,17 +376,17 @@ const deleteMC = async (req, res) => {
             });
         }
 
-        const existingAssessment = await MCModel.getAssessmentById(id);
+        const existingAssessment = await MCModel.getAssessmentById(id, req.user.id);
         if (!existingAssessment) {
             return res.status(404).json({
                 success: false,
-                message: `Data assessment dengan ID ${id} memang tidak ada atau sudah dihapus sebelumnya.`,
+                message: `Data assessment dengan ID ${id} tidak ditemukan atau bukan milik Anda.`,
                 data: null,
                 meta: {}
             });
         }
 
-        await MCModel.deleteAssessment(id);
+        await MCModel.deleteAssessment(id, req.user.id);
 
         res.status(200).json({
             success: true,
@@ -410,12 +410,12 @@ const deleteMC = async (req, res) => {
 const exportToPDF = async (req, res) => {
     try {
         const { id } = req.params;
-        const assessment = await MCModel.getAssessmentById(id);
+        const assessment = await MCModel.getAssessmentById(id, req.user.id);
 
         if (!assessment) {
             return res.status(404).json({
                 success: false,
-                message: `Data assessment dengan ID ${id} tidak ditemukan untuk dicetak.`,
+                message: `Data assessment dengan ID ${id} tidak ditemukan atau bukan milik Anda.`,
                 data: null,
                 meta: {}
             });

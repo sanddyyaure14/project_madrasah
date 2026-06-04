@@ -234,7 +234,7 @@ Sertakan minimal 4 minggu kegiatan pembelajaran.`;
 
 const getSyllabi = async (req, res) => {
     try {
-        const data = await SyllabusModel.getAllSyllabi();
+        const data = await SyllabusModel.getAllSyllabi(req.user.id);
         res.status(200).json({
             success: true,
             message: "Berhasil mengambil data silabus.",
@@ -255,7 +255,7 @@ const downloadSyllabusPDF = async (req, res) => {
         const { id } = req.params;
         
         // Ambil data dari database
-        const syllabusData = await SyllabusModel.getSyllabusById(id);
+        const syllabusData = await SyllabusModel.getSyllabusById(id, req.user.id);
         
         if (!syllabusData) {
             return res.status(404).json({
@@ -300,7 +300,7 @@ const downloadSyllabusDocx = async (req, res) => {
         const { id } = req.params;
         
         // Ambil data dari database
-        const syllabusData = await SyllabusModel.getSyllabusById(id);
+        const syllabusData = await SyllabusModel.getSyllabusById(id, req.user.id);
         
         if (!syllabusData) {
             return res.status(404).json({
@@ -343,7 +343,7 @@ const downloadSyllabusDocx = async (req, res) => {
 const getSyllabusById = async (req, res) => {
     try {
         const { id } = req.params;
-        const data = await SyllabusModel.getSyllabusById(id);
+        const data = await SyllabusModel.getSyllabusById(id, req.user.id);
 
         if (!data) {
             return res.status(404).json({
@@ -374,7 +374,7 @@ const updateSyllabus = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const existing = await SyllabusModel.getSyllabusById(id);
+        const existing = await SyllabusModel.getSyllabusById(id, req.user.id);
         if (!existing) {
             return res.status(404).json({
                 success: false,
@@ -384,7 +384,7 @@ const updateSyllabus = async (req, res) => {
             });
         }
 
-        const updated = await SyllabusModel.updateSyllabus(id, req.body);
+        const updated = await SyllabusModel.updateSyllabus(id, req.user.id, req.body);
 
         res.status(200).json({
             success: true,
@@ -406,7 +406,7 @@ const deleteSyllabus = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const deleted = await SyllabusModel.deleteSyllabus(id);
+        const deleted = await SyllabusModel.deleteSyllabus(id, req.user.id);
         if (!deleted) {
             return res.status(404).json({
                 success: false,

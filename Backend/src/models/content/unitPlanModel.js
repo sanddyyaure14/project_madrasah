@@ -101,42 +101,57 @@ const UnitPlanModel = {
         await pool.query(query, values);
     },
 
-    getAllUnitPlans: async () => {
-        const query = `SELECT * FROM unit_plans ORDER BY id DESC;`;
-        const result = await pool.query(query);
+    getAllUnitPlans: async (userId) => {
+        const query = `
+            SELECT up.* 
+            FROM unit_plans up
+            JOIN generation_requests gr ON up.request_id = gr.id
+            WHERE gr.user_id = $1
+            ORDER BY up.id DESC;
+        `;
+        const result = await pool.query(query, [userId]);
         return result.rows;
     },
 
     // Ambil data unit plan berdasarkan ID (GET BY ID)
-    getUnitPlanById: async (id) => {
-        const query = `SELECT * FROM unit_plans WHERE id = $1;`;
-        const result = await pool.query(query, [id]);
+    getUnitPlanById: async (id, userId) => {
+        const query = `
+            SELECT up.* 
+            FROM unit_plans up
+            JOIN generation_requests gr ON up.request_id = gr.id
+            WHERE up.id = $1 AND gr.user_id = $2;
+        `;
+        const result = await pool.query(query, [id, userId]);
         return result.rows[0];
     },
 
     // Update unit plan berdasarkan ID (PUT)
-    updateUnitPlan: async (id, data) => {
+    updateUnitPlan: async (id, userId, data) => {
         const {
             judul_unit, mata_pelajaran, tingkat_kelas,
             tujuan_pembelajaran, jumlah_pertemuan, durasi_per_jp, unit_plan_json
         } = data;
 
         const query = `
-            UPDATE unit_plans 
+            UPDATE unit_plans up
             SET 
-                judul_unit = COALESCE($2, judul_unit),
-                mata_pelajaran = COALESCE($3, mata_pelajaran),
-                tingkat_kelas = COALESCE($4, tingkat_kelas),
-                tujuan_pembelajaran = COALESCE($5, tujuan_pembelajaran),
-                jumlah_pertemuan = COALESCE($6, jumlah_pertemuan),
-                durasi_per_jp = COALESCE($7, durasi_per_jp),
-                unit_plan_json = COALESCE($8, unit_plan_json)
-            WHERE id = $1
-            RETURNING *;
+                judul_unit = COALESCE($3, up.judul_unit),
+                mata_pelajaran = COALESCE($4, up.mata_pelajaran),
+                tingkat_kelas = COALESCE($5, up.tingkat_kelas),
+                tujuan_pembelajaran = COALESCE($6, up.tujuan_pembelajaran),
+                jumlah_pertemuan = COALESCE($7, up.jumlah_pertemuan),
+                durasi_per_jp = COALESCE($8, up.durasi_per_jp),
+                unit_plan_json = COALESCE($9, up.unit_plan_json)
+            FROM generation_requests gr
+            WHERE up.request_id = gr.id
+              AND up.id = $1
+              AND gr.user_id = $2
+            RETURNING up.*;
         `;
 
         const values = [
             id,
+            userId,
             judul_unit || null,
             mata_pelajaran || null,
             tingkat_kelas || null,
@@ -151,11 +166,19 @@ const UnitPlanModel = {
     },
 
     // Hapus unit plan berdasarkan ID (DELETE)
-    deleteUnitPlan: async (id) => {
-        const existing = await pool.query(`SELECT id FROM unit_plans WHERE id = $1`, [id]);
+    deleteUnitPlan: async (id, userId) => {
+        const existingQuery = `
+            SELECT up.id, up.request_id 
+            FROM unit_plans up
+            JOIN generation_requests gr ON up.request_id = gr.id
+            WHERE up.id = $1 AND gr.user_id = $2;
+        `;
+        const existing = await pool.query(existingQuery, [id, userId]);
         if (!existing.rows[0]) return null;
 
+        const requestId = existing.rows[0].request_id;
         await pool.query(`DELETE FROM unit_plans WHERE id = $1`, [id]);
+        await pool.query(`DELETE FROM generation_requests WHERE id = $1`, [requestId]);
         return existing.rows[0];
     }
 };

@@ -4,50 +4,54 @@ import Link from "next/link";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 const TABS = [
-  { key: "all",       label: "Semua",    emoji: "🗂️" },
-  { key: "mc",        label: "Soal PG",  emoji: "📝" },
-  { key: "rubric",    label: "Rubrik",   emoji: "📊" },
-  { key: "feedback",  label: "Writing",  emoji: "✍️" },
-  { key: "worksheet", label: "Worksheet",emoji: "📋" },
-  { key: "syllabus",  label: "Silabus",  emoji: "📚" },
-  { key: "academic",  label: "Konten",   emoji: "🎓" },
-  //anak konten nanti lengkapin ini ya
+  { key: "all",        label: "Semua",       emoji: "🗂️" },
+  { key: "mc",         label: "Soal PG",     emoji: "📝" },
+  { key: "rubric",     label: "Rubrik",      emoji: "📊" },
+  { key: "feedback",   label: "Writing",     emoji: "✍️" },
+  { key: "worksheet",  label: "Worksheet",   emoji: "📋" },
+  { key: "syllabus",   label: "Silabus",     emoji: "📚" },
+  { key: "academic",   label: "Konten",      emoji: "🎓" },
+  { key: "presentation", label: "Presentasi", emoji: "📽️" },
+  { key: "unit_plan",   label: "Modul Ajar",  emoji: "📖" },
 ];
 
 const FETCH_URL = {
-  feedback:  "/feedback",
-  worksheet: "/worksheet/worksheets",
-  mc:        "/assessment",
-  rubric:    "/rubrics",
-  syllabus:  "/syllabus",
-  academic:  "/academic-content",
-  //anak konten nanti lengkapin ini ya
+  feedback:     "/feedback",
+  worksheet:    "/worksheet/worksheets",
+  mc:           "/assessment",
+  rubric:       "/rubrics",
+  syllabus:     "/syllabus",
+  academic:     "/academic-content",
+  presentation: "/presentation",
+  unit_plan:    "/unit-plan",
 };
 
 const DELETE_URL = (type, id) => {
   switch (type) {
-    case "worksheet": return `/worksheet/worksheets/${id}`;
-    case "mc":        return `/assessment/delete/${id}`;
-    case "rubric":    return `/rubrics/${id}`;
-    case "syllabus":  return `/syllabus/${id}`;
-    case "academic":  return `/academic-content/${id}`;
-    case "feedback":  return `/feedback/delete/${id}`;
-    //anak konten nanti lengkapin ini ya
-    default:          return null;
+    case "worksheet":    return `/worksheet/worksheets/${id}`;
+    case "mc":           return `/assessment/delete/${id}`;
+    case "rubric":       return `/rubrics/${id}`;
+    case "syllabus":     return `/syllabus/${id}`;
+    case "academic":     return `/academic-content/${id}`;
+    case "feedback":     return `/feedback/delete/${id}`;
+    case "presentation": return `/presentation/${id}`;
+    case "unit_plan":    return `/unit-plan/${id}`;
+    default:             return null;
   }
 };
 
 // PATCH/PUT endpoint per type
 const UPDATE_URL = (type, id) => {
   switch (type) {
-    case "worksheet": return `/worksheet/worksheets/${id}`;
-    case "mc":        return `/assessment/${id}`;
-    case "rubric":    return `/rubrics/${id}`;
-    case "syllabus":  return `/syllabus/${id}`;
-    case "academic":  return `/academic-content/${id}`;
-    case "feedback":  return `/feedback/edit/${id}`;
-    //anak konten nanti lengkapin ini ya
-    default:          return null;
+    case "worksheet":    return `/worksheet/worksheets/${id}`;
+    case "mc":           return `/assessment/${id}`;
+    case "rubric":       return `/rubrics/${id}`;
+    case "syllabus":     return `/syllabus/${id}`;
+    case "academic":     return `/academic-content/${id}`;
+    case "feedback":     return `/feedback/edit/${id}`;
+    case "presentation": return `/presentation/${id}`;
+    case "unit_plan":    return `/unit-plan/${id}`;
+    default:             return null;
   }
 };
 
@@ -58,12 +62,8 @@ const EDIT_FIELDS = {
     { key: "jenis_tulisan", label: "Jenis Tulisan", type: "text" },
     { key: "kelas",         label: "Kelas",         type: "text" },
   ],
- worksheet: [
-  {
-    key: "worksheet_content",
-    label: "Soal Worksheet",
-    type: "textarea",
-  },
+  worksheet: [
+    { key: "worksheet_content", label: "Soal Worksheet", type: "textarea" },
   ],
   mc: [
     { key: "judul",         label: "Judul",         type: "text" },
@@ -84,16 +84,27 @@ const EDIT_FIELDS = {
     { key: "mata_pelajaran",label: "Mata Pelajaran",type: "text" },
     { key: "jenis_konten",  label: "Jenis Konten",  type: "text" },
   ],
-  //anak konten nanti lengkapin ini ya, dst...
+  presentation: [
+    { key: "topik",         label: "Topik",         type: "text" },
+    { key: "tujuan",        label: "Tujuan",        type: "text" },
+    { key: "audiens",       label: "Audiens",       type: "text" },
+  ],
+  unit_plan: [
+    { key: "judul_unit",    label: "Judul Unit",    type: "text" },
+    { key: "mata_pelajaran",label: "Mata Pelajaran",type: "text" },
+    { key: "tingkat_kelas", label: "Tingkat Kelas", type: "text" },
+  ],
 };
 
 const BADGE = {
-  mc:        { bg: "#fee2e2", color: "#dc2626", label: "Soal PG" },
-  rubric:    { bg: "#fef9c3", color: "#ca8a04", label: "Rubrik" },
-  worksheet: { bg: "#fef3c7", color: "#d97706", label: "Worksheet" },
-  syllabus:  { bg: "#f0fdf4", color: "#16a34a", label: "Silabus" },
-  academic:  { bg: "#eff6ff", color: "#1d4ed8", label: "Konten" },
-  feedback:  { bg: "#d1fae5", color: "#065f46", label: "Writing" },
+  mc:           { bg: "#fee2e2", color: "#dc2626", label: "Soal PG" },
+  rubric:       { bg: "#fef9c3", color: "#ca8a04", label: "Rubrik" },
+  worksheet:    { bg: "#fef3c7", color: "#d97706", label: "Worksheet" },
+  syllabus:     { bg: "#f0fdf4", color: "#16a34a", label: "Silabus" },
+  academic:     { bg: "#eff6ff", color: "#1d4ed8", label: "Konten" },
+  feedback:     { bg: "#d1fae5", color: "#065f46", label: "Writing" },
+  presentation: { bg: "#f3e8ff", color: "#7e22ce", label: "Presentasi" },
+  unit_plan:    { bg: "#fae8ff", color: "#a21caf", label: "Modul Ajar" },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -114,6 +125,19 @@ function parseLks(doc) {
   return doc;
 }
 
+function parseUnitPlan(doc) {
+  const candidates = [doc.unit_plan_json, doc.unit_plan, doc.rpp_json];
+  for (const c of candidates) {
+    if (!c) continue;
+    if (typeof c === "string") {
+      try { return JSON.parse(c); } catch { /* try next */ }
+    } else if (typeof c === "object") {
+      return c;
+    }
+  }
+  return doc;
+}
+
 function getAktivitas(doc) {
   const lks = parseLks(doc);
   return lks.aktivitas || lks.sections || lks.soal || doc.aktivitas || doc.sections || [];
@@ -121,13 +145,15 @@ function getAktivitas(doc) {
 
 function getTitle(doc, type) {
   switch (type) {
-    case "mc":        return doc.judul || doc.mata_pelajaran || "Soal PG";
-    case "rubric":    return doc.judul || doc.nama_rubrik || "Rubrik";
-    case "worksheet": return doc.judul || doc.topik || "Worksheet";
-    case "syllabus":  return doc.nama_silabus || doc.mata_pelajaran || "Silabus";
-    case "academic":  return doc.judul || doc.title || "Konten";
-    case "feedback":  return doc.nama_siswa || doc.judul || "Writing Feedback";
-    default:          return "Dokumen";
+    case "mc":           return doc.judul || doc.mata_pelajaran || "Soal PG";
+    case "rubric":       return doc.judul || doc.nama_rubrik || "Rubrik";
+    case "worksheet":    return doc.judul || doc.topik || "Worksheet";
+    case "syllabus":     return doc.nama_silabus || doc.mata_pelajaran || "Silabus";
+    case "academic":     return doc.judul || doc.title || "Konten";
+    case "feedback":     return doc.nama_siswa || doc.judul || "Writing Feedback";
+    case "presentation": return doc.topik || doc.tujuan || "Presentasi";
+    case "unit_plan":    return doc.judul_unit || doc.mata_pelajaran || "Modul Ajar";
+    default:             return "Dokumen";
   }
 }
 
@@ -145,6 +171,10 @@ function getMeta(doc, type) {
       return [doc.jenis_konten, doc.mata_pelajaran].filter(Boolean);
     case "feedback":
       return [doc.kelas && `Kelas ${doc.kelas}`, doc.jenis_tulisan, doc.skor != null && `Skor: ${doc.skor}`].filter(Boolean);
+    case "presentation":
+      return [doc.jumlah_slide && `${doc.jumlah_slide} Slide`, doc.audiens && `Audiens: ${doc.audiens}`].filter(Boolean);
+    case "unit_plan":
+      return [doc.tingkat_kelas && `Kelas ${doc.tingkat_kelas}`, doc.jumlah_pertemuan && `${doc.jumlah_pertemuan} Pertemuan`].filter(Boolean);
     default:
       return [];
   }
@@ -722,6 +752,241 @@ function WorksheetDetail({ doc, onDelete, onEdit }) {
   );
 }
 
+// ─── Detail: Presentasi ───────────────────────────────────────────────────────
+function PresentationDetail({ doc, onDelete, onEdit }) {
+  const slides = Array.isArray(doc.slides_json) ? doc.slides_json : [];
+
+  const handleDownloadPPT = async () => {
+    if (!doc.id) return;
+    try {
+      const res = await fetch(`${getApiBase()}/api/presentation/download/${doc.id}/ppt`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) throw new Error("Gagal mengunduh PPT");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Presentasi_${doc.topik || "presentation"}.pptx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Gagal unduh PPT: " + err.message);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <button onClick={handleDownloadPPT} className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-2 rounded-lg transition">
+          📺 Unduh PPTX
+        </button>
+      </div>
+
+      <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-4 max-h-[400px] overflow-y-auto">
+        <h4 className="font-bold text-sm text-gray-900 border-b border-gray-200 pb-2 uppercase">{doc.topik}</h4>
+        {slides.map((slide, idx) => (
+          <div key={idx} className="bg-white border border-gray-200 rounded-xl p-4 space-y-2 shadow-sm">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
+              <span className="text-xs font-bold text-emerald-700">Slide {slide.slide_number || idx + 1}</span>
+            </div>
+            <p className="font-bold text-sm text-gray-800">{slide.title}</p>
+            <ul className="list-disc pl-5 text-xs text-gray-600 space-y-1">
+              {Array.isArray(slide.content) && slide.content.map((point, pIdx) => (
+                <li key={pIdx}>{point}</li>
+              ))}
+            </ul>
+            {slide.catatan && (
+              <div className="bg-amber-50 rounded-lg p-2.5 mt-2 border border-amber-100">
+                <p className="text-[10px] font-bold text-amber-700 uppercase mb-0.5">💡 Catatan Presenter</p>
+                <p className="text-xs text-amber-900 leading-relaxed">{slide.catatan}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2">
+        <button onClick={onEdit} className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-xl hover:bg-gray-50 transition">
+          ✏️ Edit
+        </button>
+        <button onClick={onDelete} className="flex-1 flex items-center justify-center gap-1.5 border border-red-200 text-red-500 text-sm font-semibold py-2 rounded-xl hover:bg-red-50 transition">
+          🗑️ Hapus
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Detail: Modul Ajar ───────────────────────────────────────────────────────
+function UnitPlanDetail({ doc, onDelete, onEdit }) {
+  const up = parseUnitPlan(doc);
+  const info = up.informasi_umum || {};
+  const inti = up.komponen_inti || {};
+
+  const handleDownloadDocx = async () => {
+    if (!doc.id) return;
+    try {
+      const res = await fetch(`${getApiBase()}/api/unit-plan/download/${doc.id}/docx`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) throw new Error("Gagal mengunduh DOCX");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `RPP_${doc.judul_unit || "unit_plan"}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Gagal unduh DOCX: " + err.message);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <button onClick={handleDownloadDocx} className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-2 rounded-lg transition">
+          📄 Unduh DOCX
+        </button>
+      </div>
+
+      <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-4 max-h-[400px] overflow-y-auto text-xs">
+        <div className="text-center border-b-2 border-gray-800 pb-3">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Modul Ajar / RPP</p>
+          <h3 className="font-bold text-sm text-gray-900 uppercase">{doc.judul_unit || info.judul_unit || "Modul Ajar"}</h3>
+          <p className="text-[10px] text-gray-500 font-mono mt-1">Mapel: {doc.mata_pelajaran || info.mata_pelajaran} | Kelas: {doc.tingkat_kelas || info.kelas}</p>
+        </div>
+
+        {/* Informasi Umum */}
+        <div className="space-y-2">
+          <p className="font-bold text-emerald-800 uppercase tracking-wider border-b border-emerald-100 pb-0.5">I. Informasi Umum</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-gray-700 font-medium">
+            {info.alokasi_waktu && <p><strong>Alokasi Waktu:</strong> {info.alokasi_waktu}</p>}
+            {info.target_peserta_didik && <p><strong>Target Didik:</strong> {info.target_peserta_didik}</p>}
+          </div>
+          {Array.isArray(info.kompetensi_awal) && info.kompetensi_awal.length > 0 && (
+            <div className="mt-1">
+              <strong className="text-gray-800">Kompetensi Awal:</strong>
+              <ul className="list-disc pl-5 mt-0.5 space-y-0.5 text-gray-600 font-medium">
+                {info.kompetensi_awal.map((x, i) => <li key={i}>{x}</li>)}
+              </ul>
+            </div>
+          )}
+          {Array.isArray(info.profil_pelajar_pancasila) && info.profil_pelajar_pancasila.length > 0 && (
+            <div className="mt-1">
+              <strong className="text-gray-800">Profil Pelajar Pancasila:</strong>
+              <ul className="list-disc pl-5 mt-0.5 space-y-0.5 text-gray-600 font-medium">
+                {info.profil_pelajar_pancasila.map((x, i) => <li key={i}>{x}</li>)}
+              </ul>
+            </div>
+          )}
+          {Array.isArray(info.sarana_prasarana) && info.sarana_prasarana.length > 0 && (
+            <div className="mt-1">
+              <strong className="text-gray-800">Sarana & Prasarana:</strong>
+              <ul className="list-disc pl-5 mt-0.5 space-y-0.5 text-gray-600 font-medium">
+                {info.sarana_prasarana.map((x, i) => <li key={i}>{x}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Komponen Inti */}
+        <div className="space-y-2 pt-2">
+          <p className="font-bold text-emerald-800 uppercase tracking-wider border-b border-emerald-100 pb-0.5">II. Komponen Inti</p>
+          {Array.isArray(inti.tujuan_pembelajaran) && inti.tujuan_pembelajaran.length > 0 && (
+            <div>
+              <strong className="text-gray-800">Tujuan Pembelajaran:</strong>
+              <ul className="list-disc pl-5 mt-0.5 space-y-0.5 text-gray-600 font-medium">
+                {inti.tujuan_pembelajaran.map((x, i) => <li key={i}>{x}</li>)}
+              </ul>
+            </div>
+          )}
+          {inti.pemahaman_bermakna && (
+            <p className="mt-1"><strong className="text-gray-800">Pemahaman Bermakna:</strong> <span className="text-gray-600 font-medium">{inti.pemahaman_bermakna}</span></p>
+          )}
+          {Array.isArray(inti.pertanyaan_pemantik) && inti.pertanyaan_pemantik.length > 0 && (
+            <div className="mt-1">
+              <strong className="text-gray-800">Pertanyaan Pemantik:</strong>
+              <ul className="list-disc pl-5 mt-0.5 space-y-0.5 text-gray-600 font-medium">
+                {inti.pertanyaan_pemantik.map((x, i) => <li key={i}>{x}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Kegiatan Pembelajaran */}
+        {Array.isArray(inti.kegiatan_pembelajaran) && inti.kegiatan_pembelajaran.length > 0 && (
+          <div className="space-y-3 pt-2">
+            <p className="font-bold text-emerald-800 uppercase tracking-wider border-b border-emerald-100 pb-0.5">III. Kegiatan Pembelajaran</p>
+            {inti.kegiatan_pembelajaran.map((keg, idx) => (
+              <div key={idx} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+                <p className="font-bold text-emerald-700">Pertemuan Ke-{keg.pertemuan_ke || idx + 1}</p>
+                {Array.isArray(keg.pendahuluan) && keg.pendahuluan.length > 0 && (
+                  <div>
+                    <strong className="text-[10px] text-gray-500 uppercase">Pendahuluan:</strong>
+                    <ul className="list-disc pl-4 mt-0.5 space-y-0.5 text-gray-600 font-medium">
+                      {keg.pendahuluan.map((x, i) => <li key={i}>{x}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {Array.isArray(keg.kegiatan_inti) && keg.kegiatan_inti.length > 0 && (
+                  <div>
+                    <strong className="text-[10px] text-gray-500 uppercase">Kegiatan Inti:</strong>
+                    <ul className="list-disc pl-4 mt-0.5 space-y-0.5 text-gray-600 font-medium">
+                      {keg.kegiatan_inti.map((x, i) => <li key={i}>{x}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {Array.isArray(keg.penutup) && keg.penutup.length > 0 && (
+                  <div>
+                    <strong className="text-[10px] text-gray-500 uppercase">Penutup:</strong>
+                    <ul className="list-disc pl-4 mt-0.5 space-y-0.5 text-gray-600 font-medium">
+                      {keg.penutup.map((x, i) => <li key={i}>{x}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Asesmen & Lampiran */}
+        {((Array.isArray(inti.asesmen) && inti.asesmen.length > 0) || (Array.isArray(inti.pengayaan_dan_remedial) && inti.pengayaan_dan_remedial.length > 0)) && (
+          <div className="space-y-2 pt-2">
+            <p className="font-bold text-emerald-800 uppercase tracking-wider border-b border-emerald-100 pb-0.5">IV. Asesmen & Pengayaan</p>
+            {Array.isArray(inti.asesmen) && inti.asesmen.length > 0 && (
+              <div>
+                <strong className="text-gray-800">Asesmen:</strong>
+                <ul className="list-disc pl-5 mt-0.5 space-y-0.5 text-gray-600 font-medium">
+                  {inti.asesmen.map((x, i) => <li key={i}>{x}</li>)}
+                </ul>
+              </div>
+            )}
+            {Array.isArray(inti.pengayaan_dan_remedial) && inti.pengayaan_dan_remedial.length > 0 && (
+              <div className="mt-1.5">
+                <strong className="text-gray-800">Pengayaan & Remedial:</strong>
+                <ul className="list-disc pl-5 mt-0.5 space-y-0.5 text-gray-600 font-medium">
+                  {inti.pengayaan_dan_remedial.map((x, i) => <li key={i}>{x}</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <button onClick={onEdit} className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-xl hover:bg-gray-50 transition">
+          ✏️ Edit
+        </button>
+        <button onClick={onDelete} className="flex-1 flex items-center justify-center gap-1.5 border border-red-200 text-red-500 text-sm font-semibold py-2 rounded-xl hover:bg-red-50 transition">
+          🗑️ Hapus
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Detail: Generic ──────────────────────────────────────────────────────────
 function GenericDetail({ doc, type, onDelete, onEdit }) {
   const title = getTitle(doc, type);
@@ -898,7 +1163,9 @@ function DetailDrawer({ doc, onClose, onDelete, onSaved }) {
             <>
               {type === "feedback"  && <FeedbackDetail  doc={fullDoc} onDelete={onDelete} onEdit={() => setMode("edit")} />}
               {type === "worksheet" && <WorksheetDetail doc={fullDoc} onDelete={onDelete} onEdit={() => setMode("edit")} />}
-              {type !== "feedback" && type !== "worksheet" && (
+              {type === "presentation" && <PresentationDetail doc={fullDoc} onDelete={onDelete} onEdit={() => setMode("edit")} />}
+              {type === "unit_plan" && <UnitPlanDetail doc={fullDoc} onDelete={onDelete} onEdit={() => setMode("edit")} />}
+              {type !== "feedback" && type !== "worksheet" && type !== "presentation" && type !== "unit_plan" && (
                 <GenericDetail doc={fullDoc} type={type} onDelete={onDelete} onEdit={() => setMode("edit")} />
               )}
             </>
