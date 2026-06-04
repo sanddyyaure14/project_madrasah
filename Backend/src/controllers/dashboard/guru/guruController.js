@@ -1,3 +1,4 @@
+const bcrypt = require('bcrypt');
 const GuruModel = require('../../../models/dashboard/guru/guruModel');
 
 // =========================================================================
@@ -267,9 +268,75 @@ const getDashboardSummary = async (req, res) => {
     }
 };
 
+/**
+ * PUT /api/guru/change-password
+ * Ubah password guru — wajib verifikasi password lama dulu
+ */
+const changePassword = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { password_lama, password_baru, konfirmasi_password } = req.body;
+
+        if (!password_lama || !password_baru || !konfirmasi_password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password lama, password baru, dan konfirmasi password wajib diisi.'
+            });
+        }
+
+        if (password_baru.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password baru minimal 6 karakter.'
+            });
+        }
+
+        if (password_baru !== konfirmasi_password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Konfirmasi password tidak cocok dengan password baru.'
+            });
+        }
+
+        // Ambil password hash dari DB
+        const user = await GuruModel.getUserPasswordHash(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User tidak ditemukan.' });
+        }
+
+        // Verifikasi password lama
+        const isMatch = await bcrypt.compare(password_lama, user.password_hash);
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Password lama salah.'
+            });
+        }
+
+        // Hash password baru
+        const newHash = await bcrypt.hash(password_baru, 10);
+
+        // Simpan ke DB
+        await GuruModel.updatePassword(userId, newHash);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Password berhasil diubah. Silakan login ulang dengan password baru.'
+        });
+    } catch (error) {
+        console.error('Error changePassword:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Gagal mengubah password.',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     getProfile,
     updateProfile,
+    changePassword,
     getDocuments,
     getDocumentDetail,
     getDashboardSummary

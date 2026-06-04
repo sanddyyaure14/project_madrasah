@@ -24,6 +24,14 @@ router.put(
     guruController.updateProfile
 );
 
+// PUT  /api/guru/change-password → Ubah password (wajib kirim password lama)
+router.put(
+    '/guru/change-password',
+    verifyToken,
+    authorizeRoles('guru'),
+    guruController.changePassword
+);
+
 // ── DASHBOARD ──────────────────────────────────────────────────────────────
 // GET /api/guru/dashboard/summary      → Summary kuota dan total dokumen
 router.get(
