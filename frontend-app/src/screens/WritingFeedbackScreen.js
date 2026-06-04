@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
+import { useNotifications } from '../lib/notifications';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -243,6 +244,7 @@ function ResultPanel({ data, onReset, onSave }) {
 // ---------------------------------------------------------------------------
 export default function WritingFeedbackScreen({ navigation }) {
   const { user, token } = useAuth();
+  const { addNotification } = useNotifications();
 
   const [tulisan, setTulisan] = useState('');
   const [jenis, setJenis] = useState('Narasi');
@@ -291,6 +293,13 @@ export default function WritingFeedbackScreen({ navigation }) {
 
       if (data.success && data.data) {
         setResult(data.data);
+        // Notifikasi generate berhasil
+        addNotification({
+          title: 'Writing Feedback Selesai ✍️',
+          message: `Feedback untuk ${namaSiswa.trim() || 'Siswa Anonim'} (Kelas ${kelas}) berhasil dibuat. Skor: ${parseFloat(data.data.skor_total).toFixed(0)}/100`,
+          type: 'success',
+          icon: 'create',
+        });
         setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
       } else {
         setError(data.message || 'Gagal mendapatkan feedback dari server.');
@@ -312,17 +321,18 @@ export default function WritingFeedbackScreen({ navigation }) {
   }
 
   function handleSave() {
-    // Data sudah tersimpan otomatis di backend saat generate.
-    // Navigasi ke tab Dokumen agar user bisa lihat.
+    addNotification({
+      title: 'Feedback Tersimpan 📄',
+      message: 'Writing Feedback berhasil disimpan di Dokumen Saya.',
+      type: 'info',
+      icon: 'bookmark',
+    });
     Alert.alert(
       'Tersimpan ✅',
       'Feedback ini sudah tersimpan di Dokumen Saya. Ingin melihatnya sekarang?',
       [
         { text: 'Nanti', style: 'cancel' },
-        {
-          text: 'Lihat Dokumen',
-          onPress: () => navigation.navigate('Dokumen'),
-        },
+        { text: 'Lihat Dokumen', onPress: () => navigation.navigate('Dokumen') },
       ]
     );
   }
