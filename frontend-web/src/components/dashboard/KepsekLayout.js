@@ -40,9 +40,9 @@ export default function KepsekLayout({ children }) {
   ];
 
   const menuKonten = [
-    { label: "Presentation Generator", href: "#", icon: "🖥️" },
+    { label: "Presentation Generator", href: "/dashboard/kepsek/tools/presentation-generator", icon: "🖥️" },
     { label: "Syllabus Generator", href: "#", icon: "📋" },
-    { label: "Unit Plan / RPP", href: "#", icon: "📖" },
+    { label: "Unit Plan / RPP", href: "/dashboard/kepsek/tools/unit-plan", icon: "📖" },
     { label: "Academic Content", href: "#", icon: "🎓" },
   ];
 
