@@ -37,14 +37,14 @@ export default function GuruLayout({ children }) {
   ];
 
   const menuKonten = [
-    { label: "Presentation Generator", href: "#", icon: "🖥️" },
-    { label: "Syllabus Generator", href: "#", icon: "📋" },
-    { label: "Unit Plan / RPP", href: "#", icon: "📖" },
-    { label: "Academic Content", href: "#", icon: "🎓" },
+    { label: "Presentation Generator", href: "/dashboard/guru/tools/presentation-generator", icon: "🖥️" },
+    { label: "Syllabus Generator", href: "/dashboard/guru/tools/syllabus-generator", icon: "📋" },
+    { label: "Unit Plan / RPP", href: "/dashboard/guru/tools/unit-plan", icon: "📖" },
+    { label: "Academic Content", href: "/dashboard/guru/tools/academic-content", icon: "🎓" },
   ];
 
   const menuSaya = [
-    { label: "Dokumen Saya", href: "#", icon: "📂" },
+    { label: "Dokumen Saya", href: "/dashboard/guru/dokumen", icon: "📂" },
   ];
 
   const getInitials = (name) => {
@@ -97,7 +97,7 @@ export default function GuruLayout({ children }) {
               <p className="px-3 text-[10px] uppercase font-bold tracking-widest text-emerald-400/50 mb-2">Konten</p>
               <div className="space-y-0.5">
                 {menuKonten.map((item, i) => (
-                  <Link key={i} href={item.href} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium text-emerald-100/70 hover:bg-white/5 hover:text-white transition-colors">
+                  <Link key={i} href={item.href} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${pathname === item.href ? 'bg-[#153428] text-[#ECA823] shadow-inner border border-white/5' : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'}`}>
                     <span className="text-base w-5 text-center grayscale opacity-70">{item.icon}</span> {item.label}
                   </Link>
                 ))}

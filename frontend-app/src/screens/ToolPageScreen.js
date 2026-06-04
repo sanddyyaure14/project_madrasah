@@ -4,9 +4,38 @@ import {
   TextInput, ActivityIndicator, Alert, Switch, Clipboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { findTool } from '../lib/tools';
 import { useAuth, API_URL } from '../lib/auth';
 import { C, S } from '../lib/theme';
+
+// ─── Download file dengan token (untuk PDF/Excel) ──────────────────────────
+async function downloadWithToken(url, token, filename) {
+  try {
+    const localUri = FileSystem.documentDirectory + filename;
+    const result = await FileSystem.downloadAsync(url, localUri, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (result.status !== 200) {
+      Alert.alert('Gagal', 'Server menolak permintaan download.');
+      return;
+    }
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
+      await Sharing.shareAsync(result.uri, {
+        mimeType: filename.endsWith('.pdf')
+          ? 'application/pdf'
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        dialogTitle: `Buka ${filename}`,
+      });
+    } else {
+      Alert.alert('Selesai', `File tersimpan di: ${result.uri}`);
+    }
+  } catch (e) {
+    Alert.alert('Error', 'Gagal download file: ' + e.message);
+  }
+}
 
 const ICON_MAP = {
   'clipboard-list': 'clipboard',
@@ -282,14 +311,17 @@ function MultipleChoiceForm() {
   const [includeKunci, setIncludeKunci] = useState(true);
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState([]);
+  const [mcId, setMcId] = useState(null);
   const [error, setError] = useState('');
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const KESULITAN = ['mudah', 'sedang', 'sulit'];
 
   async function handleGenerate() {
     if (!topik.trim()) { Alert.alert('Input Kurang', 'Topik/Materi wajib diisi.'); return; }
     const jml = parseInt(jumlah);
     if (isNaN(jml) || jml < 1 || jml > 50) { Alert.alert('Input Tidak Valid', 'Jumlah soal antara 1–50.'); return; }
-    setLoading(true); setQuestions([]); setError('');
+    setLoading(true); setQuestions([]); setError(''); setMcId(null);
     try {
       const res = await fetch(`${API_URL}/generate-mc`, {
         method: 'POST',
@@ -303,6 +335,7 @@ function MultipleChoiceForm() {
       const data = await res.json();
       if (!data.success) { setError(data.message ?? 'Gagal generate soal.'); return; }
       setQuestions(data.data?.questions ?? []);
+      setMcId(data.mc_id ?? null); // simpan ID untuk download PDF
     } catch (e) {
       setError('Tidak dapat terhubung ke server. Pastikan backend berjalan.');
     } finally { setLoading(false); }
@@ -317,6 +350,15 @@ function MultipleChoiceForm() {
     }).join('\n\n');
     Clipboard.setString(text);
     Alert.alert('Tersalin!', 'Semua soal berhasil disalin.');
+  }
+
+  async function handleDownloadPDF(withKunci) {
+    if (!mcId) { Alert.alert('Error', 'ID soal tidak ditemukan.'); return; }
+    setDownloading(true);
+    setShowPdfModal(false);
+    const filename = `Soal_${topik.replace(/\s+/g, '_')}_${withKunci ? 'dengan_kunci' : 'tanpa_kunci'}.pdf`;
+    await downloadWithToken(`${API_URL}/assessment/print/${mcId}`, token, filename);
+    setDownloading(false);
   }
 
   return (
@@ -386,11 +428,51 @@ function MultipleChoiceForm() {
               <Text style={mcS.resultTitle}>📋 Hasil Soal</Text>
               <Text style={mcS.resultSub}>{questions.length} soal · {mapel} Kelas {kelas}</Text>
             </View>
-            <TouchableOpacity style={mcS.copyAllBtn} onPress={copyAll}>
-              <Ionicons name="copy-outline" size={14} color={C.primary} />
-              <Text style={mcS.copyAllText}>Salin Semua</Text>
+          </View>
+
+          {/* Action buttons: Copy | Cetak PDF | Simpan */}
+          <View style={mcS.actionRow}>
+            <TouchableOpacity style={mcS.actionBtn} onPress={copyAll}>
+              <Ionicons name="copy-outline" size={16} color={C.primary} />
+              <Text style={mcS.actionBtnText}>Copy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={mcS.actionBtn}
+              onPress={() => setShowPdfModal(true)}
+              disabled={downloading}
+            >
+              {downloading
+                ? <ActivityIndicator size="small" color={C.primary} />
+                : <Ionicons name="print-outline" size={16} color={C.primary} />
+              }
+              <Text style={mcS.actionBtnText}>Cetak PDF</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[mcS.actionBtn, mcS.actionBtnSave]}
+              onPress={() => Alert.alert('Tersimpan! ✅', 'Soal sudah otomatis tersimpan ke Dokumen Saya saat generate.')}
+            >
+              <Ionicons name="bookmark" size={16} color="#fff" />
+              <Text style={[mcS.actionBtnText, { color: '#fff' }]}>Simpan</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Modal pilihan PDF */}
+          {showPdfModal && (
+            <View style={mcS.pdfModal}>
+              <Text style={mcS.pdfModalTitle}>📥 Pilih versi PDF:</Text>
+              <TouchableOpacity style={[mcS.pdfBtn, { backgroundColor: C.primary }]} onPress={() => handleDownloadPDF(true)}>
+                <Ionicons name="key" size={16} color="#fff" />
+                <Text style={mcS.pdfBtnText}>Dengan Kunci Jawaban</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[mcS.pdfBtn, { backgroundColor: C.gold }]} onPress={() => handleDownloadPDF(false)}>
+                <Ionicons name="document-outline" size={16} color={C.goldFg} />
+                <Text style={[mcS.pdfBtnText, { color: C.goldFg }]}>Tanpa Kunci Jawaban</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowPdfModal(false)}>
+                <Text style={mcS.pdfCancelText}>Batal</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           {questions.map((q, idx) => (
             <View key={idx} style={mcS.qCard}>
               <View style={mcS.qHeader}>
@@ -426,19 +508,160 @@ function MultipleChoiceForm() {
 }
 
 function RubricForm() {
+  const { token } = useAuth();
   const [tugas, setTugas] = useState('');
-  const [kriteria, setKriteria] = useState('');
-  const { loading, result, generate } = useTool('rubric');
+  const [aspek, setAspek] = useState('');
+  const [skala, setSkala] = useState('1-4');
+  const [tpKd, setTpKd] = useState('');
+  const [deskripsi, setDeskripsi] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [rubricId, setRubricId] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState('');
+
+  const SKALA = ['1-4', '1-10', '1-100'];
+
+  async function handleGenerate() {
+    if (!tugas.trim()) { Alert.alert('Input Kurang', 'Jenis Tugas wajib diisi.'); return; }
+    if (!aspek.trim()) { Alert.alert('Input Kurang', 'Aspek Penilaian wajib diisi.'); return; }
+    const aspekArray = aspek.split(',').map(a => a.trim()).filter(Boolean);
+    if (aspekArray.length === 0) { Alert.alert('Input Tidak Valid', 'Pisahkan aspek dengan koma.'); return; }
+
+    setLoading(true); setResult(null); setError(''); setRubricId(null);
+    try {
+      const res = await fetch(`${API_URL}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          jenis_tugas: tugas.trim(),
+          aspek_penilaian: aspekArray,
+          skala_nilai: skala,
+          tujuan_pembelajaran: tpKd.trim() || null,
+          deskripsi_tugas: deskripsi.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.message ?? 'Gagal generate rubrik.'); return; }
+      let rj = data.data?.rubric;
+      if (typeof rj === 'string') rj = JSON.parse(rj);
+      setResult({ rubricId: data.data?.rubic_id, rubric: rj, tp: data.data?.tujuan_pembelajaran });
+      setRubricId(data.data?.rubic_id ?? null);
+    } catch {
+      setError('Tidak dapat terhubung ke server. Pastikan backend berjalan.');
+    } finally { setLoading(false); }
+  }
+
+  async function handleExportExcel() {
+    if (!rubricId) { Alert.alert('Error', 'ID rubrik tidak ditemukan.'); return; }
+    setExporting(true);
+    const filename = `Rubrik_${tugas.replace(/\s+/g, '_')}.xlsx`;
+    await downloadWithToken(`${API_URL}/rubrics/${rubricId}/export-excel`, token, filename);
+    setExporting(false);
+  }
+
   return (
     <>
-      <Field label="Jenis Tugas / Aktivitas">
-        <TextF value={tugas} onChangeText={setTugas} placeholder="cth. Presentasi kelompok, esai, proyek" />
+      <Field label="Jenis Tugas / Aktivitas *">
+        <TextF value={tugas} onChangeText={setTugas} placeholder="cth. Presentasi kelompok, Proyek, Esai" />
       </Field>
-      <Field label="Kriteria Penilaian Utama">
-        <TextF value={kriteria} onChangeText={setKriteria} placeholder="cth. konten, penyampaian, kerjasama" multiline />
+      <Field label="Aspek Penilaian * (pisahkan dengan koma)">
+        <TextF value={aspek} onChangeText={setAspek} placeholder="cth. Isi, Penyampaian, Kerja Sama" multiline />
       </Field>
-      <GenerateBtn loading={loading} onPress={() => generate({ tugas, kriteria })} />
-      <ResultBox text={result} onCopy={() => Alert.alert('Tersalin!')} />
+      <Field label="Skala Nilai *">
+        <SelectF options={SKALA} value={skala} onSelect={setSkala} />
+      </Field>
+      <Field label="TP/KD (opsional)">
+        <TextF value={tpKd} onChangeText={setTpKd} placeholder="cth. 3.1 Memahami ketentuan thaharah" />
+      </Field>
+      <Field label="Deskripsi Tugas (opsional)">
+        <TextF value={deskripsi} onChangeText={setDeskripsi} placeholder="cth. Siswa mempresentasikan hasil diskusi kelompok" multiline />
+      </Field>
+
+      <TouchableOpacity style={[styles.generateBtn, loading && { opacity: 0.7 }]} onPress={handleGenerate} disabled={loading}>
+        {loading
+          ? <><ActivityIndicator color="#fff" size="small" /><Text style={styles.generateBtnText}>Sedang generate rubrik...</Text></>
+          : <><Ionicons name="sparkles" size={18} color="#fff" /><Text style={styles.generateBtnText}>Generate Rubrik</Text></>
+        }
+      </TouchableOpacity>
+
+      {error ? (
+        <View style={rubricS.errorBox}>
+          <Ionicons name="alert-circle" size={16} color="#dc2626" />
+          <Text style={rubricS.errorText}>{error}</Text>
+        </View>
+      ) : null}
+
+      {result && (
+        <View style={rubricS.resultWrap}>
+          <View style={rubricS.resultHeader}>
+            <View>
+              <Text style={rubricS.resultTitle}>📊 Rubrik Berhasil Dibuat</Text>
+              <Text style={rubricS.resultSub}>{result.rubric?.judul ?? tugas}</Text>
+            </View>
+          </View>
+
+          {/* Action buttons: Copy | Export Excel | Simpan */}
+          <View style={mcS.actionRow}>
+            <TouchableOpacity style={mcS.actionBtn} onPress={() => {
+              const text = (result.rubric?.aspek ?? []).map(a =>
+                `${a.nama} (${a.bobot}%)\n` +
+                (a.level ?? []).map(l => `  ${l.nama} (${l.skor}): ${l.deskripsi}`).join('\n')
+              ).join('\n\n');
+              Clipboard.setString(text);
+              Alert.alert('Tersalin!', 'Rubrik berhasil disalin.');
+            }}>
+              <Ionicons name="copy-outline" size={16} color={C.primary} />
+              <Text style={mcS.actionBtnText}>Copy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={mcS.actionBtn}
+              onPress={handleExportExcel}
+              disabled={exporting || !rubricId}
+            >
+              {exporting
+                ? <ActivityIndicator size="small" color={C.primary} />
+                : <Ionicons name="download-outline" size={16} color={C.primary} />
+              }
+              <Text style={mcS.actionBtnText}>Export Excel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[mcS.actionBtn, mcS.actionBtnSave]}
+              onPress={() => Alert.alert('Tersimpan! ✅', 'Rubrik sudah otomatis tersimpan ke Dokumen Saya saat generate.')}
+            >
+              <Ionicons name="bookmark" size={16} color="#fff" />
+              <Text style={[mcS.actionBtnText, { color: '#fff' }]}>Simpan</Text>
+            </TouchableOpacity>
+          </View>
+          {result.tp ? (
+            <View style={rubricS.tpBox}>
+              <Text style={rubricS.tpLabel}>🎯 Tujuan Pembelajaran</Text>
+              <Text style={rubricS.tpText}>{result.tp}</Text>
+            </View>
+          ) : null}
+          {(result.rubric?.aspek ?? []).map((a, idx) => (
+            <View key={idx} style={rubricS.aspekCard}>
+              <View style={rubricS.aspekHeader}>
+                <Text style={rubricS.aspekNama}>{a.nama}</Text>
+                <View style={rubricS.bobotBadge}>
+                  <Text style={rubricS.bobotText}>{a.bobot}%</Text>
+                </View>
+              </View>
+              {(a.level ?? []).map((lv, li) => (
+                <View key={li} style={rubricS.levelRow}>
+                  <View style={rubricS.levelHeader}>
+                    <Text style={rubricS.levelNama}>{lv.nama}</Text>
+                    <View style={rubricS.skorBadge}>
+                      <Text style={rubricS.skorText}>{lv.skor}</Text>
+                    </View>
+                  </View>
+                  <Text style={rubricS.levelDesc}>{lv.deskripsi}</Text>
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      )}
     </>
   );
 }
@@ -667,6 +890,18 @@ const mcS = StyleSheet.create({
   resultSub: { fontSize: 12, color: C.muted, marginTop: 2 },
   copyAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: C.primary, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
   copyAllText: { fontSize: 12, color: C.primary, fontWeight: '600' },
+  actionRow: {
+    flexDirection: 'row', gap: 8, paddingVertical: 4,
+  },
+  actionBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 11, borderRadius: 10,
+    borderWidth: 1.5, borderColor: C.primary, backgroundColor: '#fff',
+  },
+  actionBtnSave: {
+    backgroundColor: C.primary, borderColor: C.primary,
+  },
+  actionBtnText: { fontSize: 13, fontWeight: '700', color: C.primary },
   qCard: { backgroundColor: C.bg, borderRadius: 12, padding: 14, gap: 10, borderWidth: 1, borderColor: C.border },
   qHeader: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   noBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
@@ -682,4 +917,38 @@ const mcS = StyleSheet.create({
   pembahasanBox: { backgroundColor: '#fffbeb', borderRadius: 8, padding: 10, gap: 4, borderLeftWidth: 3, borderLeftColor: C.gold },
   pembahasanLabel: { fontSize: 11, fontWeight: '700', color: C.gold },
   pembahasanText: { fontSize: 12, color: C.ink, lineHeight: 18 },
+  pdfModal: {
+    backgroundColor: '#f0fdf4', borderRadius: 14, padding: 16, gap: 10,
+    borderWidth: 1, borderColor: '#bbf7d0',
+  },
+  pdfModalTitle: { fontSize: 14, fontWeight: '700', color: C.ink, marginBottom: 4 },
+  pdfBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, borderRadius: 10, paddingVertical: 12,
+  },
+  pdfBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  pdfCancelText: { fontSize: 13, color: C.muted, textAlign: 'center', paddingVertical: 4 },
+});
+
+const rubricS = StyleSheet.create({
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fee2e2', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#fca5a5' },
+  errorText: { fontSize: 13, color: '#dc2626', flex: 1 },
+  resultWrap: { gap: 12 },
+  resultHeader: { paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+  resultTitle: { fontSize: 16, fontWeight: '700', color: C.ink },
+  resultSub: { fontSize: 12, color: C.muted, marginTop: 2 },
+  tpBox: { backgroundColor: C.primaryLight, borderRadius: 10, padding: 12, gap: 4 },
+  tpLabel: { fontSize: 11, fontWeight: '700', color: C.primary },
+  tpText: { fontSize: 13, color: C.ink, lineHeight: 19 },
+  aspekCard: { backgroundColor: C.bg, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: C.border },
+  aspekHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, backgroundColor: '#fef3c7' },
+  aspekNama: { fontSize: 14, fontWeight: '700', color: '#92400e', flex: 1 },
+  bobotBadge: { backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  bobotText: { fontSize: 11, fontWeight: '700', color: C.goldFg },
+  levelRow: { borderTopWidth: 1, borderTopColor: C.border, padding: 10, gap: 4 },
+  levelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  levelNama: { fontSize: 12, fontWeight: '700', color: C.ink },
+  skorBadge: { backgroundColor: C.primaryLight, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  skorText: { fontSize: 11, fontWeight: '700', color: C.primary },
+  levelDesc: { fontSize: 12, color: C.muted, lineHeight: 17 },
 });
