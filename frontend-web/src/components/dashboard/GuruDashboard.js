@@ -3,8 +3,12 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
 export default function GuruDashboard() {
   const [user, setUser] = useState({ nama_lengkap: "Ust. Ahmad Fauzi" });
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     try {
@@ -13,6 +17,29 @@ export default function GuruDashboard() {
         setUser(userData);
       }
     } catch (e) {}
+
+    const fetchSummary = async () => {
+      try {
+        const token = sessionStorage.getItem("accessToken");
+        if (!token) return;
+
+        const res = await fetch(`${API_URL}/api/guru/dashboard/summary`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (data.success) {
+          setSummary(data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch summary:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSummary();
   }, []);
 
   const tools = [
@@ -90,6 +117,11 @@ export default function GuruDashboard() {
     }
   ];
 
+  const digunakan = summary?.kuota?.digunakan ?? 0;
+  const limitBulanan = summary?.kuota?.limit_bulanan ?? 20;
+  const dokumenTersimpan = summary?.dokumen_tersimpan ?? 0;
+  const waktuDihemat = Math.round(dokumenTersimpan * 11.5 / 60) || 0;
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12">
       
@@ -120,7 +152,14 @@ export default function GuruDashboard() {
           </div>
           <div>
             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">GENERATE BULAN INI</p>
-            <h4 className="text-2xl font-serif text-gray-900 m-0">12 <span className="text-gray-400 text-lg">/ 20</span></h4>
+            <h4 className="text-2xl font-serif text-gray-900 m-0">
+              {loading ? (
+                <span className="inline-block w-8 h-6 bg-gray-100 animate-pulse rounded align-middle"></span>
+              ) : (
+                digunakan
+              )}
+              <span className="text-gray-400 text-lg"> / {limitBulanan}</span>
+            </h4>
           </div>
         </div>
 
@@ -130,7 +169,13 @@ export default function GuruDashboard() {
           </div>
           <div>
             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">DOKUMEN TERSIMPAN</p>
-            <h4 className="text-2xl font-serif text-gray-900 m-0">47</h4>
+            <h4 className="text-2xl font-serif text-gray-900 m-0">
+              {loading ? (
+                <span className="inline-block w-8 h-6 bg-gray-100 animate-pulse rounded align-middle"></span>
+              ) : (
+                dokumenTersimpan
+              )}
+            </h4>
           </div>
         </div>
 
@@ -140,7 +185,14 @@ export default function GuruDashboard() {
           </div>
           <div>
             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">WAKTU DIHEMAT</p>
-            <h4 className="text-2xl font-serif text-gray-900 m-0">≈ 9 <span className="text-gray-400 text-lg">jam</span></h4>
+            <h4 className="text-2xl font-serif text-gray-900 m-0">
+              {loading ? (
+                <span className="inline-block w-8 h-6 bg-gray-100 animate-pulse rounded align-middle"></span>
+              ) : (
+                `≈ ${waktuDihemat}`
+              )}
+              <span className="text-gray-400 text-lg"> jam</span>
+            </h4>
           </div>
         </div>
       </div>
