@@ -14,7 +14,7 @@ function getInitials(name) {
 function StatusPill({ status }) {
   const map = {
     Aktif: { bg: C.primaryLight, fg: C.primary },
-    Cuti: { bg: '#fef3c7', fg: '#92400e' },
+    Pending: { bg: '#fef3c7', fg: '#92400e' },
     Nonaktif: { bg: '#fee2e2', fg: C.danger },
   };
   const s = map[status] ?? map['Aktif'];
@@ -45,7 +45,7 @@ export default function TeachersScreen() {
   const stats = useMemo(() => ({
     total: teachers.length,
     aktif: teachers.filter(r => r.status === 'Aktif').length,
-    cuti: teachers.filter(r => r.status === 'Cuti').length,
+    pending: teachers.filter(r => r.status === 'Pending').length,
     nonaktif: teachers.filter(r => r.status === 'Nonaktif').length,
   }), [teachers]);
 
@@ -82,7 +82,7 @@ export default function TeachersScreen() {
     ]);
   }
 
-  const STATUS_FILTERS = ['all', 'Aktif', 'Cuti', 'Nonaktif'];
+  const STATUS_FILTERS = ['all', 'Aktif', 'Pending', 'Nonaktif'];
 
   return (
     <View style={styles.container}>
@@ -91,7 +91,7 @@ export default function TeachersScreen() {
         {[
           { label: 'Total', value: stats.total },
           { label: 'Aktif', value: stats.aktif },
-          { label: 'Cuti', value: stats.cuti },
+          { label: 'Pending', value: stats.pending },
           { label: 'Nonaktif', value: stats.nonaktif },
         ].map(s => (
           <View key={s.label} style={styles.statBox}>
@@ -198,7 +198,7 @@ export default function TeachersScreen() {
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Status</Text>
               <View style={styles.statusRow}>
-                {['Aktif', 'Cuti', 'Nonaktif'].map(s => (
+                {['Aktif', 'Pending', 'Nonaktif'].map(s => (
                   <TouchableOpacity
                     key={s}
                     style={[styles.statusOpt, form.status === s && styles.statusOptActive]}

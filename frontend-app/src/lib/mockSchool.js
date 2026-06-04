@@ -2,10 +2,12 @@ export const TEACHERS = [
   { id: 'u-002', name: 'Ust. Ahmad Fauzi, S.Pd.I.', subject: 'Fiqih', email: 'ustadz@madrasah.id', status: 'Aktif', generates: 38, lastActive: '2 jam lalu' },
   { id: 'u-003', name: 'Ustz. Aisyah Nurhaliza, S.Pd.', subject: 'Bahasa Arab', email: 'ustadzah@madrasah.id', status: 'Aktif', generates: 51, lastActive: '12 menit lalu' },
   { id: 'u-004', name: 'Ust. Yusuf Maulana, M.Pd.', subject: 'Al-Qur\'an Hadis', email: 'yusuf@madrasah.id', status: 'Aktif', generates: 27, lastActive: '1 hari lalu' },
-  { id: 'u-005', name: 'Ustz. Khadijah Salma, S.Pd.', subject: 'Akidah Akhlak', email: 'khadijah@madrasah.id', status: 'Cuti', generates: 14, lastActive: '5 hari lalu' },
+  { id: 'u-005', name: 'Ustz. Khadijah Salma, S.Pd.', subject: 'Akidah Akhlak', email: 'khadijah@madrasah.id', status: 'Pending', generates: 14, lastActive: '5 hari lalu' },
   { id: 'u-006', name: 'Ust. Hamzah Ibrahim, S.Pd.', subject: 'Sejarah Kebudayaan Islam', email: 'hamzah@madrasah.id', status: 'Aktif', generates: 19, lastActive: 'Kemarin' },
   { id: 'u-007', name: 'Ustz. Maryam Zahra, S.Pd.', subject: 'Matematika', email: 'maryam@madrasah.id', status: 'Aktif', generates: 33, lastActive: '3 jam lalu' },
   { id: 'u-008', name: 'Ust. Bilal Saputra, S.Pd.', subject: 'IPA Terpadu', email: 'bilal@madrasah.id', status: 'Nonaktif', generates: 4, lastActive: '3 minggu lalu' },
+  { id: 'u-009', name: 'Ust. Ali Imron', subject: 'Bahasa Indonesia', email: 'ali@madrasah.id', status: 'Pending', generates: 0, lastActive: 'Baru daftar' },
+  { id: 'u-010', name: 'Ustz. Fatimah Zahra', subject: 'IPS', email: 'fatimah@madrasah.id', status: 'Pending', generates: 0, lastActive: 'Baru daftar' },
 ];
 
 export const PENDING = [
