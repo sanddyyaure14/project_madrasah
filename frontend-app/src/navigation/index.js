@@ -19,6 +19,14 @@ import WorksheetScreen from '../screens/WorksheetScreen';
 import WorksheetDetailScreen from '../screens/WorksheetDetailScreen';
 import MCDetailScreen from '../screens/MCDetailScreen';
 import RubricDetailScreen from '../screens/RubricDetailScreen';
+import SyllabusFormScreen from '../screens/SyllabusFormScreen';
+import SyllabusDetailScreen from '../screens/SyllabusDetailScreen';
+import SyllabusPreviewScreen from '../screens/SyllabusPreviewScreen';
+import SyllabusEditScreen from '../screens/SyllabusEditScreen';
+import AcademicContentFormScreen from '../screens/AcademicContentFormScreen';
+import AcademicContentDetailScreen from '../screens/AcademicContentDetailScreen';
+import AcademicContentPreviewScreen from '../screens/AcademicContentPreviewScreen';
+import AcademicContentEditScreen from '../screens/AcademicContentEditScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -104,6 +112,12 @@ function DocsStack() {
         component={RubricDetailScreen}
         options={{ title: 'Detail Rubrik' }}
       />
+      <Stack.Screen name="SyllabusDetail" component={SyllabusDetailScreen} options={{ title: 'Detail Silabus' }} />
+      <Stack.Screen name="SyllabusPreview" component={SyllabusPreviewScreen} options={{ title: 'Preview Silabus' }} />
+      <Stack.Screen name="SyllabusEdit" component={SyllabusEditScreen} options={{ title: 'Edit Silabus' }} />
+      <Stack.Screen name="AcademicContentDetail" component={AcademicContentDetailScreen} options={{ title: 'Detail Konten' }} />
+      <Stack.Screen name="AcademicContentPreview" component={AcademicContentPreviewScreen} options={{ title: 'Preview Konten' }} />
+      <Stack.Screen name="AcademicContentEdit" component={AcademicContentEditScreen} options={{ title: 'Edit Konten' }} />
     </Stack.Navigator>
   );
 }
@@ -159,6 +173,14 @@ function DashboardStack() {
         component={RubricDetailScreen}
         options={{ title: 'Detail Rubrik' }}
       />
+      <Stack.Screen name="SyllabusForm" component={SyllabusFormScreen} options={{ title: 'Silabus Generator' }} />
+      <Stack.Screen name="SyllabusDetail" component={SyllabusDetailScreen} options={{ title: 'Detail Silabus' }} />
+      <Stack.Screen name="SyllabusPreview" component={SyllabusPreviewScreen} options={{ title: 'Preview Silabus' }} />
+      <Stack.Screen name="SyllabusEdit" component={SyllabusEditScreen} options={{ title: 'Edit Silabus' }} />
+      <Stack.Screen name="AcademicContentForm" component={AcademicContentFormScreen} options={{ title: 'Konten Akademik' }} />
+      <Stack.Screen name="AcademicContentDetail" component={AcademicContentDetailScreen} options={{ title: 'Detail Konten' }} />
+      <Stack.Screen name="AcademicContentPreview" component={AcademicContentPreviewScreen} options={{ title: 'Preview Konten' }} />
+      <Stack.Screen name="AcademicContentEdit" component={AcademicContentEditScreen} options={{ title: 'Edit Konten' }} />
       <Stack.Screen name="Teachers" component={TeachersScreen} options={{ title: 'Daftar Guru' }} />
       <Stack.Screen name="Approvals" component={ApprovalsScreen} options={{ title: 'Persetujuan' }} />
     </Stack.Navigator>
