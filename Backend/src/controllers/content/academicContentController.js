@@ -4,6 +4,7 @@ const Groq = require('groq-sdk');
 const path = require('path');
 const fs = require('fs');
 const { generateAcademicContentPDF } = require('../../utils/pdfGenerator');
+const { generateAcademicContentDocx } = require('../../utils/docxGenerator');
 
 // Inisialisasi Groq menggunakan API Key
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -373,4 +374,51 @@ const deleteAcademicContent = async (req, res) => {
     }
 };
 
-module.exports = { generateAcademicContent, getAcademicContents, getAcademicContentById, updateAcademicContent, deleteAcademicContent, downloadAcademicContentPDF };
+const downloadAcademicContentDocx = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Ambil data dari database
+        const contentData = await AcademicContentModel.getAcademicContentById(id, req.user.id);
+
+        if (!contentData) {
+            return res.status(404).json({
+                success: false,
+                message: "Konten akademik tidak ditemukan"
+            });
+        }
+
+        // Buat folder temp jika belum ada
+        const tempDir = path.join(__dirname, '../../../temp');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        // Generate DOCX
+        const fileName = `academic_content_${id}.docx`;
+        const filePath = path.join(tempDir, fileName);
+
+        await generateAcademicContentDocx(contentData, filePath);
+
+        // Download file
+        res.download(filePath, fileName, (err) => {
+            if (err) {
+                console.error("Error downloading file:", err);
+            }
+            // Hapus file setelah download
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        });
+
+    } catch (error) {
+        console.error("Error generating DOCX:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal generate DOCX",
+            error: error.message
+        });
+    }
+};
+
+module.exports = { generateAcademicContent, getAcademicContents, getAcademicContentById, updateAcademicContent, deleteAcademicContent, downloadAcademicContentPDF, downloadAcademicContentDocx };

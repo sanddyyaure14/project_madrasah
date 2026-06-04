@@ -16,12 +16,12 @@ async function createTrigger() {
       CREATE OR REPLACE FUNCTION auto_create_quota()
       RETURNS TRIGGER AS $$
       BEGIN
-        IF NEW.role = 'guru' THEN
+        IF NEW.role IN ('guru', 'kepala_sekolah') THEN
           INSERT INTO usage_quotas (user_id, plan_type, monthly_limit, used_this_month, reset_date)
           VALUES (
             NEW.id,
             'free',
-            50,
+            100,
             0,
             DATE_TRUNC('month', NOW()) + INTERVAL '1 month'
           )
