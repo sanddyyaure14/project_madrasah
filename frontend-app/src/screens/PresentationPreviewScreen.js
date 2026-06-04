@@ -13,16 +13,100 @@ export default function PresentationPreviewScreen({ route }) {
     slideCount = 1,
   } = route.params || {};
 
+  const templateSlides = [
+    {
+      title: `Pendahuluan ${topic}`,
+      points: [
+        `Pengantar materi ${topic}`,
+        'Latar belakang pembelajaran',
+        'Tujuan pembelajaran',
+      ],
+    },
+    {
+      title: `Pengertian ${topic}`,
+      points: [
+        `Definisi ${topic}`,
+        'Konsep dasar materi',
+        'Ruang lingkup pembahasan',
+      ],
+    },
+    {
+      title: `Dasar Materi ${topic}`,
+      points: [
+        'Landasan teori',
+        'Sumber referensi utama',
+        'Prinsip-prinsip dasar',
+      ],
+    },
+    {
+      title: `Pembahasan Utama ${topic}`,
+      points: [
+        'Pokok bahasan pertama',
+        'Pokok bahasan kedua',
+        'Pokok bahasan ketiga',
+      ],
+    },
+    {
+      title: `Contoh Penerapan ${topic}`,
+      points: [
+        'Contoh dalam kehidupan sehari-hari',
+        'Studi kasus sederhana',
+        'Implementasi materi',
+      ],
+    },
+    {
+      title: `Manfaat ${topic}`,
+      points: [
+        'Manfaat bagi peserta didik',
+        'Manfaat dalam kehidupan',
+        'Nilai yang dapat diterapkan',
+      ],
+    },
+    {
+      title: `Tantangan dan Solusi`,
+      points: [
+        'Permasalahan yang sering muncul',
+        'Cara mengatasi masalah',
+        'Strategi penerapan',
+      ],
+    },
+    {
+      title: `Rangkuman Materi`,
+      points: [
+        'Ringkasan konsep utama',
+        'Poin penting yang dipelajari',
+        'Hal yang perlu diingat',
+      ],
+    },
+    {
+      title: `Evaluasi Pembelajaran`,
+      points: [
+        'Pertanyaan refleksi',
+        'Diskusi kelas',
+        'Latihan pemahaman',
+      ],
+    },
+    {
+      title: 'Kesimpulan',
+      points: [
+        `Kesimpulan materi ${topic}`,
+        'Pesan utama pembelajaran',
+        'Penutup presentasi',
+      ],
+    },
+  ];
+
   const slides = Array.from(
     { length: slideCount },
-    (_, index) => ({
-      title: `${topic} - Bagian ${index + 1}`,
-      points: [
-        `Pembahasan poin utama ${index + 1}`,
-        `Penjelasan materi ${index + 1}`,
-        `Contoh penerapan ${index + 1}`,
-      ],
-    })
+    (_, index) =>
+      templateSlides[index] || {
+        title: `${topic} - Pembahasan Tambahan ${index + 1}`,
+        points: [
+          'Pengembangan materi',
+          'Pembahasan lanjutan',
+          'Contoh tambahan',
+        ],
+      }
   );
 
   return (
@@ -49,7 +133,11 @@ export default function PresentationPreviewScreen({ route }) {
           style={styles.card}
         >
           <Text style={styles.title}>
-            Slide {index + 1} - {slide.title}
+            Slide {index + 1}
+          </Text>
+
+          <Text style={styles.slideTitle}>
+            {slide.title}
           </Text>
 
           {slide.points.map((point, idx) => (
@@ -94,10 +182,17 @@ const styles = StyleSheet.create({
   },
 
   title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0F3D2E',
+    marginBottom: 8,
+  },
+
+  slideTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#0F3D2E',
-    marginBottom: 10,
+    marginBottom: 12,
   },
 
   point: {
