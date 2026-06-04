@@ -36,55 +36,68 @@ const GuruModel = {
     },
 
     /**
-     * Update profil guru (hanya field yang boleh diubah sendiri)
-     * Field sensitif seperti email/role tidak bisa diubah dari sini
+     * Update profil guru — UPSERT manual (check exist → insert/update)
      */
     updateProfile: async (userId, updateData) => {
         const client = await db.connect();
         try {
             await client.query('BEGIN');
 
-            // Update nama_lengkap dan no_hp di tabel users
-            if (updateData.nama_lengkap || updateData.no_hp !== undefined) {
-                const userQuery = `
-                    UPDATE users 
-                    SET nama_lengkap = COALESCE($2, nama_lengkap)
-                    WHERE id = $1
-                    RETURNING id, nama_lengkap, email;
-                `;
-                await client.query(userQuery, [userId, updateData.nama_lengkap || null]);
+            // 1. Update nama_lengkap di tabel users
+            if (updateData.nama_lengkap) {
+                await client.query(
+                    'UPDATE users SET nama_lengkap = $2 WHERE id = $1',
+                    [userId, updateData.nama_lengkap]
+                );
             }
 
-            // Update data profil di tabel user_profiles
-            const profileQuery = `
-                UPDATE user_profiles
-                SET 
-                    nip         = COALESCE($2, nip),
-                    mata_pelajaran = COALESCE($3, mata_pelajaran),
-                    jenjang     = COALESCE($4, jenjang),
-                    kurikulum   = COALESCE($5, kurikulum),
-                    no_hp       = COALESCE($6, no_hp)
-                WHERE user_id = $1
-                RETURNING *;
-            `;
-            await client.query(profileQuery, [
-                userId,
-                updateData.nip || null,
-                updateData.mata_pelajaran
-                    ? (Array.isArray(updateData.mata_pelajaran)
-                        ? updateData.mata_pelajaran
-                        : [updateData.mata_pelajaran])
-                    : null,
-                updateData.jenjang || null,
-                updateData.kurikulum || null,
-                updateData.no_hp || null
-            ]);
+            const mapelArr = updateData.mata_pelajaran
+                ? (Array.isArray(updateData.mata_pelajaran)
+                    ? updateData.mata_pelajaran
+                    : [updateData.mata_pelajaran])
+                : null;
+
+            // 2. Cek apakah row user_profiles sudah ada
+            const existing = await client.query(
+                'SELECT id FROM user_profiles WHERE user_id = $1',
+                [userId]
+            );
+
+            if (existing.rows.length === 0) {
+                // INSERT baru
+                await client.query(`
+                    INSERT INTO user_profiles (id, user_id, nip, mata_pelajaran, jenjang, kurikulum, no_hp)
+                    VALUES (gen_random_uuid(), $1, $2, $3, $4::school_level, $5::curriculum_type, $6)
+                `, [
+                    userId,
+                    updateData.nip || null,
+                    mapelArr,
+                    updateData.jenjang || null,
+                    updateData.kurikulum || null,
+                    updateData.no_hp || null,
+                ]);
+            } else {
+                // UPDATE yang sudah ada
+                await client.query(`
+                    UPDATE user_profiles SET
+                        nip            = COALESCE($2, nip),
+                        mata_pelajaran = COALESCE($3, mata_pelajaran),
+                        jenjang        = COALESCE($4::school_level, jenjang),
+                        kurikulum      = COALESCE($5::curriculum_type, kurikulum),
+                        no_hp          = COALESCE($6, no_hp)
+                    WHERE user_id = $1
+                `, [
+                    userId,
+                    updateData.nip || null,
+                    mapelArr,
+                    updateData.jenjang || null,
+                    updateData.kurikulum || null,
+                    updateData.no_hp || null,
+                ]);
+            }
 
             await client.query('COMMIT');
-
-            // Kembalikan profil terbaru setelah update
-            const updatedProfile = await GuruModel.getProfileByUserId(userId);
-            return updatedProfile;
+            return await GuruModel.getProfileByUserId(userId);
         } catch (error) {
             await client.query('ROLLBACK');
             throw error;

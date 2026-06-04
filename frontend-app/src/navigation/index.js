@@ -17,6 +17,7 @@ import MyDocsScreen from '../screens/MyDocsScreen';
 import FeedbackDetailScreen from '../screens/FeedbackDetailScreen';
 import WorksheetScreen from '../screens/WorksheetScreen';
 import WorksheetDetailScreen from '../screens/WorksheetDetailScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 import MCDetailScreen from '../screens/MCDetailScreen';
 import SyllabusFormScreen from '../screens/SyllabusFormScreen';
 import SyllabusPreviewScreen from '../screens/SyllabusPreviewScreen';
@@ -72,7 +73,7 @@ function GuruTabs() {
     >
       <Tab.Screen name="Dashboard" component={DashboardStack} options={{ headerShown: false }} />
       <Tab.Screen name="Dokumen" component={DocsStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Profil" component={ProfileScreen} options={{ title: 'Profil Saya' }} />
+      <Tab.Screen name="Profil" component={ProfilStack} options={{ headerShown: false }} />
     </Tab.Navigator>
   );
 }
@@ -126,6 +127,21 @@ function DocsStack() {
         component={AcademicContentEditScreen}
         options={{ title: 'Edit Konten Akademik' }}
       />
+    </Stack.Navigator>
+  );
+}
+
+function ProfilStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: C.card },
+        headerTitleStyle: { fontSize: 17, fontWeight: '700', color: C.ink },
+        headerTintColor: C.primary,
+      }}
+    >
+      <Stack.Screen name="ProfileHome" component={ProfileScreen} options={{ title: 'Profil Saya' }} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profil' }} />
     </Stack.Navigator>
   );
 }
