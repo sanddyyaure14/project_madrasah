@@ -220,7 +220,7 @@ const generateAcademicContent = async (req, res) => {
 
 const getAcademicContents = async (req, res) => {
     try {
-        const data = await AcademicContentModel.getAllAcademicContents();
+        const data = await AcademicContentModel.getAllAcademicContents(req.user.id);
         res.status(200).json({
             success: true,
             message: "Berhasil mengambil data konten akademik.",
@@ -241,7 +241,7 @@ const downloadAcademicContentPDF = async (req, res) => {
         const { id } = req.params;
         
         // Ambil data dari database
-        const contentData = await AcademicContentModel.getAcademicContentById(id);
+        const contentData = await AcademicContentModel.getAcademicContentById(id, req.user.id);
         
         if (!contentData) {
             return res.status(404).json({
@@ -284,7 +284,7 @@ const downloadAcademicContentPDF = async (req, res) => {
 const getAcademicContentById = async (req, res) => {
     try {
         const { id } = req.params;
-        const data = await AcademicContentModel.getAcademicContentById(id);
+        const data = await AcademicContentModel.getAcademicContentById(id, req.user.id);
 
         if (!data) {
             return res.status(404).json({
@@ -315,7 +315,7 @@ const updateAcademicContent = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const existing = await AcademicContentModel.getAcademicContentById(id);
+        const existing = await AcademicContentModel.getAcademicContentById(id, req.user.id);
         if (!existing) {
             return res.status(404).json({
                 success: false,
@@ -325,7 +325,7 @@ const updateAcademicContent = async (req, res) => {
             });
         }
 
-        const updated = await AcademicContentModel.updateAcademicContent(id, req.body);
+        const updated = await AcademicContentModel.updateAcademicContent(id, req.user.id, req.body);
 
         res.status(200).json({
             success: true,
@@ -347,7 +347,7 @@ const deleteAcademicContent = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const deleted = await AcademicContentModel.deleteAcademicContent(id);
+        const deleted = await AcademicContentModel.deleteAcademicContent(id, req.user.id);
         if (!deleted) {
             return res.status(404).json({
                 success: false,

@@ -146,8 +146,19 @@ const GuruModel = {
     countDocumentHistory: async (userId) => {
         const query = `
             SELECT COUNT(*) AS total
-            FROM generation_requests
-            WHERE user_id = $1;
+            FROM generation_requests gr
+            WHERE gr.user_id = $1
+              AND gr.status = 'completed'
+              AND (
+                EXISTS (SELECT 1 FROM assessment_mc WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM writing_feedback WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM assessment_rubric WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM worksheets WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM syllabi WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM unit_plans WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM presentations WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM academic_contents WHERE request_id = gr.id)
+              );
         `;
         const { rows } = await db.query(query, [userId]);
         return parseInt(rows[0].total, 10);
@@ -163,7 +174,7 @@ const GuruModel = {
                 gr.*,
                 -- Coba join ke semua tabel konten/assessment berdasarkan feature_type
                 amc.questions_json      AS mc_data,
-                aw.essay_json           AS writing_data,
+                aw.feedback_json        AS writing_data,
                 ar.rubric_json          AS rubric_data,
                 ws.worksheet_json       AS worksheet_data,
                 sl.silabus_json         AS syllabus_data,
@@ -172,7 +183,7 @@ const GuruModel = {
                 ac.content_json         AS academic_content_data
             FROM generation_requests gr
             LEFT JOIN assessment_mc amc       ON amc.request_id = gr.id
-            LEFT JOIN assessment_writing aw   ON aw.request_id  = gr.id
+            LEFT JOIN writing_feedback aw     ON aw.request_id  = gr.id
             LEFT JOIN assessment_rubric ar    ON ar.request_id  = gr.id
             LEFT JOIN worksheets ws           ON ws.request_id  = gr.id
             LEFT JOIN syllabi sl              ON sl.request_id  = gr.id
