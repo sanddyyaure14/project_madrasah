@@ -111,26 +111,25 @@ const generateAcademicContent = async (req, res) => {
         // LANGKAH C: Naikkan status ke processing
         await AcademicContentModel.updateRequestStatus(requestId, 'processing');
 
-        // 2. Panggil Groq AI Llama 3.3
-        const prompt = `Anda adalah asisten pembuat materi akademik yang ahli. Buatlah konten dengan spesifikasi berikut:
-Jenis Konten: ${jenis_konten}
-Topik: "${topik}"
-Mata Pelajaran: ${mapel || 'Umum'}
-Target Kelas: ${kelas || 'Umum'}
-Panjang Konten: ${panjang || 'sedang'}
-Bahasa: ${bahasa || 'Indonesia'}
-Gaya Bahasa: ${gaya_bahasa || 'Akademik dan Informatif'}
+        // 2. Bangun prompt spesifik per jenis_konten
+        const baseInfo = `Mata Pelajaran: ${mapel || 'Umum'}\nTarget Kelas: ${kelas || 'Umum'}\nPanjang Konten: ${mappedPanjang}\nBahasa: ${bahasa || 'Indonesia'}`;
 
-Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut:
-{
-    "judul": "Judul Konten",
-    "konten": "Isi materi akademik secara detail sesuai panjang konten yang diminta. Boleh mengandung format teks jika diperlukan.",
-    "ringkasan": "Ringkasan singkat dari konten tersebut",
-    "kata_kunci": ["kata1", "kata2", "kata3"],
-    "referensi": ["referensi 1", "referensi 2"]
-}`;
+        let prompt = '';
+        if (mappedJenis === 'contoh_soal') {
+            const jumlahSoal = mappedPanjang === 'singkat' ? 5 : mappedPanjang === 'panjang' ? 15 : 10;
+            prompt = `Anda adalah guru madrasah ahli pembuat soal. Buatlah kumpulan ${jumlahSoal} CONTOH SOAL beserta JAWABAN dan PEMBAHASAN untuk:\nTopik: "${topik}"\n${baseInfo}\n\nBerikan respons dalam format JSON murni:\n{\n    "judul": "Contoh Soal: ${topik}",\n    "ringkasan": "Deskripsi singkat set soal ini",\n    "soal": [\n        {\n            "nomor": 1,\n            "pertanyaan": "Teks pertanyaan soal",\n            "pilihan": {"A": "...", "B": "...", "C": "...", "D": "..."},\n            "jawaban": "A",\n            "pembahasan": "Penjelasan mengapa jawaban ini benar"\n        }\n    ],\n    "kata_kunci": ["kata1", "kata2"],\n    "referensi": ["referensi 1"]\n}`;
+        } else if (mappedJenis === 'kamus') {
+            const jumlahIstilah = mappedPanjang === 'singkat' ? 8 : mappedPanjang === 'panjang' ? 25 : 15;
+            prompt = `Anda adalah guru madrasah ahli membuat glosarium. Buatlah GLOSARIUM berisi ${jumlahIstilah} ISTILAH PENTING dari:\nTopik: "${topik}"\n${baseInfo}\n\nUrutkan istilah secara alfabetis.\n\nBerikan respons dalam format JSON murni:\n{\n    "judul": "Glosarium: ${topik}",\n    "ringkasan": "Deskripsi singkat glosarium ini",\n    "istilah": [\n        {\n            "kata": "Nama istilah",\n            "definisi": "Pengertian atau definisi lengkap istilah tersebut",\n            "contoh": "Contoh penggunaan dalam kalimat (kosongkan jika tidak relevan)"\n        }\n    ],\n    "kata_kunci": ["kata1", "kata2"],\n    "referensi": ["referensi 1"]\n}`;
+        } else if (mappedJenis === 'ringkasan') {
+            const jumlahPoin = mappedPanjang === 'singkat' ? 3 : mappedPanjang === 'panjang' ? 8 : 5;
+            prompt = `Anda adalah guru madrasah ahli membuat rangkuman. Buatlah RANGKUMAN MATERI terstruktur dengan ${jumlahPoin} poin utama untuk:\nTopik: "${topik}"\n${baseInfo}\n\nBerikan respons dalam format JSON murni:\n{\n    "judul": "Rangkuman: ${topik}",\n    "ringkasan": "Ringkasan keseluruhan dalam 2-3 kalimat",\n    "poin_penting": [\n        {\n            "subjudul": "Nama sub-topik atau poin utama",\n            "isi": "Penjelasan detail poin ini dalam 2-4 kalimat"\n        }\n    ],\n    "kesimpulan": "Kesimpulan akhir dari materi",\n    "kata_kunci": ["kata1", "kata2", "kata3"],\n    "referensi": ["referensi 1"]\n}`;
+        } else {
+            // penjelasan (default)
+            prompt = `Anda adalah guru madrasah ahli membuat penjelasan konsep. Buatlah PENJELASAN KONSEP yang mendalam untuk:\nTopik: "${topik}"\n${baseInfo}\n\nBerikan respons dalam format JSON murni:\n{\n    "judul": "Penjelasan: ${topik}",\n    "ringkasan": "Ringkasan singkat konsep dalam 1-2 kalimat",\n    "pendahuluan": "Paragraf pembuka yang memperkenalkan konsep",\n    "konten": "Penjelasan konsep secara lengkap dan mendalam. Gunakan \\\\n\\\\n untuk memisahkan antar paragraf.",\n    "contoh_penerapan": "Contoh nyata atau ilustrasi konkret dari konsep ini",\n    "kata_kunci": ["kata1", "kata2", "kata3"],\n    "referensi": ["referensi 1"]\n}`;
+        }
 
-        const systemPrompt = "Anda adalah asisten pembuat materi akademik yang ahli. Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun.";
+        const systemPrompt = "Anda adalah asisten pembuat materi akademik madrasah yang ahli. Anda WAJIB memberikan respon dalam format JSON murni tanpa teks apa pun di luar JSON.";
 
         const chatCompletion = await groq.chat.completions.create({
             messages: [
