@@ -3,7 +3,7 @@
  * Profil guru — tampil data dari backend + navigasi ke Edit Profil
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator,
 } from 'react-native';
@@ -18,11 +18,16 @@ function getInitials(name) {
   return name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
 }
 
-function MenuItem({ icon, label, onPress, danger, value }) {
+function MenuItem({ icon, label, onPress, danger, value, badge }) {
   return (
     <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
       <View style={[styles.menuIcon, danger && { backgroundColor: '#fee2e2' }]}>
         <Ionicons name={icon} size={18} color={danger ? C.danger : C.primary} />
+        {badge > 0 ? (
+          <View style={styles.badgeDot}>
+            <Text style={styles.badgeDotText}>{badge > 9 ? '9+' : badge}</Text>
+          </View>
+        ) : null}
       </View>
       <Text style={[styles.menuLabel, danger && { color: C.danger }]}>{label}</Text>
       {value ? <Text style={styles.menuValue}>{value}</Text> : null}
@@ -180,6 +185,7 @@ export default function ProfileScreen({ navigation }) {
         <MenuItem
           icon="notifications"
           label="Notifikasi"
+          badge={unreadCount}
           value={unreadCount > 0 ? `${unreadCount} baru` : null}
           onPress={() => navigation.navigate('Notifications')}
         />
@@ -256,6 +262,14 @@ const styles = StyleSheet.create({
   menuIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center' },
   menuLabel: { flex: 1, fontSize: 14, color: C.ink, fontWeight: '500' },
   menuValue: { fontSize: 12, color: C.muted, marginRight: 4 },
-
+  badgeDot: {
+    position: 'absolute', top: -4, right: -4,
+    backgroundColor: C.danger, borderRadius: 999,
+    minWidth: 18, height: 18,
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2, borderColor: C.card,
+  },
+  badgeDotText: { fontSize: 10, fontWeight: '700', color: '#fff' },
   footer: { textAlign: 'center', fontSize: 12, color: C.mutedLight },
 });

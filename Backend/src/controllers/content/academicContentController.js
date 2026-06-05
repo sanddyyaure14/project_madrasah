@@ -72,6 +72,7 @@ const generateAcademicContent = async (req, res) => {
 
         // userId diambil dari JWT token
         const finalUserId = req.user.id;
+        const isKepsek = req.user.role === 'kepala_sekolah';
         const mappedJenis = mapJenisKonten(jenis_konten);
         const mappedPanjang = mapPanjangKonten(panjang);
 
@@ -84,29 +85,17 @@ const generateAcademicContent = async (req, res) => {
             llm_model_used: selectedModel
         });
 
-        // LANGKAH B: Panggil Cek Kuota (FOR UPDATE)
-        const quota = await AcademicContentModel.getUserQuota(finalUserId);
-        if (!quota) {
-            return res.status(403).json({
-                success: false,
-                message: "Akses ditolak. Profil kuota tidak ditemukan.",
-                data: null,
-                meta: {}
-            });
-        }
-
-        if (quota.used_this_month >= quota.monthly_limit) {
-            const endTime = performance.now();
-            await AcademicContentModel.updateRequestStatus(requestId, 'failed', { 
-                error_message: `Generate gagal! Kuota bulanan habis.`,
-                processing_time_ms: Math.round(endTime - startTime)
-            });
-            return res.status(403).json({
-                success: false,
-                message: "Generate gagal! Kuota bulanan Anda telah habis.",
-                data: null,
-                meta: {}
-            });
+        // LANGKAH B: Panggil Cek Kuota — skip untuk kepala_sekolah (unlimited)
+        if (!isKepsek) {
+            const quota = await AcademicContentModel.getUserQuota(finalUserId);
+            if (!quota) {
+                return res.status(403).json({ success: false, message: "Akses ditolak. Profil kuota tidak ditemukan.", data: null, meta: {} });
+            }
+            if (quota.used_this_month >= quota.monthly_limit) {
+                const endTime = performance.now();
+                await AcademicContentModel.updateRequestStatus(requestId, 'failed', { error_message: `Generate gagal! Kuota bulanan habis.`, processing_time_ms: Math.round(endTime - startTime) });
+                return res.status(403).json({ success: false, message: "Generate gagal! Kuota bulanan Anda telah habis.", data: null, meta: {} });
+            }
         }
 
         // LANGKAH C: Naikkan status ke processing
@@ -160,7 +149,7 @@ const generateAcademicContent = async (req, res) => {
             content_json: aiResponse
         };
 
-        const savedContent = await AcademicContentModel.saveAcademicContentAndDeductQuota(contentData, finalUserId);
+        const savedContent = await AcademicContentModel.saveAcademicContentAndDeductQuota(contentData, isKepsek ? null : finalUserId);
 
         // 4. Update Status Request
         const endTime = performance.now();
@@ -179,7 +168,9 @@ const generateAcademicContent = async (req, res) => {
             processing_time_ms: processingTimeMs
         });
 
-        const updatedQuota = await AcademicContentModel.getUserQuota(finalUserId);
+        const updatedQuota = isKepsek
+            ? { plan_type: 'unlimited', monthly_limit: 9999, used_this_month: 0 }
+            : await AcademicContentModel.getUserQuota(finalUserId);
 
         res.status(201).json({
             success: true,

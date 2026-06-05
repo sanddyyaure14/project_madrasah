@@ -72,15 +72,33 @@ const updateRequestStatus = async (requestId, status, outputData, metrics = {}) 
     return result.rows[0];
 };
 
-// 4. GET ALL - Ambil semua worksheet milik user
-const getAllWorksheets = async (userId) => {
+// 4. GET ALL - Ambil semua worksheet milik user (atau semua jika kepsek)
+const getAllWorksheets = async (userId, isKepsek = false) => {
+    if (isKepsek) {
+        const query = 'SELECT w.id, w.request_id, w.judul, w.mata_pelajaran, w.topik, w.tipe_aktivitas, w.durasi_menit, w.worksheet_json, gr.status, gr.user_id, gr.created_at, gr.completed_at FROM worksheets w JOIN generation_requests gr ON w.request_id = gr.id ORDER BY gr.created_at DESC';
+        const result = await pool.query(query);
+        return result.rows;
+    }
     const query = 'SELECT w.id, w.request_id, w.judul, w.mata_pelajaran, w.topik, w.tipe_aktivitas, w.durasi_menit, w.worksheet_json, gr.status, gr.created_at, gr.completed_at FROM worksheets w JOIN generation_requests gr ON w.request_id = gr.id WHERE gr.user_id = $1 ORDER BY gr.created_at DESC';
     const result = await pool.query(query, [userId]);
     return result.rows;
 };
 
-// 5. GET BY ID - Ambil detail worksheet berdasarkan ID
-const getWorksheetById = async (worksheetId, userId) => {
+// 5. GET BY ID - Ambil detail worksheet berdasarkan ID (kepsek bisa akses tanpa filter user)
+const getWorksheetById = async (worksheetId, userId, isKepsek = false) => {
+    if (isKepsek) {
+        const query = `
+            SELECT 
+                w.id, w.request_id, w.judul, w.mata_pelajaran, w.topik,
+                w.tipe_aktivitas, w.durasi_menit, w.worksheet_json,
+                gr.status, gr.user_id, gr.input_data, gr.created_at, gr.completed_at
+            FROM worksheets w
+            JOIN generation_requests gr ON w.request_id = gr.id
+            WHERE w.id = $1
+        `;
+        const result = await pool.query(query, [worksheetId]);
+        return result.rows[0];
+    }
     const query = `
         SELECT 
             w.id,
@@ -103,8 +121,29 @@ const getWorksheetById = async (worksheetId, userId) => {
     return result.rows[0];
 };
 
-// 6. UPDATE - Update worksheet berdasarkan ID
-const updateWorksheet = async (worksheetId, userId, data) => {
+// 6. UPDATE - Update worksheet berdasarkan ID (kepsek bisa update tanpa filter user)
+const updateWorksheet = async (worksheetId, userId, data, isKepsek = false) => {
+    if (isKepsek) {
+        const query = `
+            UPDATE worksheets
+            SET 
+                judul = $1,
+                mata_pelajaran = $2,
+                topik = $3,
+                tipe_aktivitas = $4,
+                durasi_menit = $5,
+                worksheet_json = $6
+            WHERE id = $7
+            RETURNING *
+        `;
+        const values = [
+            data.judul, data.mata_pelajaran, data.topik,
+            data.tipe_aktivitas, data.durasi_menit || null,
+            JSON.stringify(data.worksheet_json), worksheetId
+        ];
+        const result = await pool.query(query, values);
+        return result.rows[0];
+    }
     const query = `
         UPDATE worksheets w
         SET 
@@ -134,8 +173,16 @@ const updateWorksheet = async (worksheetId, userId, data) => {
     return result.rows[0];
 };
 
-// 7. DELETE - Hapus worksheet berdasarkan ID
-const deleteWorksheet = async (worksheetId, userId) => {
+// 7. DELETE - Hapus worksheet berdasarkan ID (kepsek bisa hapus tanpa filter user)
+const deleteWorksheet = async (worksheetId, userId, isKepsek = false) => {
+    if (isKepsek) {
+        const worksheet = await pool.query('SELECT id, request_id FROM worksheets WHERE id = $1', [worksheetId]);
+        if (!worksheet.rows[0]) return null;
+        const requestId = worksheet.rows[0].request_id;
+        await pool.query('DELETE FROM worksheets WHERE id = $1', [worksheetId]);
+        await pool.query('DELETE FROM generation_requests WHERE id = $1', [requestId]);
+        return worksheet.rows[0];
+    }
     const getQuery = `
         SELECT w.id, w.request_id 
         FROM worksheets w

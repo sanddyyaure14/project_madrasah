@@ -37,16 +37,19 @@ const generateRubric = async (req, res) => {
         }
 
         const finalUserId = req.user?.id || userId || '99999999-9999-9999-9999-999999999999';
+        const isKepsek = req.user?.role === 'kepala_sekolah';
         
-        // 0. CEK KUOTA
-        const quotaCheck = await RubicModel.checkUserQuota(finalUserId);
-        if (!quotaCheck.hasQuota) {
-            return res.status(403).json({
-                success: false,
-                message: "Kuota generate bulanan Anda telah habis.",
-                data: null,
-                meta: { remaining: 0, limit: quotaCheck.limit }
-            });
+        // 0. CEK KUOTA — skip untuk kepala_sekolah (unlimited)
+        if (!isKepsek) {
+            const quotaCheck = await RubicModel.checkUserQuota(finalUserId);
+            if (!quotaCheck.hasQuota) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Kuota generate bulanan Anda telah habis.",
+                    data: null,
+                    meta: { remaining: 0, limit: quotaCheck.limit }
+                });
+            }
         }
 
         // Tentukan jumlah level (default 4)
@@ -156,8 +159,10 @@ PENTING:
             meta: {}
         });
         
-        // 6. Update usage_quotas
-        await RubicModel.incrementQuotaUsage(finalUserId);
+        // 6. Update usage_quotas — skip untuk kepala_sekolah
+        if (!isKepsek) {
+            await RubicModel.incrementQuotaUsage(finalUserId);
+        }
     } catch (error) {
         console.error("Error Detail:", error);
         try {
@@ -180,13 +185,14 @@ PENTING:
 // =============================================
 const getAllRubrics = async (req, res) => {
     try {
-        const finalUserId = req.user?.id; 
+        const finalUserId = req.user?.id;
+        const isKepsek = req.user?.role === 'kepala_sekolah';
         
         if (!finalUserId) {
             return res.status(401).json({ success: false, message: "User tidak terautentikasi" });
         }
 
-        const rubrics = await RubicModel.getAllRubrics(finalUserId);
+        const rubrics = await RubicModel.getAllRubrics(finalUserId, isKepsek);
 
         res.status(200).json({
             success: true,
@@ -205,13 +211,14 @@ const getAllRubrics = async (req, res) => {
 const getRubricById = async (req, res) => {
     try {
         const { id } = req.params;
-        const finalUserId = req.user?.id; 
+        const finalUserId = req.user?.id;
+        const isKepsek = req.user?.role === 'kepala_sekolah';
 
         if (!finalUserId) {
             return res.status(401).json({ success: false, message: "User tidak terautentikasi" });
         }
 
-        const rubric = await RubicModel.getRubricById(id, finalUserId);
+        const rubric = await RubicModel.getRubricById(id, finalUserId, isKepsek);
         if (!rubric) {
             return res.status(404).json({ success: false, message: "Rubrik tidak ditemukan", data: null, meta: {} });
         }
@@ -229,7 +236,8 @@ const updateRubric = async (req, res) => {
     try {
         const { id } = req.params;
         const { jenis_tugas, aspek_penilaian, skala_nilai, tujuan_pembelajaran, rubric_json } = req.body;
-        const finalUserId = req.user?.id; 
+        const finalUserId = req.user?.id;
+        const isKepsek = req.user?.role === 'kepala_sekolah';
 
         if (!finalUserId) {
             return res.status(401).json({ success: false, message: "User tidak terautentikasi" });
@@ -241,7 +249,7 @@ const updateRubric = async (req, res) => {
 
         const updated = await RubicModel.updateRubric(id, finalUserId, {
             jenis_tugas, aspek_penilaian, skala_nilai, tujuan_pembelajaran, rubric_json
-        });
+        }, isKepsek);
 
         if (!updated) {
             return res.status(404).json({ success: false, message: "Rubrik tidak ditemukan atau bukan milik kamu", data: null, meta: {} });
@@ -259,13 +267,14 @@ const updateRubric = async (req, res) => {
 const deleteRubric = async (req, res) => {
     try {
         const { id } = req.params;
-        const finalUserId = req.user?.id; 
+        const finalUserId = req.user?.id;
+        const isKepsek = req.user?.role === 'kepala_sekolah';
 
         if (!finalUserId) {
             return res.status(401).json({ success: false, message: "User tidak terautentikasi" });
         }
 
-        const deleted = await RubicModel.deleteRubric(id, finalUserId);
+        const deleted = await RubicModel.deleteRubric(id, finalUserId, isKepsek);
         if (!deleted) {
             return res.status(404).json({ success: false, message: "Rubrik tidak ditemukan atau bukan milik kamu", data: null, meta: {} });
         }
@@ -282,13 +291,14 @@ const deleteRubric = async (req, res) => {
 const exportToExcel = async (req, res) => {
     try {
         const { id } = req.params;
-        const finalUserId = req.user?.id; 
+        const finalUserId = req.user?.id;
+        const isKepsek = req.user?.role === 'kepala_sekolah';
 
         if (!finalUserId) {
             return res.status(401).json({ success: false, message: "User tidak terautentikasi" });
         }
 
-        const rubric = await RubicModel.getRubricById(id, finalUserId);
+        const rubric = await RubicModel.getRubricById(id, finalUserId, isKepsek);
         if (!rubric) {
             return res.status(404).json({ success: false, message: "Rubrik tidak ditemukan di database" });
         }
