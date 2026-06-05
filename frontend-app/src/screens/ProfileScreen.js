@@ -10,11 +10,16 @@ function getInitials(name) {
   return name.split(' ').map(s => s[0]).slice(0, 2).join('');
 }
 
-function MenuItem({ icon, label, onPress, danger }) {
+function MenuItem({ icon, label, onPress, danger, value, badge }) {
   return (
     <TouchableOpacity style={styles.menuItem} onPress={onPress}>
       <View style={[styles.menuIcon, danger && { backgroundColor: '#fee2e2' }]}>
         <Ionicons name={icon} size={18} color={danger ? C.danger : C.primary} />
+        {badge > 0 ? (
+          <View style={styles.badgeDot}>
+            <Text style={styles.badgeDotText}>{badge > 9 ? '9+' : badge}</Text>
+          </View>
+        ) : null}
       </View>
       <Text style={[styles.menuLabel, danger && { color: C.danger }]}>{label}</Text>
       <Ionicons name="chevron-forward" size={16} color={C.mutedLight} />
@@ -23,9 +28,49 @@ function MenuItem({ icon, label, onPress, danger }) {
 }
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout } = useAuth();
-  if (!user) return null;
-  const isSuper = user.role === 'superadmin';
+  const { user, token, logout } = useAuth();
+  const { unreadCount } = useNotifications();
+  const isSuper = user?.role === 'superadmin';
+
+  const [profile, setProfile] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Reload profil setiap kali screen difokuskan (setelah edit)
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [token, isSuper])
+  );
+
+  async function fetchData() {
+    setLoading(true);
+    try {
+      if (isSuper) {
+        // Kepsek: fetch dari endpoint kepsek/profile
+        const resProfile = await fetch(`${API_URL}/kepsek/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await resProfile.json();
+        if (json.success) setProfile(json.data);
+      } else {
+        // Guru: fetch profile + summary
+        const [resProfile, resSummary] = await Promise.allSettled([
+          fetch(`${API_URL}/guru/profile`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_URL}/guru/dashboard/summary`, { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+        if (resProfile.status === 'fulfilled') {
+          const json = await resProfile.value.json();
+          if (json.success) setProfile(json.data);
+        }
+        if (resSummary.status === 'fulfilled') {
+          const json = await resSummary.value.json();
+          if (json.success) setSummary(json.data);
+        }
+      }
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  }
 
   function handleLogout() {
     Alert.alert('Keluar', 'Yakin ingin keluar dari MadrasahAI?', [
@@ -54,7 +99,24 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.profileEmail}>{user.email}</Text>
       </View>
 
-      {/* Stats for guru */}
+      {/* ── Info profil detail (guru & kepsek) ── */}
+      {profile && (
+        <View style={[styles.section, S.shadow]}>
+          <Text style={styles.sectionTitle}>Informasi Profil</Text>
+          <InfoRow icon="card-outline" label="NIP" value={profile.nip} />
+          {!isSuper && (
+            <InfoRow icon="book-outline" label="Mata Pelajaran" value={profile.mata_pelajaran} />
+          )}
+          <InfoRow icon="layers-outline" label="Jenjang" value={profile.jenjang} />
+          <InfoRow icon="document-text-outline" label="Kurikulum" value={profile.kurikulum} />
+          <InfoRow icon="call-outline" label="No. HP" value={profile.no_hp} />
+          {!profile.nip && !profile.jenjang && !profile.no_hp ? (
+            <Text style={styles.emptyInfo}>Lengkapi profil kamu agar lebih informatif →</Text>
+          ) : null}
+        </View>
+      )}
+
+      {/* ── Statistik (guru saja) ── */}
       {!isSuper && (
         <View style={[styles.section, S.shadow]}>
           <Text style={styles.sectionTitle}>Statistik Saya</Text>
@@ -76,9 +138,23 @@ export default function ProfileScreen({ navigation }) {
       {/* Menu items */}
       <View style={[styles.section, S.shadow]}>
         <Text style={styles.sectionTitle}>Akun</Text>
-        <MenuItem icon="person" label="Edit Profil" onPress={() => Alert.alert('Info', 'Fitur segera hadir.')} />
-        <MenuItem icon="lock-closed" label="Ubah Password" onPress={() => Alert.alert('Info', 'Fitur segera hadir.')} />
-        <MenuItem icon="notifications" label="Notifikasi" onPress={() => Alert.alert('Info', 'Fitur segera hadir.')} />
+        <MenuItem
+          icon="person"
+          label="Edit Profil"
+          onPress={() => navigation.navigate('EditProfile')}
+        />
+        <MenuItem
+          icon="lock-closed"
+          label="Ubah Password"
+          onPress={() => navigation.navigate('ChangePassword')}
+        />
+        <MenuItem
+          icon="notifications"
+          label="Notifikasi"
+          badge={unreadCount}
+          value={unreadCount > 0 ? `${unreadCount} baru` : null}
+          onPress={() => navigation.navigate('Notifications')}
+        />
       </View>
 
       <View style={[styles.section, S.shadow]}>
@@ -129,5 +205,15 @@ const styles = StyleSheet.create({
   },
   menuIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center' },
   menuLabel: { flex: 1, fontSize: 14, color: C.ink, fontWeight: '500' },
+  menuValue: { fontSize: 12, color: C.muted, marginRight: 4 },
+  badgeDot: {
+    position: 'absolute', top: -4, right: -4,
+    backgroundColor: C.danger, borderRadius: 999,
+    minWidth: 18, height: 18,
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2, borderColor: C.card,
+  },
+  badgeDotText: { fontSize: 10, fontWeight: '700', color: '#fff' },
   footer: { textAlign: 'center', fontSize: 12, color: C.mutedLight },
 });

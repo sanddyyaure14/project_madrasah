@@ -22,19 +22,22 @@ const generateWritingFeedback = async (req, res) => {
         } = req.body;
 
         const finalUserId = req.user.id;
+        const isKepsek = req.user.role === 'kepala_sekolah';
         const targetBahasa = bahasa_output || 'Indonesia';
 
         // =========================================================================
-        // 🌟 SEIRAMA MCASSESSMENT: INTEGRASI VALIDASI KUOTA USER
+        // 🌟 CEK KUOTA — skip untuk kepala_sekolah (unlimited)
         // =========================================================================
-        const quotaCheck = await WritingModel.checkUserQuota(finalUserId);
-        if (quotaCheck && !quotaCheck.hasQuota) {
-            return res.status(403).json({
-                success: false,
-                message: "Haris Maaf, Kuota pembuatan bulanan Anda telah habis. Silakan hubungi admin untuk peningkatan akun.",
-                data: null,
-                meta: { remaining: 0 }
-            });
+        if (!isKepsek) {
+            const quotaCheck = await WritingModel.checkUserQuota(finalUserId);
+            if (quotaCheck && !quotaCheck.hasQuota) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Kuota pembuatan bulanan Anda telah habis. Silakan hubungi admin untuk peningkatan akun.",
+                    data: null,
+                    meta: { remaining: 0 }
+                });
+            }
         }
 
         // --- FORMATTING JENIS TULISAN ---
@@ -174,7 +177,10 @@ const generateWritingFeedback = async (req, res) => {
         // 🌟 URUTAN ALUR PROSES DOSEN: SIMPAN DATA DULU -> JIKA SUKSES BARU POTONG KUOTA
         // =========================================================================
         const savedFeedback = await WritingModel.saveFeedback(feedbackData);
-        await WritingModel.incrementQuotaUsage(finalUserId);
+        // Skip potong kuota untuk kepala_sekolah
+        if (!isKepsek) {
+            await WritingModel.incrementQuotaUsage(finalUserId);
+        }
 
         const responseDataClean = {
             id: savedFeedback.id,
@@ -233,7 +239,8 @@ const generateWritingFeedback = async (req, res) => {
 const getAllFeedback = async (req, res) => {
     try {
         const userId = req.user.id;
-        const feedbacks = await WritingModel.getAllFeedback(userId);
+        const isKepsek = req.user.role === 'kepala_sekolah';
+        const feedbacks = await WritingModel.getAllFeedback(userId, isKepsek);
         
         const formattedFeedbacks = feedbacks.map(item => {
             const fJson = typeof item.feedback_json === 'string' ? JSON.parse(item.feedback_json) : item.feedback_json;

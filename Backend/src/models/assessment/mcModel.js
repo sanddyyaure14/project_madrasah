@@ -159,8 +159,18 @@ const MCModel = {
         }
     },
 
-    getAllAssessment: async (userId) => {
+    getAllAssessment: async (userId, isKepsek = false) => {
         try {
+            if (isKepsek) {
+                const query = `
+                    SELECT amc.*, gr.user_id, gr.status AS request_status
+                    FROM assessment_mc amc
+                    LEFT JOIN generation_requests gr ON amc.request_id = gr.id
+                    ORDER BY amc.id DESC;
+                `;
+                const result = await pool.query(query);
+                return result.rows;
+            }
             const query = `
                 SELECT amc.*, gr.user_id, gr.status AS request_status
                 FROM assessment_mc amc

@@ -39,7 +39,7 @@ const {
 // 1. GENERATE CONTEN AI (Sesuai Alur 2: Langkah 1 s.d 4)
 router.post('/generate/writing-feedback', 
     verifyToken,
-    authorizeRoles('guru'),
+    authorizeRoles('guru', 'kepala_sekolah'),
     // Middleware A: Penanganan Multipart Form-Data (Upload)
     (req, res, next) => {
         upload.single('file_pdf')(req, res, function (err) {
@@ -78,18 +78,18 @@ router.post('/generate/writing-feedback',
 // =========================================================================
 
 // 2. READ ALL (Diletakkan paling atas agar tidak bentrok dengan parameter :id)
-router.get('/feedback', verifyToken, authorizeRoles('guru', 'kepsek', 'admin'), getAllFeedback);
+router.get('/feedback', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getAllFeedback);
 
 // Rute Share Text WA 
-router.get('/feedback/share/:id', verifyToken, authorizeRoles('guru'), getFeedbackShareText);
+router.get('/feedback/share/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), getFeedbackShareText);
 
 // 3. READ BY ID (Alur 2 - Langkah 4: Tampilkan Output / Ambil data dari library)
-router.get('/feedback/:id', verifyToken, authorizeRoles('guru', 'kepsek', 'admin'), getFeedbackById);
+router.get('/feedback/:id', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getFeedbackById);
 
 // 4. UPDATE (Alur 2 - Langkah 4: Edit jika perlu & Simpan kembali ke library)
-router.put('/feedback/edit/:id', verifyToken, authorizeRoles('guru'), updateFeedback);
+router.put('/feedback/edit/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), updateFeedback);
 
 // 5. DELETE
-router.delete('/feedback/delete/:id', verifyToken, authorizeRoles('guru'), deleteFeedback);
+router.delete('/feedback/delete/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), deleteFeedback);
 
 module.exports = router;

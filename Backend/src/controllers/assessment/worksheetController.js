@@ -30,6 +30,7 @@ const generateWorksheet = async (req, res) => {
 
         // userId diambil dari JWT token (req.user disuntikkan oleh authMiddleware)
         const finalUserId = req.user.id;
+        const isKepsek = req.user.role === 'kepala_sekolah';
 
         if (!mata_pelajaran) {
             return res.status(400).json({ success: false, message: 'mata_pelajaran wajib diisi', data: null, meta: {} });
@@ -44,15 +45,17 @@ const generateWorksheet = async (req, res) => {
             return res.status(400).json({ success: false, message: 'tingkat_kelas wajib diisi', data: null, meta: {} });
         }
 
-        // 0. CEK KUOTA
-        const quotaCheck = await WorksheetModel.checkUserQuota(finalUserId);
-        if (!quotaCheck.hasQuota) {
-            return res.status(403).json({
-                success: false,
-                message: "Kuota generate bulanan Anda telah habis.",
-                data: null,
-                meta: { remaining: 0, limit: quotaCheck.limit }
-            });
+        // 0. CEK KUOTA — skip untuk kepala_sekolah (unlimited)
+        if (!isKepsek) {
+            const quotaCheck = await WorksheetModel.checkUserQuota(finalUserId);
+            if (!quotaCheck.hasQuota) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Kuota generate bulanan Anda telah habis.",
+                    data: null,
+                    meta: { remaining: 0, limit: quotaCheck.limit }
+                });
+            }
         }
 
         // Rekonstruksi prompt kasar yang digunakan sebagai log di `prompt_used`
@@ -161,8 +164,10 @@ PENTING:
         // 5. Update Status Request → COMPLETED dengan payload data JSON yang benar
         await WorksheetModel.updateRequestStatus(requestId, 'completed', aiResponse, metrics);
 
-        // 6. Update usage_quotas
-        await WorksheetModel.incrementQuotaUsage(finalUserId);
+        // 6. Update usage_quotas — skip untuk kepala_sekolah
+        if (!isKepsek) {
+            await WorksheetModel.incrementQuotaUsage(finalUserId);
+        }
 
         res.status(201).json({
             success: true,
@@ -207,7 +212,8 @@ PENTING:
 const getAllWorksheets = async (req, res) => {
     try {
         const finalUserId = req.user.id;
-        const worksheets = await WorksheetModel.getAllWorksheets(finalUserId);
+        const isKepsek = req.user.role === 'kepala_sekolah';
+        const worksheets = await WorksheetModel.getAllWorksheets(finalUserId, isKepsek);
 
         res.status(200).json({
             success: true,
@@ -228,8 +234,9 @@ const getWorksheetById = async (req, res) => {
     try {
         const { id } = req.params;
         const finalUserId = req.user.id;
+        const isKepsek = req.user.role === 'kepala_sekolah';
 
-        const worksheet = await WorksheetModel.getWorksheetById(id, finalUserId);
+        const worksheet = await WorksheetModel.getWorksheetById(id, finalUserId, isKepsek);
         if (!worksheet) {
             return res.status(404).json({ success: false, message: "Worksheet tidak ditemukan", data: null, meta: {} });
         }
@@ -248,6 +255,7 @@ const updateWorksheet = async (req, res) => {
         const { id } = req.params;
         const { judul, mata_pelajaran, topik, tipe_aktivitas, durasi_menit, worksheet_json } = req.body;
         const finalUserId = req.user.id;
+        const isKepsek = req.user.role === 'kepala_sekolah';
 
         if (!judul || !mata_pelajaran || !topik || !tipe_aktivitas || !worksheet_json) {
             return res.status(400).json({ success: false, message: "judul, mata_pelajaran, topik, tipe_aktivitas, dan worksheet_json wajib diisi", data: null, meta: {} });
@@ -255,7 +263,7 @@ const updateWorksheet = async (req, res) => {
 
         const updated = await WorksheetModel.updateWorksheet(id, finalUserId, {
             judul, mata_pelajaran, topik, tipe_aktivitas, durasi_menit, worksheet_json
-        });
+        }, isKepsek);
 
         if (!updated) {
             return res.status(404).json({ success: false, message: "Worksheet tidak ditemukan atau bukan milik kamu", data: null, meta: {} });
@@ -274,8 +282,9 @@ const deleteWorksheet = async (req, res) => {
     try {
         const { id } = req.params;
         const finalUserId = req.user.id;
+        const isKepsek = req.user.role === 'kepala_sekolah';
 
-        const deleted = await WorksheetModel.deleteWorksheet(id, finalUserId);
+        const deleted = await WorksheetModel.deleteWorksheet(id, finalUserId, isKepsek);
         if (!deleted) {
             return res.status(404).json({ success: false, message: "Worksheet tidak ditemukan atau bukan milik kamu", data: null, meta: {} });
         }
@@ -293,8 +302,9 @@ const cetakPDF = async (req, res) => {
     try {
         const { id } = req.params;
         const finalUserId = req.user.id;
+        const isKepsek = req.user.role === 'kepala_sekolah';
 
-        const worksheet = await WorksheetModel.getWorksheetById(id, finalUserId);
+        const worksheet = await WorksheetModel.getWorksheetById(id, finalUserId, isKepsek);
         if (!worksheet) {
             return res.status(404).json({ success: false, message: "Worksheet tidak ditemukan", data: null, meta: {} });
         }

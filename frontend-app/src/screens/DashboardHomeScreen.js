@@ -44,6 +44,22 @@ function StatusPill({ status }) {
 function SuperAdminHome({ navigation }) {
   const stats = SCHOOL_STATS;
   const topTeachers = [...TEACHERS].sort((a, b) => b.generates - a.generates).slice(0, 5);
+  const assessmentTools = TOOLS.filter(t => t.module === 'assessment');
+  const contentTools = TOOLS.filter(t => t.module === 'content');
+
+  function navigateToTool(t) {
+    if (t.slug === 'syllabus') {
+      navigation.navigate('SyllabusForm');
+    } else if (t.slug === 'academic-content') {
+      navigation.navigate('AcademicContentForm');
+    } else if (t.slug === 'writing-feedback') {
+      navigation.navigate('WritingFeedback');
+    } else if (t.slug === 'worksheet') {
+      navigation.navigate('Worksheet');
+    } else {
+      navigation.navigate('ToolPage', { slug: t.slug });
+    }
+  }
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
@@ -148,6 +164,30 @@ function SuperAdminHome({ navigation }) {
             <Text style={styles.teacherCount}>{t.generates}</Text>
           </View>
         ))}
+      </View>
+
+      {/* Tools AI — Kepsek juga bisa akses semua fitur */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>⚡ Alat AI (Unlimited)</Text>
+        <Text style={styles.sectionSub}>Kepala Madrasah memiliki akses unlimited ke semua fitur AI.</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.moduleLabel}>ASESMEN</Text>
+        <View style={styles.toolsGrid}>
+          {assessmentTools.map(t => (
+            <ToolCard key={t.slug} tool={t} onPress={() => navigateToTool(t)} />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.moduleLabel}>KONTEN</Text>
+        <View style={styles.toolsGrid}>
+          {contentTools.map(t => (
+            <ToolCard key={t.slug} tool={t} onPress={() => navigateToTool(t)} />
+          ))}
+        </View>
       </View>
     </ScrollView>
   );

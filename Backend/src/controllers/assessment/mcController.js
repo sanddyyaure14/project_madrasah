@@ -73,29 +73,33 @@ const generateMC = async (req, res) => {
         // LANGKAH A: Tulis Log Request Awal (Pending)
         await MCModel.createRequest(requestId, finalUserId, inputDataForLog);
 
-        // LANGKAH B: Panggil Cek Kuota (FOR UPDATE)
-        const quota = await MCModel.getUserQuota(finalUserId);
-        if (!quota) {
-            return res.status(403).json({
-                success: false,
-                message: "Akses ditolak. Profil kuota tidak ditemukan.",
-                data: null,
-                meta: {}
-            });
-        }
+        // LANGKAH B: Panggil Cek Kuota (FOR UPDATE) — skip untuk kepala_sekolah (unlimited)
+        const isKepsek = req.user.role === 'kepala_sekolah';
+        
+        if (!isKepsek) {
+            const quota = await MCModel.getUserQuota(finalUserId);
+            if (!quota) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Akses ditolak. Profil kuota tidak ditemukan.",
+                    data: null,
+                    meta: {}
+                });
+            }
 
-        if (quota.used_this_month >= quota.monthly_limit) {
-            const endTime = performance.now();
-            await MCModel.updateRequestStatus(requestId, 'failed', { 
-                error_message: `Generate gagal! Kuota bulanan habis.`,
-                processing_time_ms: Math.round(endTime - startTime)
-            });
-            return res.status(403).json({
-                success: false,
-                message: "Generate gagal! Kuota bulanan Anda telah habis.",
-                data: null,
-                meta: {}
-            });
+            if (quota.used_this_month >= quota.monthly_limit) {
+                const endTime = performance.now();
+                await MCModel.updateRequestStatus(requestId, 'failed', { 
+                    error_message: `Generate gagal! Kuota bulanan habis.`,
+                    processing_time_ms: Math.round(endTime - startTime)
+                });
+                return res.status(403).json({
+                    success: false,
+                    message: "Generate gagal! Kuota bulanan Anda telah habis.",
+                    data: null,
+                    meta: {}
+                });
+            }
         }
 
         // LANGKAH C: Naikkan status ke processing
@@ -208,12 +212,12 @@ const generateMC = async (req, res) => {
             kompetensi_dasar: kompetensi_dasar || "" 
         };
 
-        // Simpan ke DB sekaligus memotong kuota
-        const savedAssessment = await MCModel.saveAssessmentAndDeductQuota(assessmentData, finalUserId);
+        // Simpan ke DB — untuk kepsek tidak potong kuota
+        const savedAssessment = await MCModel.saveAssessmentAndDeductQuota(assessmentData, isKepsek ? null : finalUserId);
 
         const endTime = performance.now();
         const processingTimeMs = Math.round(endTime - startTime);
-        const updatedQuota = await MCModel.getUserQuota(finalUserId);
+        const updatedQuota = isKepsek ? { plan_type: 'unlimited', monthly_limit: 999, used_this_month: 0, remaining_quota: 999 } : await MCModel.getUserQuota(finalUserId);
 
         // Update status log akhir (completed)
         await MCModel.updateRequestStatus(requestId, 'completed', {
@@ -471,7 +475,8 @@ const exportToPDF = async (req, res) => {
 const getAllMC = async (req, res) => {
     try {
         const userId = req.user.id;
-        const assessments = await MCModel.getAllAssessment(userId); 
+        const isKepsek = req.user.role === 'kepala_sekolah';
+        const assessments = await MCModel.getAllAssessment(userId, isKepsek); 
 
         res.status(200).json({
             success: true,

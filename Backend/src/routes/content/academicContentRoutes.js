@@ -12,11 +12,11 @@ const {
 } = require("../../controllers/content/academicContentController");
 
 // Route spesifik WAJIB didefinisikan sebelum route param /:id
-router.post("/generate", verifyToken, authorizeRoles('guru'), generateAcademicContent);
-router.get("/", verifyToken, authorizeRoles('guru', 'kepsek', 'admin'), getAcademicContents);
-router.get("/download/:id/pdf", verifyToken, authorizeRoles('guru', 'kepsek', 'admin'), downloadAcademicContentPDF);
-router.get("/:id", verifyToken, authorizeRoles('guru', 'kepsek', 'admin'), getAcademicContentById);
-router.put("/:id", verifyToken, authorizeRoles('guru'), updateAcademicContent);
-router.delete("/:id", verifyToken, authorizeRoles('guru', 'admin'), deleteAcademicContent);
+router.post("/generate", verifyToken, authorizeRoles('guru', 'kepala_sekolah'), generateAcademicContent);
+router.get("/", verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getAcademicContents);
+router.get("/download/:id/pdf", verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), downloadAcademicContentPDF);
+router.get("/:id", verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getAcademicContentById);
+router.put("/:id", verifyToken, authorizeRoles('guru', 'kepala_sekolah'), updateAcademicContent);
+router.delete("/:id", verifyToken, authorizeRoles('guru', 'kepala_sekolah', 'admin'), deleteAcademicContent);
 
 module.exports = router;

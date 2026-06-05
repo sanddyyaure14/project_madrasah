@@ -41,10 +41,23 @@ const verifyToken = (req, res, next) => {
  * Middleware: Otorisasi berdasarkan Role
  * Gunakan setelah verifyToken
  * Contoh: authorizeRoles('guru', 'kepsek')
+ * 
+ * CATATAN: kepala_sekolah selalu diizinkan masuk ke semua endpoint
+ * karena memiliki akses unlimited sebagai superadmin madrasah.
  */
 const authorizeRoles = (...roles) => {
     return (req, res, next) => {
-        if (!req.user || !roles.includes(req.user.role)) {
+        if (!req.user) {
+            return res.status(403).json({
+                success: false,
+                message: 'Akses ditolak. User tidak ditemukan.'
+            });
+        }
+        // kepala_sekolah bypass semua role restriction — akses unlimited
+        if (req.user.role === 'kepala_sekolah') {
+            return next();
+        }
+        if (!roles.includes(req.user.role)) {
             return res.status(403).json({
                 success: false,
                 message: `Akses ditolak. Fitur ini hanya untuk: ${roles.join(', ')}.`
@@ -54,4 +67,23 @@ const authorizeRoles = (...roles) => {
     };
 };
 
-module.exports = { verifyToken, authorizeRoles };
+/**
+ * Helper: Cek apakah user adalah kepala_sekolah (unlimited access)
+ */
+const isKepsek = (req) => req.user?.role === 'kepala_sekolah';
+
+/**
+ * Helper: Return kuota unlimited untuk kepala_sekolah
+ */
+const UNLIMITED_QUOTA = {
+    plan_type: 'unlimited',
+    monthly_limit: 9999,
+    used_this_month: 0,
+    remaining_quota: 9999,
+    hasQuota: true,
+    remaining: 9999,
+    used: 0,
+    limit: 9999,
+};
+
+module.exports = { verifyToken, authorizeRoles, isKepsek, UNLIMITED_QUOTA };

@@ -11,21 +11,21 @@ const {
 } = require('../../controllers/assessment/rubicController');
 
 // POST   - Generate rubrik baru
-router.post('/generate', verifyToken, authorizeRoles('guru'), generateRubric);
+router.post('/generate', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), generateRubric);
 
 // GET    - Ambil semua rubrik
-router.get('/rubrics', verifyToken, authorizeRoles('guru', 'kepsek', 'admin'), getAllRubrics);
+router.get('/rubrics', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getAllRubrics);
 
 // GET    - Export rubrik ke Excel
-router.get('/rubrics/:id/export-excel', verifyToken, authorizeRoles('guru', 'kepsek', 'admin'), exportToExcel);
+router.get('/rubrics/:id/export-excel', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), exportToExcel);
 
 // GET    - Ambil detail rubrik berdasarkan ID
-router.get('/rubrics/:id', verifyToken, authorizeRoles('guru', 'kepsek', 'admin'), getRubricById);
+router.get('/rubrics/:id', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getRubricById);
 
 // PUT    - Update rubrik berdasarkan ID
-router.put('/rubrics/:id', verifyToken, authorizeRoles('guru'), updateRubric);
+router.put('/rubrics/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), updateRubric);
 
 // DELETE - Hapus rubrik berdasarkan ID
-router.delete('/rubrics/:id', verifyToken, authorizeRoles('guru'), deleteRubric);
+router.delete('/rubrics/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), deleteRubric);
 
 module.exports = router;

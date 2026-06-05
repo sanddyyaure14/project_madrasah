@@ -70,6 +70,7 @@ const generateSyllabus = async (req, res) => {
 
         // userId diambil dari JWT token
         const finalUserId = req.user.id;
+        const isKepsek = req.user.role === 'kepala_sekolah';
         const mappedSemester = mapSemester(semester);
         const mappedKurikulum = mapKurikulum(kurikulum);
         const mappedJenjang = mapJenjang(jenjang);
@@ -88,29 +89,17 @@ const generateSyllabus = async (req, res) => {
             llm_model_used: selectedModel
         });
 
-        // LANGKAH B: Panggil Cek Kuota (FOR UPDATE)
-        const quota = await SyllabusModel.getUserQuota(finalUserId);
-        if (!quota) {
-            return res.status(403).json({
-                success: false,
-                message: "Akses ditolak. Profil kuota tidak ditemukan.",
-                data: null,
-                meta: {}
-            });
-        }
-
-        if (quota.used_this_month >= quota.monthly_limit) {
-            const endTime = performance.now();
-            await SyllabusModel.updateRequestStatus(requestId, 'failed', { 
-                error_message: `Generate gagal! Kuota bulanan habis.`,
-                processing_time_ms: Math.round(endTime - startTime)
-            });
-            return res.status(403).json({
-                success: false,
-                message: "Generate gagal! Kuota bulanan Anda telah habis.",
-                data: null,
-                meta: {}
-            });
+        // LANGKAH B: Panggil Cek Kuota — skip untuk kepala_sekolah (unlimited)
+        if (!isKepsek) {
+            const quota = await SyllabusModel.getUserQuota(finalUserId);
+            if (!quota) {
+                return res.status(403).json({ success: false, message: "Akses ditolak. Profil kuota tidak ditemukan.", data: null, meta: {} });
+            }
+            if (quota.used_this_month >= quota.monthly_limit) {
+                const endTime = performance.now();
+                await SyllabusModel.updateRequestStatus(requestId, 'failed', { error_message: `Generate gagal! Kuota bulanan habis.`, processing_time_ms: Math.round(endTime - startTime) });
+                return res.status(403).json({ success: false, message: "Generate gagal! Kuota bulanan Anda telah habis.", data: null, meta: {} });
+            }
         }
 
         // LANGKAH C: Naikkan status ke processing
@@ -173,7 +162,7 @@ Sertakan minimal 4 minggu kegiatan pembelajaran.`;
             silabus_json: aiResponseJSON
         };
 
-        const savedSyllabus = await SyllabusModel.saveSyllabusAndDeductQuota(syllabusData, finalUserId);
+        const savedSyllabus = await SyllabusModel.saveSyllabusAndDeductQuota(syllabusData, isKepsek ? null : finalUserId);
 
         // 4. Update Status Request
         const endTime = performance.now();
@@ -192,7 +181,9 @@ Sertakan minimal 4 minggu kegiatan pembelajaran.`;
             processing_time_ms: processingTimeMs
         });
 
-        const updatedQuota = await SyllabusModel.getUserQuota(finalUserId);
+        const updatedQuota = isKepsek
+            ? { plan_type: 'unlimited', monthly_limit: 9999, used_this_month: 0 }
+            : await SyllabusModel.getUserQuota(finalUserId);
 
         res.status(201).json({
             success: true,
