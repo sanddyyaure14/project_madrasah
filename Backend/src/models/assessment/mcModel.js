@@ -131,16 +131,20 @@ const MCModel = {
         }
     },
 
-    // --- 5. FUNGSI CRUD ASLI KAMU (100% UTAL-UTIL TIDAK DIGANGGU) ---
-    getAssessmentById: async (id) => {
+    getAssessmentById: async (id, userId = null) => {
         try {
-            const query = `
-                SELECT id, request_id, mata_pelajaran, tingkat_kelas, topik, 
-                       jumlah_soal, tingkat_kesulitan, include_kunci, questions_json, kompetensi_dasar
-                FROM assessment_mc 
-                WHERE id = $1;
-            `;
-            const result = await pool.query(query, [id]);
+            const query = userId
+                ? `SELECT amc.id, amc.request_id, amc.mata_pelajaran, amc.tingkat_kelas, amc.topik, 
+                          amc.jumlah_soal, amc.tingkat_kesulitan, amc.include_kunci, amc.questions_json, amc.kompetensi_dasar
+                   FROM assessment_mc amc
+                   JOIN generation_requests gr ON amc.request_id = gr.id
+                   WHERE amc.id = $1 AND gr.user_id = $2;`
+                : `SELECT id, request_id, mata_pelajaran, tingkat_kelas, topik, 
+                          jumlah_soal, tingkat_kesulitan, include_kunci, questions_json, kompetensi_dasar
+                   FROM assessment_mc 
+                   WHERE id = $1;`;
+            const values = userId ? [id, userId] : [id];
+            const result = await pool.query(query, values);
             return result.rows[0] || null; 
         } catch (error) {
             console.error("Error di MCModel (getAssessmentById):", error);
@@ -148,11 +152,15 @@ const MCModel = {
         }
     },
 
-    deleteAssessment: async (id) => {
+    deleteAssessment: async (id, userId) => {
         try {
-            const query = `DELETE FROM assessment_mc WHERE id = $1;`;
-            const result = await pool.query(query, [id]);
-            return result;
+            const existing = await MCModel.getAssessmentById(id, userId);
+            if (!existing) return null;
+
+            const requestId = existing.request_id;
+            await pool.query(`DELETE FROM assessment_mc WHERE id = $1;`, [id]);
+            await pool.query(`DELETE FROM generation_requests WHERE id = $1;`, [requestId]);
+            return existing;
         } catch (error) {
             console.error("Error di MCModel (deleteAssessment):", error);
             throw error;

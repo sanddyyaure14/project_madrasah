@@ -118,41 +118,56 @@ const AcademicContentModel = {
     },
 
     // 4. Ambil semua data konten akademik (GET)
-    getAllAcademicContents: async () => {
-        const query = `SELECT * FROM academic_contents ORDER BY id DESC;`;
-        const result = await pool.query(query);
+    getAllAcademicContents: async (userId) => {
+        const query = `
+            SELECT ac.* 
+            FROM academic_contents ac
+            JOIN generation_requests gr ON ac.request_id = gr.id
+            WHERE gr.user_id = $1
+            ORDER BY ac.id DESC;
+        `;
+        const result = await pool.query(query, [userId]);
         return result.rows;
     },
 
     // 5. Ambil data konten akademik berdasarkan ID (GET BY ID)
-    getAcademicContentById: async (id) => {
-        const query = `SELECT * FROM academic_contents WHERE id = $1;`;
-        const result = await pool.query(query, [id]);
+    getAcademicContentById: async (id, userId) => {
+        const query = `
+            SELECT ac.* 
+            FROM academic_contents ac
+            JOIN generation_requests gr ON ac.request_id = gr.id
+            WHERE ac.id = $1 AND gr.user_id = $2;
+        `;
+        const result = await pool.query(query, [id, userId]);
         return result.rows[0];
     },
 
     // 6. Update konten akademik berdasarkan ID (PUT)
-    updateAcademicContent: async (id, data) => {
+    updateAcademicContent: async (id, userId, data) => {
         const {
             jenis_konten, topik, mata_pelajaran,
             tingkat_kelas, panjang_konten, content_json
         } = data;
 
         const query = `
-            UPDATE academic_contents 
+            UPDATE academic_contents ac
             SET 
-                jenis_konten    = COALESCE($2, jenis_konten),
-                topik           = COALESCE($3, topik),
-                mata_pelajaran  = COALESCE($4, mata_pelajaran),
-                tingkat_kelas   = COALESCE($5, tingkat_kelas),
-                panjang_konten  = COALESCE($6, panjang_konten),
-                content_json    = COALESCE($7, content_json)
-            WHERE id = $1
-            RETURNING *;
+                jenis_konten    = COALESCE($3, ac.jenis_konten),
+                topik           = COALESCE($4, ac.topik),
+                mata_pelajaran  = COALESCE($5, ac.mata_pelajaran),
+                tingkat_kelas   = COALESCE($6, ac.tingkat_kelas),
+                panjang_konten  = COALESCE($7, ac.panjang_konten),
+                content_json    = COALESCE($8, ac.content_json)
+            FROM generation_requests gr
+            WHERE ac.request_id = gr.id
+              AND ac.id = $1
+              AND gr.user_id = $2
+            RETURNING ac.*;
         `;
 
         const values = [
             id,
+            userId,
             jenis_konten || null,
             topik || null,
             mata_pelajaran || null,
@@ -166,11 +181,19 @@ const AcademicContentModel = {
     },
 
     // 7. Hapus konten akademik berdasarkan ID (DELETE)
-    deleteAcademicContent: async (id) => {
-        const existing = await pool.query(`SELECT id FROM academic_contents WHERE id = $1`, [id]);
+    deleteAcademicContent: async (id, userId) => {
+        const existingQuery = `
+            SELECT ac.id, ac.request_id 
+            FROM academic_contents ac
+            JOIN generation_requests gr ON ac.request_id = gr.id
+            WHERE ac.id = $1 AND gr.user_id = $2;
+        `;
+        const existing = await pool.query(existingQuery, [id, userId]);
         if (!existing.rows[0]) return null;
 
+        const requestId = existing.rows[0].request_id;
         await pool.query(`DELETE FROM academic_contents WHERE id = $1`, [id]);
+        await pool.query(`DELETE FROM generation_requests WHERE id = $1`, [requestId]);
         return existing.rows[0];
     }
 };

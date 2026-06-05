@@ -36,55 +36,68 @@ const GuruModel = {
     },
 
     /**
-     * Update profil guru (hanya field yang boleh diubah sendiri)
-     * Field sensitif seperti email/role tidak bisa diubah dari sini
+     * Update profil guru — UPSERT manual (check exist → insert/update)
      */
     updateProfile: async (userId, updateData) => {
         const client = await db.connect();
         try {
             await client.query('BEGIN');
 
-            // Update nama_lengkap dan no_hp di tabel users
-            if (updateData.nama_lengkap || updateData.no_hp !== undefined) {
-                const userQuery = `
-                    UPDATE users 
-                    SET nama_lengkap = COALESCE($2, nama_lengkap)
-                    WHERE id = $1
-                    RETURNING id, nama_lengkap, email;
-                `;
-                await client.query(userQuery, [userId, updateData.nama_lengkap || null]);
+            // 1. Update nama_lengkap di tabel users
+            if (updateData.nama_lengkap) {
+                await client.query(
+                    'UPDATE users SET nama_lengkap = $2 WHERE id = $1',
+                    [userId, updateData.nama_lengkap]
+                );
             }
 
-            // Update data profil di tabel user_profiles
-            const profileQuery = `
-                UPDATE user_profiles
-                SET 
-                    nip         = COALESCE($2, nip),
-                    mata_pelajaran = COALESCE($3, mata_pelajaran),
-                    jenjang     = COALESCE($4, jenjang),
-                    kurikulum   = COALESCE($5, kurikulum),
-                    no_hp       = COALESCE($6, no_hp)
-                WHERE user_id = $1
-                RETURNING *;
-            `;
-            await client.query(profileQuery, [
-                userId,
-                updateData.nip || null,
-                updateData.mata_pelajaran
-                    ? (Array.isArray(updateData.mata_pelajaran)
-                        ? updateData.mata_pelajaran
-                        : [updateData.mata_pelajaran])
-                    : null,
-                updateData.jenjang || null,
-                updateData.kurikulum || null,
-                updateData.no_hp || null
-            ]);
+            const mapelArr = updateData.mata_pelajaran
+                ? (Array.isArray(updateData.mata_pelajaran)
+                    ? updateData.mata_pelajaran
+                    : [updateData.mata_pelajaran])
+                : null;
+
+            // 2. Cek apakah row user_profiles sudah ada
+            const existing = await client.query(
+                'SELECT id FROM user_profiles WHERE user_id = $1',
+                [userId]
+            );
+
+            if (existing.rows.length === 0) {
+                // INSERT baru
+                await client.query(`
+                    INSERT INTO user_profiles (id, user_id, nip, mata_pelajaran, jenjang, kurikulum, no_hp)
+                    VALUES (gen_random_uuid(), $1, $2, $3, $4::school_level, $5::curriculum_type, $6)
+                `, [
+                    userId,
+                    updateData.nip || null,
+                    mapelArr,
+                    updateData.jenjang || null,
+                    updateData.kurikulum || null,
+                    updateData.no_hp || null,
+                ]);
+            } else {
+                // UPDATE yang sudah ada
+                await client.query(`
+                    UPDATE user_profiles SET
+                        nip            = COALESCE($2, nip),
+                        mata_pelajaran = COALESCE($3, mata_pelajaran),
+                        jenjang        = COALESCE($4::school_level, jenjang),
+                        kurikulum      = COALESCE($5::curriculum_type, kurikulum),
+                        no_hp          = COALESCE($6, no_hp)
+                    WHERE user_id = $1
+                `, [
+                    userId,
+                    updateData.nip || null,
+                    mapelArr,
+                    updateData.jenjang || null,
+                    updateData.kurikulum || null,
+                    updateData.no_hp || null,
+                ]);
+            }
 
             await client.query('COMMIT');
-
-            // Kembalikan profil terbaru setelah update
-            const updatedProfile = await GuruModel.getProfileByUserId(userId);
-            return updatedProfile;
+            return await GuruModel.getProfileByUserId(userId);
         } catch (error) {
             await client.query('ROLLBACK');
             throw error;
@@ -133,8 +146,19 @@ const GuruModel = {
     countDocumentHistory: async (userId) => {
         const query = `
             SELECT COUNT(*) AS total
-            FROM generation_requests
-            WHERE user_id = $1;
+            FROM generation_requests gr
+            WHERE gr.user_id = $1
+              AND gr.status = 'completed'
+              AND (
+                EXISTS (SELECT 1 FROM assessment_mc WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM writing_feedback WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM assessment_rubric WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM worksheets WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM syllabi WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM unit_plans WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM presentations WHERE request_id = gr.id) OR
+                EXISTS (SELECT 1 FROM academic_contents WHERE request_id = gr.id)
+              );
         `;
         const { rows } = await db.query(query, [userId]);
         return parseInt(rows[0].total, 10);
@@ -150,7 +174,7 @@ const GuruModel = {
                 gr.*,
                 -- Coba join ke semua tabel konten/assessment berdasarkan feature_type
                 amc.questions_json      AS mc_data,
-                aw.essay_json           AS writing_data,
+                aw.feedback_json        AS writing_data,
                 ar.rubric_json          AS rubric_data,
                 ws.worksheet_json       AS worksheet_data,
                 sl.silabus_json         AS syllabus_data,
@@ -159,7 +183,7 @@ const GuruModel = {
                 ac.content_json         AS academic_content_data
             FROM generation_requests gr
             LEFT JOIN assessment_mc amc       ON amc.request_id = gr.id
-            LEFT JOIN assessment_writing aw   ON aw.request_id  = gr.id
+            LEFT JOIN writing_feedback aw     ON aw.request_id  = gr.id
             LEFT JOIN assessment_rubric ar    ON ar.request_id  = gr.id
             LEFT JOIN worksheets ws           ON ws.request_id  = gr.id
             LEFT JOIN syllabi sl              ON sl.request_id  = gr.id
@@ -196,6 +220,27 @@ const GuruModel = {
         `;
         const { rows } = await db.query(query, [userId, featureType, limit, offset]);
         return rows;
+    },
+
+    /**
+     * Ambil password hash untuk verifikasi ubah password
+     */
+    getUserPasswordHash: async (userId) => {
+        const { rows } = await db.query(
+            'SELECT id, password_hash FROM users WHERE id = $1',
+            [userId]
+        );
+        return rows[0] || null;
+    },
+
+    /**
+     * Update password hash user
+     */
+    updatePassword: async (userId, newPasswordHash) => {
+        await db.query(
+            'UPDATE users SET password_hash = $2 WHERE id = $1',
+            [userId, newPasswordHash]
+        );
     },
 
     // =========================================================================

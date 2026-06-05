@@ -4,6 +4,7 @@ const Groq = require('groq-sdk');
 const path = require('path');
 const fs = require('fs');
 const { generateAcademicContentPDF } = require('../../utils/pdfGenerator');
+const { generateAcademicContentDocx } = require('../../utils/docxGenerator');
 
 // Inisialisasi Groq menggunakan API Key
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -100,26 +101,25 @@ const generateAcademicContent = async (req, res) => {
         // LANGKAH C: Naikkan status ke processing
         await AcademicContentModel.updateRequestStatus(requestId, 'processing');
 
-        // 2. Panggil Groq AI Llama 3.3
-        const prompt = `Anda adalah asisten pembuat materi akademik yang ahli. Buatlah konten dengan spesifikasi berikut:
-Jenis Konten: ${jenis_konten}
-Topik: "${topik}"
-Mata Pelajaran: ${mapel || 'Umum'}
-Target Kelas: ${kelas || 'Umum'}
-Panjang Konten: ${panjang || 'sedang'}
-Bahasa: ${bahasa || 'Indonesia'}
-Gaya Bahasa: ${gaya_bahasa || 'Akademik dan Informatif'}
+        // 2. Bangun prompt spesifik per jenis_konten
+        const baseInfo = `Mata Pelajaran: ${mapel || 'Umum'}\nTarget Kelas: ${kelas || 'Umum'}\nPanjang Konten: ${mappedPanjang}\nBahasa: ${bahasa || 'Indonesia'}`;
 
-Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut:
-{
-    "judul": "Judul Konten",
-    "konten": "Isi materi akademik secara detail sesuai panjang konten yang diminta. Boleh mengandung format teks jika diperlukan.",
-    "ringkasan": "Ringkasan singkat dari konten tersebut",
-    "kata_kunci": ["kata1", "kata2", "kata3"],
-    "referensi": ["referensi 1", "referensi 2"]
-}`;
+        let prompt = '';
+        if (mappedJenis === 'contoh_soal') {
+            const jumlahSoal = mappedPanjang === 'singkat' ? 5 : mappedPanjang === 'panjang' ? 15 : 10;
+            prompt = `Anda adalah guru madrasah ahli pembuat soal. Buatlah kumpulan ${jumlahSoal} CONTOH SOAL beserta JAWABAN dan PEMBAHASAN untuk:\nTopik: "${topik}"\n${baseInfo}\n\nBerikan respons dalam format JSON murni:\n{\n    "judul": "Contoh Soal: ${topik}",\n    "ringkasan": "Deskripsi singkat set soal ini",\n    "soal": [\n        {\n            "nomor": 1,\n            "pertanyaan": "Teks pertanyaan soal",\n            "pilihan": {"A": "...", "B": "...", "C": "...", "D": "..."},\n            "jawaban": "A",\n            "pembahasan": "Penjelasan mengapa jawaban ini benar"\n        }\n    ],\n    "kata_kunci": ["kata1", "kata2"],\n    "referensi": ["referensi 1"]\n}`;
+        } else if (mappedJenis === 'kamus') {
+            const jumlahIstilah = mappedPanjang === 'singkat' ? 8 : mappedPanjang === 'panjang' ? 25 : 15;
+            prompt = `Anda adalah guru madrasah ahli membuat glosarium. Buatlah GLOSARIUM berisi ${jumlahIstilah} ISTILAH PENTING dari:\nTopik: "${topik}"\n${baseInfo}\n\nUrutkan istilah secara alfabetis.\n\nBerikan respons dalam format JSON murni:\n{\n    "judul": "Glosarium: ${topik}",\n    "ringkasan": "Deskripsi singkat glosarium ini",\n    "istilah": [\n        {\n            "kata": "Nama istilah",\n            "definisi": "Pengertian atau definisi lengkap istilah tersebut",\n            "contoh": "Contoh penggunaan dalam kalimat (kosongkan jika tidak relevan)"\n        }\n    ],\n    "kata_kunci": ["kata1", "kata2"],\n    "referensi": ["referensi 1"]\n}`;
+        } else if (mappedJenis === 'ringkasan') {
+            const jumlahPoin = mappedPanjang === 'singkat' ? 3 : mappedPanjang === 'panjang' ? 8 : 5;
+            prompt = `Anda adalah guru madrasah ahli membuat rangkuman. Buatlah RANGKUMAN MATERI terstruktur dengan ${jumlahPoin} poin utama untuk:\nTopik: "${topik}"\n${baseInfo}\n\nBerikan respons dalam format JSON murni:\n{\n    "judul": "Rangkuman: ${topik}",\n    "ringkasan": "Ringkasan keseluruhan dalam 2-3 kalimat",\n    "poin_penting": [\n        {\n            "subjudul": "Nama sub-topik atau poin utama",\n            "isi": "Penjelasan detail poin ini dalam 2-4 kalimat"\n        }\n    ],\n    "kesimpulan": "Kesimpulan akhir dari materi",\n    "kata_kunci": ["kata1", "kata2", "kata3"],\n    "referensi": ["referensi 1"]\n}`;
+        } else {
+            // penjelasan (default)
+            prompt = `Anda adalah guru madrasah ahli membuat penjelasan konsep. Buatlah PENJELASAN KONSEP yang mendalam untuk:\nTopik: "${topik}"\n${baseInfo}\n\nBerikan respons dalam format JSON murni:\n{\n    "judul": "Penjelasan: ${topik}",\n    "ringkasan": "Ringkasan singkat konsep dalam 1-2 kalimat",\n    "pendahuluan": "Paragraf pembuka yang memperkenalkan konsep",\n    "konten": "Penjelasan konsep secara lengkap dan mendalam. Gunakan \\\\n\\\\n untuk memisahkan antar paragraf.",\n    "contoh_penerapan": "Contoh nyata atau ilustrasi konkret dari konsep ini",\n    "kata_kunci": ["kata1", "kata2", "kata3"],\n    "referensi": ["referensi 1"]\n}`;
+        }
 
-        const systemPrompt = "Anda adalah asisten pembuat materi akademik yang ahli. Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun.";
+        const systemPrompt = "Anda adalah asisten pembuat materi akademik madrasah yang ahli. Anda WAJIB memberikan respon dalam format JSON murni tanpa teks apa pun di luar JSON.";
 
         const chatCompletion = await groq.chat.completions.create({
             messages: [
@@ -212,7 +212,7 @@ Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut:
 
 const getAcademicContents = async (req, res) => {
     try {
-        const data = await AcademicContentModel.getAllAcademicContents();
+        const data = await AcademicContentModel.getAllAcademicContents(req.user.id);
         res.status(200).json({
             success: true,
             message: "Berhasil mengambil data konten akademik.",
@@ -233,7 +233,7 @@ const downloadAcademicContentPDF = async (req, res) => {
         const { id } = req.params;
         
         // Ambil data dari database
-        const contentData = await AcademicContentModel.getAcademicContentById(id);
+        const contentData = await AcademicContentModel.getAcademicContentById(id, req.user.id);
         
         if (!contentData) {
             return res.status(404).json({
@@ -276,7 +276,7 @@ const downloadAcademicContentPDF = async (req, res) => {
 const getAcademicContentById = async (req, res) => {
     try {
         const { id } = req.params;
-        const data = await AcademicContentModel.getAcademicContentById(id);
+        const data = await AcademicContentModel.getAcademicContentById(id, req.user.id);
 
         if (!data) {
             return res.status(404).json({
@@ -307,7 +307,7 @@ const updateAcademicContent = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const existing = await AcademicContentModel.getAcademicContentById(id);
+        const existing = await AcademicContentModel.getAcademicContentById(id, req.user.id);
         if (!existing) {
             return res.status(404).json({
                 success: false,
@@ -317,7 +317,7 @@ const updateAcademicContent = async (req, res) => {
             });
         }
 
-        const updated = await AcademicContentModel.updateAcademicContent(id, req.body);
+        const updated = await AcademicContentModel.updateAcademicContent(id, req.user.id, req.body);
 
         res.status(200).json({
             success: true,
@@ -339,7 +339,7 @@ const deleteAcademicContent = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const deleted = await AcademicContentModel.deleteAcademicContent(id);
+        const deleted = await AcademicContentModel.deleteAcademicContent(id, req.user.id);
         if (!deleted) {
             return res.status(404).json({
                 success: false,
@@ -365,4 +365,51 @@ const deleteAcademicContent = async (req, res) => {
     }
 };
 
-module.exports = { generateAcademicContent, getAcademicContents, getAcademicContentById, updateAcademicContent, deleteAcademicContent, downloadAcademicContentPDF };
+const downloadAcademicContentDocx = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Ambil data dari database
+        const contentData = await AcademicContentModel.getAcademicContentById(id, req.user.id);
+
+        if (!contentData) {
+            return res.status(404).json({
+                success: false,
+                message: "Konten akademik tidak ditemukan"
+            });
+        }
+
+        // Buat folder temp jika belum ada
+        const tempDir = path.join(__dirname, '../../../temp');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        // Generate DOCX
+        const fileName = `academic_content_${id}.docx`;
+        const filePath = path.join(tempDir, fileName);
+
+        await generateAcademicContentDocx(contentData, filePath);
+
+        // Download file
+        res.download(filePath, fileName, (err) => {
+            if (err) {
+                console.error("Error downloading file:", err);
+            }
+            // Hapus file setelah download
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        });
+
+    } catch (error) {
+        console.error("Error generating DOCX:", error);
+        res.status(500).json({
+            success: false,
+            message: "Gagal generate DOCX",
+            error: error.message
+        });
+    }
+};
+
+module.exports = { generateAcademicContent, getAcademicContents, getAcademicContentById, updateAcademicContent, deleteAcademicContent, downloadAcademicContentPDF, downloadAcademicContentDocx };

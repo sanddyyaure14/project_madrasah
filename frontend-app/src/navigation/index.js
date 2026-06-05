@@ -22,8 +22,16 @@ import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import KepsekEditProfileScreen from '../screens/KepsekEditProfileScreen';
 import { useNotifications } from '../lib/notifications';
-import RubricDetailScreen from '../screens/RubricDetailScreen';
 import MCDetailScreen from '../screens/MCDetailScreen';
+import RubricDetailScreen from '../screens/RubricDetailScreen';
+import SyllabusFormScreen from '../screens/SyllabusFormScreen';
+import SyllabusPreviewScreen from '../screens/SyllabusPreviewScreen';
+import AcademicContentFormScreen from '../screens/AcademicContentFormScreen';
+import AcademicContentPreviewScreen from '../screens/AcademicContentPreviewScreen';
+import SyllabusDetailScreen from '../screens/SyllabusDetailScreen';
+import AcademicContentDetailScreen from '../screens/AcademicContentDetailScreen';
+import SyllabusEditScreen from '../screens/SyllabusEditScreen';
+import AcademicContentEditScreen from '../screens/AcademicContentEditScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -54,6 +62,7 @@ function SuperAdminTabs() {
 }
 
 function GuruTabs() {
+  const { unreadCount } = useNotifications();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -71,7 +80,15 @@ function GuruTabs() {
     >
       <Tab.Screen name="Dashboard" component={DashboardStack} options={{ headerShown: false }} />
       <Tab.Screen name="Dokumen" component={DocsStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Profil" component={ProfileScreen} options={{ title: 'Profil Saya' }} />
+      <Tab.Screen
+        name="Profil"
+        component={ProfilStack}
+        options={{
+          headerShown: false,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#dc2626', fontSize: 10 },
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -85,36 +102,15 @@ function DocsStack() {
         headerTintColor: C.primary,
       }}
     >
-      <Stack.Screen
-        name="MyDocsList"
-        component={MyDocsScreen}
-        options={{ title: 'Dokumen Saya' }}
-      />
-      <Stack.Screen
-        name="FeedbackDetail"
-        component={FeedbackDetailScreen}
-        options={{ title: 'Detail Feedback' }}
-      />
-      <Stack.Screen
-        name="WorksheetDetail"
-        component={WorksheetDetailScreen}
-        options={{ title: 'Detail Worksheet' }}
-      />
-      <Stack.Screen
-        name="MCDetail"
-        component={MCDetailScreen}
-        options={{ title: 'Detail Soal PG' }}
-      />
-      <Stack.Screen
-        name="RubricDetail"
-        component={RubricDetailScreen}
-        options={{ title: 'Detail Rubrik' }}
-      />
-      <Stack.Screen
-        name="SyllabusDetail"
-        component={SyllabusDetailScreen}
-        options={{ title: 'Detail Silabus' }}
-      />
+      <Stack.Screen name="MyDocsList" component={MyDocsScreen} options={{ title: 'Dokumen Saya' }} />
+      <Stack.Screen name="FeedbackDetail" component={FeedbackDetailScreen} options={{ title: 'Detail Feedback' }} />
+      <Stack.Screen name="WorksheetDetail" component={WorksheetDetailScreen} options={{ title: 'Detail Worksheet' }} />
+      <Stack.Screen name="MCDetail" component={MCDetailScreen} options={{ title: 'Detail Soal PG' }} />
+      <Stack.Screen name="RubricDetail" component={RubricDetailScreen} options={{ title: 'Detail Rubrik' }} />
+      <Stack.Screen name="SyllabusDetail" component={SyllabusDetailScreen} options={{ title: 'Detail Silabus' }} />
+      <Stack.Screen name="SyllabusEdit" component={SyllabusEditScreen} options={{ title: 'Edit Silabus' }} />
+      <Stack.Screen name="AcademicContentDetail" component={AcademicContentDetailScreen} options={{ title: 'Detail Konten Akademik' }} />
+      <Stack.Screen name="AcademicContentEdit" component={AcademicContentEditScreen} options={{ title: 'Edit Konten Akademik' }} />
     </Stack.Navigator>
   );
 }
@@ -136,6 +132,23 @@ function KepsekProfilStack() {
   );
 }
 
+function ProfilStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: C.card },
+        headerTitleStyle: { fontSize: 17, fontWeight: '700', color: C.ink },
+        headerTintColor: C.primary,
+      }}
+    >
+      <Stack.Screen name="ProfileHome" component={ProfileScreen} options={{ title: 'Profil Saya' }} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profil' }} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Ubah Password' }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifikasi' }} />
+    </Stack.Navigator>
+  );
+}
+
 function DashboardStack() {
   return (
     <Stack.Navigator
@@ -145,11 +158,7 @@ function DashboardStack() {
         headerTintColor: C.primary,
       }}
     >
-      <Stack.Screen
-        name="DashboardHome"
-        component={DashboardHomeScreen}
-        options={{ title: 'MadrasahAI' }}
-      />
+      <Stack.Screen name="DashboardHome" component={DashboardHomeScreen} options={{ title: 'MadrasahAI' }} />
       <Stack.Screen
         name="ToolPage"
         component={ToolPageScreen}
@@ -157,66 +166,20 @@ function DashboardStack() {
           title: route.params?.slug?.replace(/-/g, ' ') ?? 'Tool',
         })}
       />
-      <Stack.Screen
-        name="WritingFeedback"
-        component={WritingFeedbackScreen}
-        options={{ title: 'Writing Feedback' }}
-      />
-      <Stack.Screen
-        name="FeedbackDetail"
-        component={FeedbackDetailScreen}
-        options={{ title: 'Detail Feedback' }}
-      />
-      <Stack.Screen
-        name="Worksheet"
-        component={WorksheetScreen}
-        options={{ title: 'Worksheet Generator' }}
-      />
-      <Stack.Screen
-        name="WorksheetDetail"
-        component={WorksheetDetailScreen}
-        options={{ title: 'Detail Worksheet' }}
-      />
-      <Stack.Screen
-        name="MCDetail"
-        component={MCDetailScreen}
-        options={{ title: 'Detail Soal PG' }}
-      />
-      <Stack.Screen
-        name="RubricDetail"
-        component={RubricDetailScreen}
-        options={{ title: 'Detail Rubrik' }}
-      />
-      <Stack.Screen
-        name="SyllabusDetail"
-        component={SyllabusDetailScreen}
-        options={{ title: 'Detail Silabus' }}
-      />
-      <Stack.Screen
-        name="AcademicContentDetail"
-        component={AcademicContentDetailScreen}
-        options={{ title: 'Detail Konten Akademik' }}
-      />
-      <Stack.Screen
-        name="SyllabusForm"
-        component={SyllabusFormScreen}
-        options={{ title: 'Buat Silabus' }}
-      />
-      <Stack.Screen
-        name="SyllabusPreview"
-        component={SyllabusPreviewScreen}
-        options={{ title: 'Preview Silabus' }}
-      />
-      <Stack.Screen
-        name="AcademicContentForm"
-        component={AcademicContentFormScreen}
-        options={{ title: 'Buat Konten Akademik' }}
-      />
-      <Stack.Screen
-        name="AcademicContentPreview"
-        component={AcademicContentPreviewScreen}
-        options={{ title: 'Preview Konten Akademik' }}
-      />
+      <Stack.Screen name="WritingFeedback" component={WritingFeedbackScreen} options={{ title: 'Writing Feedback' }} />
+      <Stack.Screen name="FeedbackDetail" component={FeedbackDetailScreen} options={{ title: 'Detail Feedback' }} />
+      <Stack.Screen name="Worksheet" component={WorksheetScreen} options={{ title: 'Worksheet Generator' }} />
+      <Stack.Screen name="WorksheetDetail" component={WorksheetDetailScreen} options={{ title: 'Detail Worksheet' }} />
+      <Stack.Screen name="MCDetail" component={MCDetailScreen} options={{ title: 'Detail Soal PG' }} />
+      <Stack.Screen name="RubricDetail" component={RubricDetailScreen} options={{ title: 'Detail Rubrik' }} />
+      <Stack.Screen name="SyllabusDetail" component={SyllabusDetailScreen} options={{ title: 'Detail Silabus' }} />
+      <Stack.Screen name="SyllabusEdit" component={SyllabusEditScreen} options={{ title: 'Edit Silabus' }} />
+      <Stack.Screen name="AcademicContentDetail" component={AcademicContentDetailScreen} options={{ title: 'Detail Konten Akademik' }} />
+      <Stack.Screen name="AcademicContentEdit" component={AcademicContentEditScreen} options={{ title: 'Edit Konten Akademik' }} />
+      <Stack.Screen name="SyllabusForm" component={SyllabusFormScreen} options={{ title: 'Buat Silabus' }} />
+      <Stack.Screen name="SyllabusPreview" component={SyllabusPreviewScreen} options={{ title: 'Preview Silabus' }} />
+      <Stack.Screen name="AcademicContentForm" component={AcademicContentFormScreen} options={{ title: 'Buat Konten Akademik' }} />
+      <Stack.Screen name="AcademicContentPreview" component={AcademicContentPreviewScreen} options={{ title: 'Preview Konten Akademik' }} />
       <Stack.Screen name="Teachers" component={TeachersScreen} options={{ title: 'Daftar Guru' }} />
       <Stack.Screen name="Approvals" component={ApprovalsScreen} options={{ title: 'Persetujuan' }} />
     </Stack.Navigator>

@@ -159,7 +159,7 @@ Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut:
 
 const getPresentations = async (req, res) => {
     try {
-        const data = await PresentationModel.getAllPresentations();
+        const data = await PresentationModel.getAllPresentations(req.user.id);
         res.status(200).json({
             success: true,
             message: "Berhasil mengambil data presentasi.",
@@ -180,7 +180,7 @@ const downloadPresentationPPT = async (req, res) => {
         const { id } = req.params;
         
         // Ambil data dari database
-        const presentationData = await PresentationModel.getPresentationById(id);
+        const presentationData = await PresentationModel.getPresentationById(id, req.user.id);
         
         if (!presentationData) {
             return res.status(404).json({
@@ -223,7 +223,7 @@ const downloadPresentationPPT = async (req, res) => {
 const getPresentationById = async (req, res) => {
     try {
         const { id } = req.params;
-        const data = await PresentationModel.getPresentationById(id);
+        const data = await PresentationModel.getPresentationById(id, req.user.id);
 
         if (!data) {
             return res.status(404).json({
@@ -254,7 +254,7 @@ const updatePresentation = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const existing = await PresentationModel.getPresentationById(id);
+        const existing = await PresentationModel.getPresentationById(id, req.user.id);
         if (!existing) {
             return res.status(404).json({
                 success: false,
@@ -264,7 +264,7 @@ const updatePresentation = async (req, res) => {
             });
         }
 
-        const updated = await PresentationModel.updatePresentation(id, req.body);
+        const updated = await PresentationModel.updatePresentation(id, req.user.id, req.body);
 
         res.status(200).json({
             success: true,
@@ -286,7 +286,7 @@ const deletePresentation = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const deleted = await PresentationModel.deletePresentation(id);
+        const deleted = await PresentationModel.deletePresentation(id, req.user.id);
         if (!deleted) {
             return res.status(404).json({
                 success: false,

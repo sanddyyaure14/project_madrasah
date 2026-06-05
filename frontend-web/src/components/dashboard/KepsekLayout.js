@@ -41,9 +41,9 @@ export default function KepsekLayout({ children }) {
 
   const menuKonten = [
     { label: "Presentation Generator", href: "#", icon: "🖥️" },
-    { label: "Syllabus Generator", href: "#", icon: "📋" },
+    { label: "Syllabus Generator", href: "/dashboard/kepsek/tools/syllabus-generator", icon: "📋" },
     { label: "Unit Plan / RPP", href: "#", icon: "📖" },
-    { label: "Academic Content", href: "#", icon: "🎓" },
+    { label: "Academic Content", href: "/dashboard/kepsek/tools/academic-content", icon: "🎓" },
   ];
 
   // Helper to get initials
@@ -102,13 +102,24 @@ export default function KepsekLayout({ children }) {
 
             {/* Konten */}
             <div>
-              <p className="px-3 text-[10px] uppercase font-bold tracking-widest text-emerald-400/50 mb-2">Pratinjau Alat — Konten</p>
+              <p className="px-3 text-[10px] uppercase font-bold tracking-widest text-emerald-400/50 mb-2">Konten & Kurikulum</p>
               <div className="space-y-0.5">
-                {menuKonten.map((item, i) => (
-                  <Link key={i} href={item.href} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium text-emerald-100/70 hover:bg-white/5 hover:text-white transition-colors">
-                    <span className="text-base w-5 text-center grayscale opacity-70">{item.icon}</span> {item.label}
-                  </Link>
-                ))}
+                {menuKonten.map((item, i) => {
+                  const isActive = item.href !== "#" && pathname.startsWith(item.href);
+                  return (
+                    <Link key={i} href={item.href}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${
+                        isActive
+                          ? 'bg-[#153428] text-[#ECA823] shadow-inner border border-white/5'
+                          : item.href === "#"
+                          ? 'text-emerald-100/70 pointer-events-none'
+                          : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'
+                      }`}>
+                      <span className={`text-base w-5 text-center ${isActive ? '' : 'grayscale opacity-70'}`}>{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           </div>

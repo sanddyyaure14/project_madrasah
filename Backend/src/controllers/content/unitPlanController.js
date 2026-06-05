@@ -179,7 +179,7 @@ Anda WAJIB memberikan respons dalam format JSON murni dengan struktur berikut:
 
 const getUnitPlans = async (req, res) => {
     try {
-        const data = await UnitPlanModel.getAllUnitPlans();
+        const data = await UnitPlanModel.getAllUnitPlans(req.user.id);
         res.status(200).json({
             success: true,
             message: "Berhasil mengambil data Modul Ajar (RPP).",
@@ -199,7 +199,7 @@ const getUnitPlans = async (req, res) => {
 const getUnitPlanById = async (req, res) => {
     try {
         const { id } = req.params;
-        const data = await UnitPlanModel.getUnitPlanById(id);
+        const data = await UnitPlanModel.getUnitPlanById(id, req.user.id);
 
         if (!data) {
             return res.status(404).json({
@@ -231,7 +231,7 @@ const updateUnitPlan = async (req, res) => {
         const { id } = req.params;
 
         // Pastikan data ada
-        const existing = await UnitPlanModel.getUnitPlanById(id);
+        const existing = await UnitPlanModel.getUnitPlanById(id, req.user.id);
         if (!existing) {
             return res.status(404).json({
                 success: false,
@@ -241,7 +241,7 @@ const updateUnitPlan = async (req, res) => {
             });
         }
 
-        const updated = await UnitPlanModel.updateUnitPlan(id, req.body);
+        const updated = await UnitPlanModel.updateUnitPlan(id, req.user.id, req.body);
 
         res.status(200).json({
             success: true,
@@ -263,7 +263,7 @@ const deleteUnitPlan = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const deleted = await UnitPlanModel.deleteUnitPlan(id);
+        const deleted = await UnitPlanModel.deleteUnitPlan(id, req.user.id);
         if (!deleted) {
             return res.status(404).json({
                 success: false,
@@ -294,7 +294,7 @@ const downloadUnitPlanDocx = async (req, res) => {
         const { id } = req.params;
         
         // Ambil data dari database
-        const unitPlanData = await UnitPlanModel.getUnitPlanById(id);
+        const unitPlanData = await UnitPlanModel.getUnitPlanById(id, req.user.id);
         
         if (!unitPlanData) {
             return res.status(404).json({

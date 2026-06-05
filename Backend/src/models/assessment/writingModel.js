@@ -223,15 +223,19 @@ class WritingModel {
     }
 
     // 5. READ BY ID: Mengambil satu data ulasan detail (Ditingkatkan dengan COALESCE)
-    static async getFeedbackById(id) {
+    static async getFeedbackById(id, userId = null) {
         try {
-            const query = `
-                SELECT wf.*, COALESCE(gr.input_data->>'nama_siswa', 'Siswa Anonim') AS nama_siswa 
-                FROM writing_feedback wf
-                LEFT JOIN generation_requests gr ON wf.request_id = gr.id
-                WHERE wf.id = $1;
-            `;
-            const result = await db.query(query, [id]);
+            const query = userId
+                ? `SELECT wf.*, COALESCE(gr.input_data->>'nama_siswa', 'Siswa Anonim') AS nama_siswa 
+                   FROM writing_feedback wf
+                   LEFT JOIN generation_requests gr ON wf.request_id = gr.id
+                   WHERE wf.id = $1 AND gr.user_id = $2;`
+                : `SELECT wf.*, COALESCE(gr.input_data->>'nama_siswa', 'Siswa Anonim') AS nama_siswa 
+                   FROM writing_feedback wf
+                   LEFT JOIN generation_requests gr ON wf.request_id = gr.id
+                   WHERE wf.id = $1;`;
+            const values = userId ? [id, userId] : [id];
+            const result = await db.query(query, values);
             return result.rows[0] || null;
         } catch (error) {
             console.error("Error di WritingModel (getFeedbackById):", error);
@@ -240,8 +244,12 @@ class WritingModel {
     }
 
     // 6. UPDATE: Digunakan ketika guru melakukan aksi simpan editan skor/aspek
-    static async updateFeedback(id, feedbackJson, skorKeseluruhan) {
+    static async updateFeedback(id, userId, feedbackJson, skorKeseluruhan) {
         try {
+            // Cek kepemilikan dulu
+            const existing = await WritingModel.getFeedbackById(id, userId);
+            if (!existing) return null;
+
             const query = `
                 UPDATE writing_feedback 
                 SET feedback_json = $1, skor_keseluruhan = $2
@@ -258,10 +266,15 @@ class WritingModel {
     }
 
     // 7. DELETE: Untuk menghapus data ulasan dari database
-    static async deleteFeedback(id) {
+    static async deleteFeedback(id, userId) {
         try {
+            const existing = await WritingModel.getFeedbackById(id, userId);
+            if (!existing) return null;
+
+            const requestId = existing.request_id;
             const query = `DELETE FROM writing_feedback WHERE id = $1 RETURNING id;`;
             const result = await db.query(query, [id]);
+            await db.query(`DELETE FROM generation_requests WHERE id = $1`, [requestId]);
             return result.rows[0] || null;
         } catch (error) {
             console.error("Error di WritingModel (deleteFeedback):", error);

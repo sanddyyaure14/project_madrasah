@@ -46,7 +46,7 @@ const getDashboardSummary = async (req, res) => {
 const getRegistrationQueue = async (req, res) => {
     try {
         const listGuru = await KepsekModel.getPendingTeachers();
-        
+
         return res.status(200).json({
             success: true,
             message: "Berhasil memuat daftar antrean pendaftaran guru.",
@@ -55,10 +55,10 @@ const getRegistrationQueue = async (req, res) => {
         });
     } catch (error) {
         console.error("Error pada getRegistrationQueue:", error);
-        return res.status(500).json({ 
-            success: false, 
+        return res.status(500).json({
+            success: false,
             message: "Gagal memuat antrean verifikasi guru.",
-            error: error.message 
+            error: error.message
         });
     }
 };
@@ -102,10 +102,10 @@ const reviewTeacherAccount = async (req, res) => {
 
     } catch (error) {
         console.error("Error pada reviewTeacherAccount:", error);
-        return res.status(500).json({ 
-            success: false, 
-            message: "Terjadi kesalahan server saat memproses verifikasi.", 
-            error: error.message 
+        return res.status(500).json({
+            success: false,
+            message: "Terjadi kesalahan server saat memproses verifikasi.",
+            error: error.message
         });
     }
 };
@@ -113,7 +113,10 @@ const reviewTeacherAccount = async (req, res) => {
 // 3. Daftar guru aktif
 const getDaftarGuru = async (req, res) => {
     try {
-        const instansiId = req.query.instansi_id || req.body.instansi_id || 'b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a';
+        // Ambil instansiId dari user yang login (req.user disuntikkan oleh verifyToken)
+        // Fallback ke params/body jika diperlukan untuk debugging
+        const instansiId = req.user?.instansi_id || req.query.instansi_id || req.body.instansi_id;
+
         const guruList = await KepsekModel.getDaftarGuru(instansiId);
         return res.status(200).json({
             success: true,
@@ -130,7 +133,7 @@ const getDaftarGuru = async (req, res) => {
 const getDetailGuru = async (req, res) => {
     try {
         const { guruId } = req.params;
-        const instansiId = req.query.instansi_id || req.body.instansi_id || 'b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a';
+        const instansiId = req.user?.instansi_id || req.query.instansi_id || req.body.instansi_id;
         const guru = await KepsekModel.getDetailGuru(guruId, instansiId);
         if (!guru) {
             return res.status(404).json({ success: false, message: "Guru tidak ditemukan.", data: null, meta: {} });
@@ -144,7 +147,7 @@ const getDetailGuru = async (req, res) => {
 // 5. History semua guru
 const getHistoryAllGuru = async (req, res) => {
     try {
-        const instansiId = req.query.instansi_id || req.body.instansi_id || 'b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a';
+        const instansiId = req.user?.instansi_id || req.query.instansi_id || req.body.instansi_id;
         const featureType = req.query.feature_type || null;
         const history = await KepsekModel.getHistoryAllGuru(instansiId, featureType);
         return res.status(200).json({
@@ -162,7 +165,7 @@ const getHistoryAllGuru = async (req, res) => {
 const getHistoryByGuru = async (req, res) => {
     try {
         const { guruId } = req.params;
-        const instansiId = req.query.instansi_id || req.body.instansi_id || 'b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a';
+        const instansiId = req.user?.instansi_id || req.query.instansi_id || req.body.instansi_id;
         const history = await KepsekModel.getHistoryByGuru(guruId, instansiId);
         return res.status(200).json({
             success: true,
@@ -178,7 +181,7 @@ const getHistoryByGuru = async (req, res) => {
 // 7. Statistik per guru
 const getStatistikGuru = async (req, res) => {
     try {
-        const instansiId = req.query.instansi_id || req.body.instansi_id || 'b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a';
+        const instansiId = req.user?.instansi_id || req.query.instansi_id || req.body.instansi_id;
         const statistik = await KepsekModel.getStatistikGuru(instansiId);
         return res.status(200).json({
             success: true,
@@ -198,18 +201,18 @@ const assignQuotaToTeacher = async (req, res) => {
 
         // 1. Validasi Input Wajib (Sesuai kolom NOT NULL kamu)
         if (!user_id || !plan_type || !monthly_limit) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "user_id, plan_type, dan monthly_limit wajib diisi." 
+            return res.status(400).json({
+                success: false,
+                message: "user_id, plan_type, dan monthly_limit wajib diisi."
             });
         }
 
         // 2. Validasi ENUM plan_type agar aman dari error DB
         const validPlans = ['free', 'basic', 'premium'];
         if (!validPlans.includes(plan_type)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "plan_type harus bernilai 'free', 'basic', atau 'premium'." 
+            return res.status(400).json({
+                success: false,
+                message: "plan_type harus bernilai 'free', 'basic', atau 'premium'."
             });
         }
 
@@ -233,16 +236,16 @@ const assignQuotaToTeacher = async (req, res) => {
 
     } catch (error) {
         console.error("Error pada kepsekController.assignQuotaToTeacher:", error);
-        return res.status(500).json({ 
-            success: false, 
+        return res.status(500).json({
+            success: false,
             message: "Terjadi kesalahan server saat mengatur kuota.",
-            error: error.message 
+            error: error.message
         });
     }
 };
 
 // Pastikan semua fungsi diekspor di sini agar bisa dipanggil oleh Routes
-module.exports = { 
+module.exports = {
     getDashboardSummary,
     getRegistrationQueue, // 🌟 Daftarkan fungsi baru
     reviewTeacherAccount, // 🌟 Daftarkan fungsi baru
