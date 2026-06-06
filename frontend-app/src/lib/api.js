@@ -3,21 +3,7 @@
 // Base URL otomatis terdeteksi via expo-constants (ganti WiFi = otomatis)
 // =========================================================================
 
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
-
-function getApiBaseUrl() {
-  // Saat `expo start` berjalan, hostUri berisi IP laptop — valid untuk Expo Go & emulator
-  const host = Constants.expoConfig?.hostUri?.split(':')[0];
-  if (host) return `http://${host}:3000/api`;
-  // Fallback jika tidak ada hostUri (production build di emulator)
-  if (Platform.OS === 'android') return 'http://10.0.2.2:3000/api';
-  return 'http://localhost:3000/api';
-}
-
-export const API_URL = getApiBaseUrl();
-
-const BASE_URL = API_URL;
+const BASE_URL = 'http://192.168.137.80:3000/api';
 
 // ---------------------------------------------------------------------------
 // Auth helper — untuk sekarang token disimpan di-memory via AuthContext.
@@ -223,4 +209,44 @@ export async function getAcademicContentById(id) {
  */
 export function downloadAcademicContentPDF(id) {
   return openDownloadUrl(`/academic-content/download/${id}/pdf`);
+}
+
+// =========================================================================
+// PRESENTATION
+// =========================================================================
+
+/**
+ * Generate presentasi baru menggunakan AI.
+ * @param {object} params
+ * @param {string} params.topik
+ * @param {number} params.jumlah_slide
+ * @param {string} [params.tujuan]
+ * @param {string} [params.audiens]
+ * @param {boolean} [params.include_catatan]
+ */
+export async function generatePresentation(params) {
+  return request('POST', '/presentation/generate', params);
+}
+
+/**
+ * Ambil semua riwayat presentasi.
+ */
+export async function getAllPresentations() {
+  return request('GET', '/presentation');
+}
+
+/**
+ * Ambil presentasi berdasarkan ID.
+ * @param {string} id
+ */
+export async function getPresentationById(id) {
+  return request('GET', `/presentation/${id}`);
+}
+
+/**
+ * Download presentasi sebagai PPT.
+ * @param {string} id
+ */
+export function downloadPresentationPPT(id) {
+  return openDownloadUrl(`/presentation/download/${id}/ppt`);
 }
