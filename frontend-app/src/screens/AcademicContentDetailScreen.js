@@ -177,12 +177,6 @@ export default function AcademicContentDetailScreen({ route, navigation }) {
   return (
     <>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Back */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={16} color={C.muted} />
-          <Text style={styles.backText}>Dokumen Saya</Text>
-        </TouchableOpacity>
-
         {/* Result Panel */}
         <View style={[styles.resultPanel, S.shadow]}>
           {/* Header */}

@@ -8,7 +8,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert, Clipboard,
+  StyleSheet, ActivityIndicator, Alert, Clipboard, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
@@ -163,14 +163,28 @@ function ResultPanel({ data, onReset, onSave }) {
 
   function handleKirim() {
     const text = buildShareText(data);
-    Alert.alert(
-      'Kirim ke Siswa',
-      `Teks berikut siap dikirim via WhatsApp:\n\n${text.substring(0, 200)}...`,
-      [
-        { text: 'Salin Teks', onPress: () => { Clipboard.setString(text); Alert.alert('Tersalin!'); } },
-        { text: 'Tutup', style: 'cancel' },
-      ]
-    );
+    // Encode teks untuk URL WhatsApp
+    const encoded = encodeURIComponent(text);
+    const waUrl = `whatsapp://send?text=${encoded}`;
+    
+    Linking.canOpenURL(waUrl)
+      .then(supported => {
+        if (supported) {
+          return Linking.openURL(waUrl);
+        } else {
+          // WhatsApp tidak terinstall — salin ke clipboard sebagai fallback
+          Clipboard.setString(text);
+          Alert.alert(
+            'WhatsApp tidak tersedia',
+            'Teks laporan sudah disalin ke clipboard. Tempel di aplikasi lain untuk dikirim.',
+            [{ text: 'OK' }]
+          );
+        }
+      })
+      .catch(() => {
+        Clipboard.setString(text);
+        Alert.alert('Gagal membuka WhatsApp', 'Teks sudah disalin ke clipboard.');
+      });
   }
 
   return (
@@ -344,12 +358,6 @@ export default function WritingFeedbackScreen({ navigation }) {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Back */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={16} color={C.muted} />
-        <Text style={styles.backText}>Kembali</Text>
-      </TouchableOpacity>
-
       {/* Hero */}
       <View style={styles.hero}>
         <View style={styles.heroIcon}>

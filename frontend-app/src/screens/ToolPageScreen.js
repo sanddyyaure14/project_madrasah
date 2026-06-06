@@ -797,12 +797,6 @@ export default function ToolPageScreen({ route, navigation }) {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      {/* Back */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={16} color={C.muted} />
-        <Text style={styles.backText}>Kembali</Text>
-      </TouchableOpacity>
-
       {/* Hero */}
       <View style={styles.hero}>
         <View style={[styles.heroIcon, isGold ? styles.heroIconGold : styles.heroIconEmerald]}>

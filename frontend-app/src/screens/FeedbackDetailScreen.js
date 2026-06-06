@@ -8,7 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, TextInput, Clipboard, Modal,
+  ActivityIndicator, Alert, TextInput, Clipboard, Modal, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
@@ -283,6 +283,31 @@ export default function FeedbackDetailScreen({ route, navigation }) {
     );
   }
 
+  function handleKirim() {
+    if (!data) return;
+    const text = buildDownloadText(data);
+    const encoded = encodeURIComponent(text);
+    const waUrl = `whatsapp://send?text=${encoded}`;
+
+    Linking.canOpenURL(waUrl)
+      .then(supported => {
+        if (supported) {
+          return Linking.openURL(waUrl);
+        } else {
+          Clipboard.setString(text);
+          Alert.alert(
+            'WhatsApp tidak tersedia',
+            'Teks laporan sudah disalin ke clipboard. Tempel di aplikasi lain untuk dikirim.',
+            [{ text: 'OK' }]
+          );
+        }
+      })
+      .catch(() => {
+        Clipboard.setString(text);
+        Alert.alert('Gagal membuka WhatsApp', 'Teks sudah disalin ke clipboard.');
+      });
+  }
+
   // ---------- Loading / Error ----------
   if (loading) {
     return (
@@ -341,22 +366,27 @@ export default function FeedbackDetailScreen({ route, navigation }) {
           ) : null}
         </View>
 
-        {/* Action bar: Edit | Download | Hapus */}
+        {/* Action bar: Edit | Download | Kirim | Hapus */}
         <View style={styles.actionBar}>
           <TouchableOpacity style={styles.actionBtn} onPress={() => setEditVisible(true)}>
-            <Ionicons name="create-outline" size={18} color={C.primary} />
+            <Ionicons name="create-outline" size={17} color={C.primary} />
             <Text style={styles.actionBtnText}>Edit</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionBtn} onPress={handleDownload}>
-            <Ionicons name="download-outline" size={18} color={C.primary} />
+            <Ionicons name="download-outline" size={17} color={C.primary} />
             <Text style={styles.actionBtnText}>Download</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.actionBtn, styles.actionBtnWA]} onPress={handleKirim}>
+            <Ionicons name="paper-plane" size={17} color="#fff" />
+            <Text style={[styles.actionBtnText, { color: '#fff' }]}>Kirim</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger]} onPress={handleDelete} disabled={deleting}>
             {deleting
               ? <ActivityIndicator size="small" color={C.danger} />
-              : <><Ionicons name="trash-outline" size={18} color={C.danger} /><Text style={[styles.actionBtnText, { color: C.danger }]}>Hapus</Text></>
+              : <><Ionicons name="trash-outline" size={17} color={C.danger} /><Text style={[styles.actionBtnText, { color: C.danger }]}>Hapus</Text></>
             }
           </TouchableOpacity>
         </View>
@@ -461,7 +491,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: C.border, ...S.shadow,
   },
   actionBtnDanger: { borderColor: '#fecaca' },
-  actionBtnText: { fontSize: 13, fontWeight: '600', color: C.primary },
+  actionBtnWA: { backgroundColor: '#25D366', borderColor: '#25D366' },
+  actionBtnText: { fontSize: 11, fontWeight: '700', color: C.primary },
 
   // Aspek section
   aspekSection: { backgroundColor: C.card, borderRadius: 20, padding: 16, gap: 12 },

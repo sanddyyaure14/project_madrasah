@@ -109,12 +109,6 @@ export default function AcademicContentPreviewScreen({ route, navigation }) {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Back */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={16} color={C.muted} />
-        <Text style={styles.backText}>Kembali</Text>
-      </TouchableOpacity>
-
       {/* Result Panel */}
       <View style={[styles.resultPanel, S.shadow]}>
 
