@@ -216,11 +216,38 @@ export default function MyDocsScreen({ navigation }) {
               (Array.isArray(data) ? data : []);
             return list.map(d => ({ ...d, __type: type }));
           })
+          .then(list => {
+            // Debug: log field tanggal yang tersedia
+            if (list.length > 0) {
+              const sample = list[0];
+              console.log(`[MyDocs] ${type} date fields:`, {
+                created_at: sample.created_at,
+                completed_at: sample.completed_at,
+                createdAt: sample.createdAt,
+                id: sample.id,
+              });
+            }
+            return list;
+          })
           .catch(() => [])
       );
 
       const results = await Promise.all(requests);
-      setDocs(results.flat());
+      const combined = results.flat();
+
+      // Sort descending by date — terbaru di atas
+      combined.sort((a, b) => {
+        // Coba berbagai field tanggal yang mungkin ada
+        const getDate = (d) => {
+          const raw = d.created_at || d.completed_at || d.createdAt || d.tanggal || null;
+          if (raw) return new Date(raw).getTime();
+          // Fallback: UUID v4 tidak time-based, pakai index asli (0)
+          return 0;
+        };
+        return getDate(b) - getDate(a); // descending
+      });
+
+      setDocs(combined);
     } catch (err) {
       console.error('fetchAll error:', err);
     }
@@ -368,7 +395,7 @@ export default function MyDocsScreen({ navigation }) {
               {!search && (
                 <TouchableOpacity
                   style={styles.createBtn}
-                  onPress={() => navigation.navigate('Create')}
+                  onPress={() => navigation.navigate('Dashboard')}
                 >
                   <Ionicons name="add" size={18} color={C.primaryFg} />
                   <Text style={styles.createBtnText}>Buat Dokumen</Text>

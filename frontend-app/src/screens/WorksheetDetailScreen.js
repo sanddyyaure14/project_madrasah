@@ -53,30 +53,65 @@ function buildCopyText(data) {
 }
 
 // ─────────────────────────────────────────────
-// Edit Modal — ubah judul & topik
+// Edit Modal — edit full konten worksheet
 // ─────────────────────────────────────────────
 function EditModal({ visible, data, onClose, onSave }) {
   const [judul, setJudul] = useState('');
-  const [topik, setTopik] = useState('');
+  const [tujuan, setTujuan] = useState('');
+  const [petunjuk, setPetunjuk] = useState('');
+  const [aktivitas, setAktivitas] = useState([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (data) {
+    if (data && visible) {
       const ws = getWs(data);
       setJudul(ws?.judul || data.judul || '');
-      setTopik(data.topik || '');
+      setTujuan(ws?.tujuan || '');
+      setPetunjuk(ws?.petunjuk || '');
+      // Deep copy aktivitas agar bisa diedit
+      setAktivitas(JSON.parse(JSON.stringify(ws?.aktivitas || [])));
     }
   }, [data, visible]);
+
+  function updateSoal(aktIdx, soalIdx, field, value) {
+    setAktivitas(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[aktIdx].soal[soalIdx][field] = value;
+      return copy;
+    });
+  }
+
+  function updateOpsi(aktIdx, soalIdx, opsiIdx, value) {
+    setAktivitas(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[aktIdx].soal[soalIdx].opsi[opsiIdx] = value;
+      return copy;
+    });
+  }
+
+  function updateInstruksi(aktIdx, value) {
+    setAktivitas(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[aktIdx].instruksi = value;
+      return copy;
+    });
+  }
 
   async function handleSave() {
     if (!judul.trim()) { Alert.alert('Validasi', 'Judul tidak boleh kosong.'); return; }
     setSaving(true);
     const ws = getWs(data);
-    const updatedWs = { ...ws, judul: judul.trim() };
+    const updatedWs = {
+      ...ws,
+      judul: judul.trim(),
+      tujuan: tujuan.trim(),
+      petunjuk: petunjuk.trim(),
+      aktivitas,
+    };
     await onSave({
       judul: judul.trim(),
       mata_pelajaran: data.mata_pelajaran,
-      topik: topik.trim() || data.topik,
+      topik: data.topik,
       tipe_aktivitas: data.tipe_aktivitas,
       durasi_menit: data.durasi_menit,
       worksheet_json: updatedWs,
@@ -84,18 +119,30 @@ function EditModal({ visible, data, onClose, onSave }) {
     setSaving(false);
   }
 
+  const huruf = ['A', 'B', 'C', 'D', 'E'];
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={styles.modalRoot}>
+        {/* Header */}
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Edit Worksheet</Text>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={24} color={C.ink} />
           </TouchableOpacity>
         </View>
+
         <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
+
+          {/* ── Info ── */}
+          <View style={styles.editInfoBox}>
+            <Ionicons name="information-circle" size={14} color={C.primary} />
+            <Text style={styles.editInfoText}>Edit judul, tujuan, petunjuk, dan semua soal di bawah ini.</Text>
+          </View>
+
+          {/* ── Judul ── */}
           <View style={styles.editGroup}>
-            <Text style={styles.editLabel}>Judul LKS</Text>
+            <Text style={styles.editLabel}>Judul LKS *</Text>
             <TextInput
               style={styles.editInput}
               value={judul}
@@ -104,17 +151,99 @@ function EditModal({ visible, data, onClose, onSave }) {
               placeholderTextColor={C.mutedLight}
             />
           </View>
+
+          {/* ── Tujuan ── */}
           <View style={styles.editGroup}>
-            <Text style={styles.editLabel}>Topik</Text>
+            <Text style={styles.editLabel}>Tujuan Pembelajaran</Text>
             <TextInput
-              style={styles.editInput}
-              value={topik}
-              onChangeText={setTopik}
-              placeholder="Topik..."
+              style={[styles.editInput, { minHeight: 80, textAlignVertical: 'top' }]}
+              value={tujuan}
+              onChangeText={setTujuan}
+              placeholder="Tujuan pembelajaran..."
               placeholderTextColor={C.mutedLight}
+              multiline
             />
           </View>
+
+          {/* ── Petunjuk ── */}
+          <View style={styles.editGroup}>
+            <Text style={styles.editLabel}>Petunjuk Umum</Text>
+            <TextInput
+              style={[styles.editInput, { minHeight: 70, textAlignVertical: 'top' }]}
+              value={petunjuk}
+              onChangeText={setPetunjuk}
+              placeholder="Petunjuk umum pengerjaan..."
+              placeholderTextColor={C.mutedLight}
+              multiline
+            />
+          </View>
+
+          {/* ── Aktivitas & Soal ── */}
+          {aktivitas.map((akt, aktIdx) => (
+            <View key={aktIdx} style={styles.editAktCard}>
+              {/* Aktivitas header */}
+              <View style={styles.editAktHeader}>
+                <View style={styles.editAktBadge}>
+                  <Text style={styles.editAktBadgeText}>{aktIdx + 1}</Text>
+                </View>
+                <Text style={styles.editAktTipe}>{akt.tipe?.toUpperCase()}</Text>
+              </View>
+
+              {/* Instruksi */}
+              <View style={styles.editGroup}>
+                <Text style={styles.editLabel}>Instruksi</Text>
+                <TextInput
+                  style={[styles.editInput, { minHeight: 60, textAlignVertical: 'top' }]}
+                  value={akt.instruksi || ''}
+                  onChangeText={v => updateInstruksi(aktIdx, v)}
+                  placeholder="Instruksi aktivitas..."
+                  placeholderTextColor={C.mutedLight}
+                  multiline
+                />
+              </View>
+
+              {/* Soal */}
+              {(akt.soal || []).map((soal, soalIdx) => (
+                <View key={soalIdx} style={styles.editSoalCard}>
+                  <Text style={styles.editSoalNum}>Soal {soalIdx + 1}</Text>
+
+                  {/* Pertanyaan */}
+                  <TextInput
+                    style={[styles.editInput, { minHeight: 70, textAlignVertical: 'top' }]}
+                    value={soal.pertanyaan || ''}
+                    onChangeText={v => updateSoal(aktIdx, soalIdx, 'pertanyaan', v)}
+                    placeholder="Pertanyaan..."
+                    placeholderTextColor={C.mutedLight}
+                    multiline
+                  />
+
+                  {/* Opsi (kalau ada) */}
+                  {Array.isArray(soal.opsi) && soal.opsi.length > 0 && (
+                    <View style={styles.editOpsiList}>
+                      {soal.opsi.map((opsi, opsiIdx) => (
+                        <View key={opsiIdx} style={styles.editOpsiRow}>
+                          <View style={styles.editOpsiLabel}>
+                            <Text style={styles.editOpsiLabelText}>{huruf[opsiIdx]}</Text>
+                          </View>
+                          <TextInput
+                            style={[styles.editInput, { flex: 1 }]}
+                            value={opsi}
+                            onChangeText={v => updateOpsi(aktIdx, soalIdx, opsiIdx, v)}
+                            placeholder={`Opsi ${huruf[opsiIdx]}...`}
+                            placeholderTextColor={C.mutedLight}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          ))}
+
         </ScrollView>
+
+        {/* Footer */}
         <View style={styles.modalFooter}>
           <TouchableOpacity style={styles.btnCancel} onPress={onClose}>
             <Text style={styles.btnCancelText}>Batal</Text>
@@ -126,7 +255,7 @@ function EditModal({ visible, data, onClose, onSave }) {
           >
             {saving
               ? <ActivityIndicator color="#fff" size="small" />
-              : <><Ionicons name="checkmark" size={16} color="#fff" /><Text style={styles.btnSaveModalText}>Simpan</Text></>
+              : <><Ionicons name="checkmark" size={16} color="#fff" /><Text style={styles.btnSaveModalText}>Simpan Semua</Text></>
             }
           </TouchableOpacity>
         </View>
@@ -519,13 +648,47 @@ const styles = StyleSheet.create({
     backgroundColor: C.card,
   },
   modalTitle: { fontSize: 18, fontWeight: '700', color: C.ink },
-  modalContent: { padding: 20, gap: 16 },
-  editGroup: { gap: 8 },
+  modalContent: { padding: 16, gap: 14, paddingBottom: 32 },
+  editGroup: { gap: 6 },
   editLabel: { fontSize: 13, fontWeight: '600', color: C.ink },
   editInput: {
     borderWidth: 1, borderColor: C.border, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: C.ink, backgroundColor: '#fff',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: C.ink, backgroundColor: '#fff',
   },
+  editInfoBox: {
+    flexDirection: 'row', gap: 8, alignItems: 'flex-start',
+    backgroundColor: C.primaryLight, borderRadius: 10, padding: 10,
+    borderWidth: 1, borderColor: '#bbf7d0',
+  },
+  editInfoText: { flex: 1, fontSize: 12, color: C.primary, lineHeight: 18 },
+
+  // Aktivitas edit
+  editAktCard: {
+    backgroundColor: C.card, borderRadius: 14, padding: 14, gap: 12,
+    borderWidth: 1, borderColor: C.border,
+  },
+  editAktHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  editAktBadge: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center',
+  },
+  editAktBadgeText: { fontSize: 12, fontWeight: '700', color: C.primary },
+  editAktTipe: { fontSize: 14, fontWeight: '700', color: C.ink },
+
+  // Soal edit
+  editSoalCard: {
+    backgroundColor: C.bg, borderRadius: 10, padding: 12, gap: 10,
+    borderWidth: 1, borderColor: C.separator,
+  },
+  editSoalNum: { fontSize: 12, fontWeight: '700', color: C.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  editOpsiList: { gap: 8 },
+  editOpsiRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  editOpsiLabel: {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: C.primaryLight,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  editOpsiLabelText: { fontSize: 12, fontWeight: '700', color: C.primary },
+
   modalFooter: {
     flexDirection: 'row', gap: 10, padding: 16,
     borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.card,

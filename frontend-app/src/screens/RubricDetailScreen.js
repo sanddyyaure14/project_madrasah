@@ -239,12 +239,6 @@ export default function RubricDetailScreen({ route, navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Back */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={16} color={C.muted} />
-          <Text style={styles.backText}>Dokumen Saya</Text>
-        </TouchableOpacity>
-
         {/* Header */}
         <View style={[styles.headerCard, S.shadow]}>
           <View style={styles.headerTop}>

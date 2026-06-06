@@ -139,12 +139,6 @@ export default function SyllabusFormScreen({ navigation }) {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Back */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={16} color={C.muted} />
-        <Text style={styles.backText}>Kembali</Text>
-      </TouchableOpacity>
-
       {/* Hero — sama dengan ToolPageScreen */}
       <View style={styles.hero}>
         <View style={styles.heroIcon}>
