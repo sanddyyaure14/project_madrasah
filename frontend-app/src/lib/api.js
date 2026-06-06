@@ -1,9 +1,23 @@
 // =========================================================================
 // API Service Layer — MadrasahAI
-// Base URL: http://192.168.137.80:3000/api  (sesuaikan IP jika berubah)
+// Base URL otomatis terdeteksi via expo-constants (ganti WiFi = otomatis)
 // =========================================================================
 
-const BASE_URL = 'http://192.168.137.80:3000/api';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
+function getApiBaseUrl() {
+  // Saat `expo start` berjalan, hostUri berisi IP laptop — valid untuk Expo Go & emulator
+  const host = Constants.expoConfig?.hostUri?.split(':')[0];
+  if (host) return `http://${host}:3000/api`;
+  // Fallback jika tidak ada hostUri (production build di emulator)
+  if (Platform.OS === 'android') return 'http://10.0.2.2:3000/api';
+  return 'http://localhost:3000/api';
+}
+
+export const API_URL = getApiBaseUrl();
+
+const BASE_URL = API_URL;
 
 // ---------------------------------------------------------------------------
 // Auth helper — untuk sekarang token disimpan di-memory via AuthContext.
@@ -22,7 +36,7 @@ export function clearAuthToken() {
 function authHeaders(extra = {}) {
   return {
     'Content-Type': 'application/json',
-    ...(  _token ? { Authorization: `Bearer ${_token}` } : {}),
+    ...(_token ? { Authorization: `Bearer ${_token}` } : {}),
     ...extra,
   };
 }
