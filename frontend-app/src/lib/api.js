@@ -1,9 +1,10 @@
 // =========================================================================
 // API Service Layer — MadrasahAI
-// Base URL: http://192.168.137.80:3000/api  (sesuaikan IP jika berubah)
+// Base URL otomatis terdeteksi via expo-constants (ganti WiFi = otomatis)
 // =========================================================================
 
-const BASE_URL = 'http://192.168.100.38:3000/api';
+const BASE_URL = 'http://192.168.137.80:3000/api';
+
 // ---------------------------------------------------------------------------
 // Auth helper — untuk sekarang token disimpan di-memory via AuthContext.
 // Jika nanti pakai AsyncStorage, ganti getToken() di sini.
