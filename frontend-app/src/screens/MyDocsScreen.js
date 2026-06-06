@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ const TABS = [
   { key: 'worksheet', label: '📋 Worksheet' },
   { key: 'syllabus',  label: '📚 Silabus' },
   { key: 'academic',  label: '🎓 Konten' },
+  { key: 'presentation', label: '🖥️ Presentasi' },
 ];
 
 // ─── Endpoint map ────────────────────────────────────────────────────────────
@@ -34,6 +35,7 @@ const FETCH_URL = {
   rubric:    '/rubrics',
   syllabus:  '/syllabus',
   academic:  '/academic-content',
+  presentation: '/presentation',
 };
 
 const DELETE_URL = (type, id) => {
@@ -44,6 +46,7 @@ const DELETE_URL = (type, id) => {
     case 'syllabus':  return `/syllabus/${id}`;
     case 'academic':  return `/academic-content/${id}`;
     case 'feedback':  return `/feedback/delete/${id}`;
+    case 'presentation': return `/presentation/${id}`;
     default:          return null;
   }
 };
@@ -55,6 +58,7 @@ const DETAIL_SCREEN = {
   syllabus:  'SyllabusDetail',
   academic:  'AcademicContentDetail',
   feedback:  'FeedbackDetail',
+  presentation: 'PresentationDetail',
 };
 
 // ─── Badge styles per type ───────────────────────────────────────────────────
@@ -65,6 +69,7 @@ const BADGE = {
   syllabus:  { bg: '#f0fdf4', color: C.success },
   academic:  { bg: '#eff6ff', color: '#1d4ed8' },
   feedback:  { bg: C.primaryLight, color: C.primary },
+  presentation: { bg: '#fffbeb', color: C.warning },
 };
 
 const BADGE_LABEL = {
@@ -74,6 +79,7 @@ const BADGE_LABEL = {
   syllabus:  'Silabus',
   academic:  'Konten',
   feedback:  'Writing',
+  presentation: 'Presentasi',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -85,6 +91,7 @@ function getTitle(doc, type) {
     case 'syllabus':  return doc.nama_silabus || doc.mata_pelajaran || 'Silabus';
     case 'academic':  return doc.judul || doc.title || 'Konten';
     case 'feedback':  return doc.judul || doc.nama_siswa || 'Writing Feedback';
+    case 'presentation': return doc.topik || 'Slide Presentasi';
     default:          return 'Dokumen';
   }
 }
@@ -128,6 +135,12 @@ function getMeta(doc, type) {
         doc.kelas && `Kelas ${doc.kelas}`,
         doc.jenis_tulisan,
         doc.skor != null && `Skor: ${doc.skor}`,
+      ].filter(Boolean);
+
+    case 'presentation':
+      return [
+        doc.jumlah_slide && `${doc.jumlah_slide} slide`,
+        doc.audiens && `${doc.audiens}`,
       ].filter(Boolean);
 
     default:

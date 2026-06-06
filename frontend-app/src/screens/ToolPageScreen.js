@@ -786,6 +786,7 @@ export default function ToolPageScreen({ route, navigation }) {
   useEffect(() => {
     if (slug === 'writing-feedback') navigation.replace('WritingFeedback');
     if (slug === 'worksheet') navigation.replace('Worksheet');
+    if (slug === 'presentation') navigation.replace('PresentationForm');
   }, [slug]);
 
   const tool = findTool(slug);

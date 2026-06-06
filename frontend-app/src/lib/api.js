@@ -3,8 +3,7 @@
 // Base URL: http://192.168.137.80:3000/api  (sesuaikan IP jika berubah)
 // =========================================================================
 
-const BASE_URL = 'http://192.168.137.80:3000/api';
-
+const BASE_URL = 'http://192.168.100.38:3000/api';
 // ---------------------------------------------------------------------------
 // Auth helper — untuk sekarang token disimpan di-memory via AuthContext.
 // Jika nanti pakai AsyncStorage, ganti getToken() di sini.
@@ -22,7 +21,7 @@ export function clearAuthToken() {
 function authHeaders(extra = {}) {
   return {
     'Content-Type': 'application/json',
-    ...(  _token ? { Authorization: `Bearer ${_token}` } : {}),
+    ...(_token ? { Authorization: `Bearer ${_token}` } : {}),
     ...extra,
   };
 }
@@ -209,4 +208,44 @@ export async function getAcademicContentById(id) {
  */
 export function downloadAcademicContentPDF(id) {
   return openDownloadUrl(`/academic-content/download/${id}/pdf`);
+}
+
+// =========================================================================
+// PRESENTATION
+// =========================================================================
+
+/**
+ * Generate presentasi baru menggunakan AI.
+ * @param {object} params
+ * @param {string} params.topik
+ * @param {number} params.jumlah_slide
+ * @param {string} [params.tujuan]
+ * @param {string} [params.audiens]
+ * @param {boolean} [params.include_catatan]
+ */
+export async function generatePresentation(params) {
+  return request('POST', '/presentation/generate', params);
+}
+
+/**
+ * Ambil semua riwayat presentasi.
+ */
+export async function getAllPresentations() {
+  return request('GET', '/presentation');
+}
+
+/**
+ * Ambil presentasi berdasarkan ID.
+ * @param {string} id
+ */
+export async function getPresentationById(id) {
+  return request('GET', `/presentation/${id}`);
+}
+
+/**
+ * Download presentasi sebagai PPT.
+ * @param {string} id
+ */
+export function downloadPresentationPPT(id) {
+  return openDownloadUrl(`/presentation/download/${id}/ppt`);
 }
