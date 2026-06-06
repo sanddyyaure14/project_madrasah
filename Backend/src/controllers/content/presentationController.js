@@ -161,4 +161,33 @@ const downloadPresentationPPT = async (req, res) => {
     }
 };
 
-module.exports = { generatePresentation, getPresentations, downloadPresentationPPT };
+const deletePresentation = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deleted = await PresentationModel.deletePresentation(id);
+
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                message: 'Presentasi tidak ditemukan'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Presentasi berhasil dihapus'
+        });
+
+    } catch (error) {
+        console.error('Delete Presentation Error:', error);
+
+        res.status(500).json({
+            success: false,
+            message: 'Gagal menghapus presentasi',
+            error: error.message
+        });
+    }
+};
+
+module.exports = { generatePresentation, getPresentations, downloadPresentationPPT, deletePresentation };

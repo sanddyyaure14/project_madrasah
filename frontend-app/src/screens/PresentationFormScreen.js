@@ -9,20 +9,37 @@ import {
     ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { generatePresentation } from '../lib/api';
+import { useAuth } from '../lib/auth';
 
 export default function PresentationFormScreen() {
     const navigation = useNavigation();
+    const { user } = useAuth();
 
     const [topic, setTopic] = useState('');
     const [slides, setSlides] = useState('');
     const [kelas, setKelas] = useState('');
 
-    const handleGenerate = () => {
-        navigation.navigate('PresentationPreview', {
-            topic,
-            kelas,
-            slideCount: parseInt(slides) || 1,
-        });
+    const handleGenerate = async () => {
+        try {
+            const result = await generatePresentation({
+                topik: topic,
+                jumlah_slide: parseInt(slides) || 5,
+                tujuan: 'Pembelajaran',
+                audiens: kelas || 'Siswa',
+                include_catatan: false,
+                userId: user?.id,
+            });
+
+            navigation.navigate('PresentationPreview', {
+                presentation: result.data,
+                kelas,
+            });
+
+        } catch (err) {
+            console.log(err);
+            alert(err.message);
+        }
     };
 
     return (

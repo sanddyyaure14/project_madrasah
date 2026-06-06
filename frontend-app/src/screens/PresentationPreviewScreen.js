@@ -7,107 +7,28 @@ import {
 } from 'react-native';
 
 export default function PresentationPreviewScreen({ route }) {
-  const {
-    topic = 'Materi Presentasi',
-    kelas = '-',
-    slideCount = 1,
-  } = route.params || {};
 
-  const templateSlides = [
-    {
-      title: `Pendahuluan ${topic}`,
-      points: [
-        `Pengantar materi ${topic}`,
-        'Latar belakang pembelajaran',
-        'Tujuan pembelajaran',
-      ],
-    },
-    {
-      title: `Pengertian ${topic}`,
-      points: [
-        `Definisi ${topic}`,
-        'Konsep dasar materi',
-        'Ruang lingkup pembahasan',
-      ],
-    },
-    {
-      title: `Dasar Materi ${topic}`,
-      points: [
-        'Landasan teori',
-        'Sumber referensi utama',
-        'Prinsip-prinsip dasar',
-      ],
-    },
-    {
-      title: `Pembahasan Utama ${topic}`,
-      points: [
-        'Pokok bahasan pertama',
-        'Pokok bahasan kedua',
-        'Pokok bahasan ketiga',
-      ],
-    },
-    {
-      title: `Contoh Penerapan ${topic}`,
-      points: [
-        'Contoh dalam kehidupan sehari-hari',
-        'Studi kasus sederhana',
-        'Implementasi materi',
-      ],
-    },
-    {
-      title: `Manfaat ${topic}`,
-      points: [
-        'Manfaat bagi peserta didik',
-        'Manfaat dalam kehidupan',
-        'Nilai yang dapat diterapkan',
-      ],
-    },
-    {
-      title: `Tantangan dan Solusi`,
-      points: [
-        'Permasalahan yang sering muncul',
-        'Cara mengatasi masalah',
-        'Strategi penerapan',
-      ],
-    },
-    {
-      title: `Rangkuman Materi`,
-      points: [
-        'Ringkasan konsep utama',
-        'Poin penting yang dipelajari',
-        'Hal yang perlu diingat',
-      ],
-    },
-    {
-      title: `Evaluasi Pembelajaran`,
-      points: [
-        'Pertanyaan refleksi',
-        'Diskusi kelas',
-        'Latihan pemahaman',
-      ],
-    },
-    {
-      title: 'Kesimpulan',
-      points: [
-        `Kesimpulan materi ${topic}`,
-        'Pesan utama pembelajaran',
-        'Penutup presentasi',
-      ],
-    },
-  ];
+  const presentation =
+    route.params?.presentation ||
+    route.params?.data ||
+    {};
 
-  const slides = Array.from(
-    { length: slideCount },
-    (_, index) =>
-      templateSlides[index] || {
-        title: `${topic} - Pembahasan Tambahan ${index + 1}`,
-        points: [
-          'Pengembangan materi',
-          'Pembahasan lanjutan',
-          'Contoh tambahan',
-        ],
-      }
-  );
+  const kelas =
+    route.params?.kelas ||
+    presentation?.audiens ||
+    '-';
+
+  const topic =
+    presentation?.topik ||
+    'Materi Presentasi';
+
+  const slides =
+    presentation?.slides_json ||
+    [];
+
+  const slideCount =
+    presentation?.jumlah_slide ||
+    slides.length;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -133,14 +54,14 @@ export default function PresentationPreviewScreen({ route }) {
           style={styles.card}
         >
           <Text style={styles.title}>
-            Slide {index + 1}
+            Slide {slide.slide_number}
           </Text>
 
           <Text style={styles.slideTitle}>
             {slide.title}
           </Text>
 
-          {slide.points.map((point, idx) => (
+          {slide.content?.map((point, idx) => (
             <Text
               key={idx}
               style={styles.point}

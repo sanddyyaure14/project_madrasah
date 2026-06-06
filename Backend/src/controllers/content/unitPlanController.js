@@ -138,10 +138,10 @@ const getUnitPlans = async (req, res) => {
 const downloadUnitPlanDocx = async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         // Ambil data dari database
         const unitPlanData = await UnitPlanModel.getUnitPlanById(id);
-        
+
         if (!unitPlanData) {
             return res.status(404).json({
                 success: false,
@@ -158,7 +158,7 @@ const downloadUnitPlanDocx = async (req, res) => {
         // Generate DOCX
         const fileName = `unit_plan_${id}.docx`;
         const filePath = path.join(tempDir, fileName);
-        
+
         await generateUnitPlanDocx(unitPlanData, filePath);
 
         // Download file
@@ -180,4 +180,33 @@ const downloadUnitPlanDocx = async (req, res) => {
     }
 };
 
-module.exports = { generateUnitPlan, getUnitPlans, downloadUnitPlanDocx };
+const deleteUnitPlan = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deleted = await UnitPlanModel.deleteUnitPlan(id);
+
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                message: 'RPP tidak ditemukan'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'RPP berhasil dihapus'
+        });
+
+    } catch (error) {
+        console.error('Delete Unit Plan Error:', error);
+
+        res.status(500).json({
+            success: false,
+            message: 'Gagal menghapus RPP',
+            error: error.message
+        });
+    }
+};
+
+module.exports = { generateUnitPlan, getUnitPlans, downloadUnitPlanDocx, deleteUnitPlan };

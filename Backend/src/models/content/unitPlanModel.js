@@ -55,6 +55,17 @@ const UnitPlanModel = {
         const query = `SELECT * FROM unit_plans WHERE id = $1;`;
         const result = await pool.query(query, [id]);
         return result.rows[0];
+    },
+
+    deleteUnitPlan: async (id) => {
+        const query = `
+        DELETE FROM unit_plans
+        WHERE id = $1
+        RETURNING *;
+    `;
+
+        const result = await pool.query(query, [id]);
+        return result.rows[0];
     }
 };
 //-

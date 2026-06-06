@@ -26,16 +26,29 @@ export default function LoginScreen({ navigation }) {
     setPassword(PRESETS[r].password);
   }
 
-  function handleSubmit() {
-    setLoading(true);
-    setTimeout(() => {
-      const res = login(email, password);
-      setLoading(false);
+  async function handleSubmit() {
+    try {
+      setLoading(true);
+
+      const res = await login(email, password);
+
       if (!res.ok) {
-        Alert.alert('Gagal Masuk', res.error ?? 'Terjadi kesalahan.');
+        Alert.alert(
+          'Gagal Masuk',
+          res.error ?? 'Terjadi kesalahan.'
+        );
       }
-      // Navigation handled by App.js (auth state change)
-    }, 400);
+
+    } catch (err) {
+      console.log('LOGIN ERROR:', err);
+
+      Alert.alert(
+        'Gagal Masuk',
+        err.message || 'Terjadi kesalahan.'
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

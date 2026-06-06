@@ -16,6 +16,7 @@ import PresentationFormScreen from '../screens/PresentationFormScreen';
 import PresentationPreviewScreen from '../screens/PresentationPreviewScreen';
 import UnitPlanFormScreen from '../screens/UnitPlanFormScreen';
 import UnitPlanPreviewScreen from '../screens/UnitPlanPreviewScreen';
+import MyDocsScreen from '../screens/MyDocsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -61,7 +62,7 @@ function GuruTabs() {
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Dokumen" component={MyDocsPlaceholder} options={{ title: 'Dokumen Saya' }} />
+      <Tab.Screen name="Dokumen" component={MyDocsScreen} options={{ title: 'Dokumen Saya' }} />
       <Tab.Screen name="Profil" component={ProfileScreen} options={{ title: 'Profil Saya' }} />
     </Tab.Navigator>
   );

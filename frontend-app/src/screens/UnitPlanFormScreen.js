@@ -9,22 +9,42 @@ import {
     ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { generateUnitPlan } from '../lib/api';
+import { useAuth } from '../lib/auth';
 
 export default function UnitPlanFormScreen() {
     const navigation = useNavigation();
+    const { user } = useAuth();
 
     const [judul, setJudul] = useState('');
     const [mapel, setMapel] = useState('');
     const [kelas, setKelas] = useState('');
     const [pertemuan, setPertemuan] = useState('');
 
-    const handleGenerate = () => {
-        navigation.navigate('UnitPlanPreview', {
-            judul,
-            mapel,
-            kelas,
-            pertemuan,
-        });
+    const handleGenerate = async () => {
+        try {
+            const result = await generateUnitPlan({
+                judul_unit: judul,
+                mata_pelajaran: mapel,
+                tingkat_kelas: kelas,
+                tujuan_pembelajaran: '',
+                jumlah_pertemuan: parseInt(pertemuan) || 2,
+                durasi_per_jp: 40,
+                userId: user?.id,
+            });
+
+            navigation.navigate('UnitPlanPreview', {
+                data: result.data,
+                judul: judul,
+                mapel: mapel,
+                kelas: kelas,
+                pertemuan: pertemuan,
+            });
+
+        } catch (err) {
+            console.log(err);
+            alert(err.message);
+        }
     };
 
     return (

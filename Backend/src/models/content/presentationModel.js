@@ -80,6 +80,17 @@ const PresentationModel = {
         const query = `SELECT * FROM presentations WHERE id = $1;`;
         const result = await pool.query(query, [id]);
         return result.rows[0];
+    },
+
+    deletePresentation: async (id) => {
+        const query = `
+        DELETE FROM presentations
+        WHERE id = $1
+        RETURNING *;
+    `;
+
+        const result = await pool.query(query, [id]);
+        return result.rows[0];
     }
 };
 
