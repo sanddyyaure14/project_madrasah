@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,75 +17,84 @@ import { useAuth, API_URL } from '../lib/auth';
 
 // ─── Tab definitions ────────────────────────────────────────────────────────
 const TABS = [
-  { key: 'all',       label: 'Semua' },
-  { key: 'mc',        label: '📝 Soal PG' },
-  { key: 'rubric',    label: '📊 Rubrik' },
-  { key: 'feedback',  label: '✍️ Writing' },
+  { key: 'all', label: 'Semua' },
+  { key: 'mc', label: '📝 Soal PG' },
+  { key: 'rubric', label: '📊 Rubrik' },
+  { key: 'feedback', label: '✍️ Writing' },
   { key: 'worksheet', label: '📋 Worksheet' },
-  { key: 'syllabus',  label: '📚 Silabus' },
-  { key: 'academic',  label: '🎓 Konten' },
+  { key: 'syllabus', label: '📚 Silabus' },
+  { key: 'academic', label: '🎓 Konten Akademik' },
 ];
 
 // ─── Endpoint map ────────────────────────────────────────────────────────────
 const FETCH_URL = {
-  feedback:  '/feedback',
+  feedback: '/feedback',
   worksheet: '/worksheet/worksheets',
-  mc:        '/assessment',
-  rubric:    '/rubrics',
-  syllabus:  '/syllabus',
-  academic:  '/academic-content',
+  mc: '/assessment',
+  rubric: '/rubrics',
+  syllabus: '/syllabus',
+  academic: '/academic-content',
 };
 
 const DELETE_URL = (type, id) => {
   switch (type) {
     case 'worksheet': return `/worksheet/worksheets/${id}`;
-    case 'mc':        return `/assessment/delete/${id}`;
-    case 'rubric':    return `/rubrics/${id}`;
-    case 'syllabus':  return `/syllabus/${id}`;
-    case 'academic':  return `/academic-content/${id}`;
-    case 'feedback':  return `/feedback/delete/${id}`;
-    default:          return null;
+    case 'mc': return `/assessment/delete/${id}`;
+    case 'rubric': return `/rubrics/${id}`;
+    case 'syllabus': return `/syllabus/${id}`;
+    case 'academic': return `/academic-content/${id}`;
+    case 'feedback': return `/feedback/delete/${id}`;
+    default: return null;
   }
 };
 
 const DETAIL_SCREEN = {
   worksheet: 'WorksheetDetail',
-  mc:        'MCDetail',
-  rubric:    'RubricDetail',
-  syllabus:  'SyllabusDetail',
-  academic:  'AcademicContentDetail',
-  feedback:  'FeedbackDetail',
+  mc: 'MCDetail',
+  rubric: 'RubricDetail',
+  syllabus: 'SyllabusDetail',
+  academic: 'AcademicContentDetail',
+  feedback: 'FeedbackDetail',
 };
 
 // ─── Badge styles per type ───────────────────────────────────────────────────
 const BADGE = {
-  mc:        { bg: '#fee2e2', color: C.danger },
-  rubric:    { bg: '#fef9c3', color: C.gold },
+  mc: { bg: '#fee2e2', color: C.danger },
+  rubric: { bg: '#fef9c3', color: C.gold },
   worksheet: { bg: '#fef3c7', color: C.warning },
-  syllabus:  { bg: '#f0fdf4', color: C.success },
-  academic:  { bg: '#eff6ff', color: '#1d4ed8' },
-  feedback:  { bg: C.primaryLight, color: C.primary },
+  syllabus: { bg: '#f0fdf4', color: C.success },
+  academic: { bg: '#eff6ff', color: '#1d4ed8' },
+  feedback: { bg: C.primaryLight, color: C.primary },
 };
 
 const BADGE_LABEL = {
-  mc:        'Soal PG',
-  rubric:    'Rubrik',
+  mc: 'Soal PG',
+  rubric: 'Rubrik',
   worksheet: 'Worksheet',
-  syllabus:  'Silabus',
-  academic:  'Konten',
-  feedback:  'Writing',
+  syllabus: 'Silabus',
+  academic: 'Konten Akademik',
+  feedback: 'Writing',
+};
+
+const JENIS_LABEL = {
+  materi_pembelajaran: 'Materi Pembelajaran',
+  ringkasan: 'Ringkasan',
+  contoh_soal: 'Contoh Soal',
+  kamus_istilah: 'Kamus Istilah',
+  artikel: 'Artikel',
+  penjelasan: 'Penjelasan',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function getTitle(doc, type) {
   switch (type) {
-    case 'mc':        return doc.judul || doc.mata_pelajaran || 'Soal PG';
-    case 'rubric':    return doc.judul || doc.nama_rubrik || 'Rubrik';
+    case 'mc': return doc.judul || doc.mata_pelajaran || 'Soal PG';
+    case 'rubric': return doc.judul || doc.nama_rubrik || 'Rubrik';
     case 'worksheet': return doc.judul || doc.topik || 'Worksheet';
-    case 'syllabus':  return doc.nama_silabus || doc.mata_pelajaran || 'Silabus';
-    case 'academic':  return doc.judul || doc.title || 'Konten';
-    case 'feedback':  return doc.judul || doc.nama_siswa || 'Writing Feedback';
-    default:          return 'Dokumen';
+    case 'syllabus': return doc.nama_silabus || doc.mata_pelajaran || 'Silabus';
+    case 'academic': return doc.topik || doc.judul || doc.title || 'Konten';
+    case 'feedback': return doc.judul || doc.nama_siswa || 'Writing Feedback';
+    default: return 'Dokumen';
   }
 }
 
@@ -119,8 +128,7 @@ function getMeta(doc, type) {
 
     case 'academic':
       return [
-        doc.jenis_konten,
-        doc.mata_pelajaran,
+        doc.jenis_konten && (JENIS_LABEL[doc.jenis_konten] || doc.jenis_konten),
       ].filter(Boolean);
 
     case 'feedback':
@@ -148,7 +156,7 @@ function matchesSearch(doc, type, query) {
 function DocCard({ doc, type, onPress, onDelete }) {
   const badge = BADGE[type] ?? BADGE.feedback;
   const title = getTitle(doc, type);
-  const meta  = getMeta(doc, type);
+  const meta = getMeta(doc, type);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.75}>
@@ -186,11 +194,11 @@ function DocCard({ doc, type, onPress, onDelete }) {
 export default function MyDocsScreen({ navigation }) {
   const { token } = useAuth();
 
-  const [docs, setDocs]           = useState([]);
-  const [loading, setLoading]     = useState(false);
+  const [docs, setDocs] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
-  const [search, setSearch]       = useState('');
+  const [search, setSearch] = useState('');
 
   // ── Fetch all document types ──────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -544,6 +552,7 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 12,
     color: C.muted,
+    textTransform: 'capitalize',
   },
 
   // Loading / empty
