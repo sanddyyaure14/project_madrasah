@@ -2,6 +2,147 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
+// ─── FeedbackBadge — tampil di modal detail jika user pernah memberi rating ──
+function FeedbackBadge({ requestId }) {
+  const [fb, setFb]           = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [rating, setRating]   = useState(0);
+  const [hovered, setHovered] = useState(0);
+  const [isHelpful, setIsHelpful] = useState(null);
+  const [komentar, setKomentar]   = useState("");
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState("");
+
+  useEffect(() => {
+    if (!requestId) return;
+    const token = typeof window !== "undefined" ? sessionStorage.getItem("accessToken") : null;
+    if (!token) return;
+    fetch(`${getApiBase()}/api/feedback/${requestId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.data) {
+          setFb(json.data);
+          setRating(json.data.rating || 0);
+          setIsHelpful(json.data.is_helpful ?? null);
+          setKomentar(json.data.komentar || "");
+        }
+      })
+      .catch(() => {});
+  }, [requestId]);
+
+  const handleSave = async () => {
+    if (!rating) { setError("Pilih rating bintang dulu."); return; }
+    setSaving(true); setError("");
+    try {
+      const token = sessionStorage.getItem("accessToken");
+      const res = await fetch(`${getApiBase()}/api/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ request_id: requestId, rating, komentar: komentar.trim() || null, is_helpful: isHelpful }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "Gagal menyimpan.");
+      setFb(json.data);
+      setEditing(false);
+    } catch (e) { setError(e.message); }
+    finally { setSaving(false); }
+  };
+
+  if (!fb && !editing) return null;
+
+  const STAR_LABELS = { 1: "Sangat Kurang", 2: "Kurang", 3: "Cukup", 4: "Bagus", 5: "Sangat Bagus" };
+  const activeRating = hovered || rating;
+
+  return (
+    <div className="mt-4 pt-4 border-t border-gray-100">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">✦ Feedback Kamu</p>
+        {!editing && fb && (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="text-[11px] text-emerald-600 hover:text-emerald-800 font-semibold underline transition"
+          >
+            ✏️ Ubah
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+          {/* Bintang */}
+          <div className="flex items-center gap-1">
+            {[1,2,3,4,5].map(s => (
+              <button key={s} type="button"
+                onClick={() => setRating(s)}
+                onMouseEnter={() => setHovered(s)}
+                onMouseLeave={() => setHovered(0)}
+                className={`text-2xl transition-transform hover:scale-110 ${s <= activeRating ? "text-amber-400" : "text-gray-200 hover:text-amber-200"}`}
+              >★</button>
+            ))}
+            {activeRating > 0 && (
+              <span className="text-xs font-medium text-amber-600 ml-1">{STAR_LABELS[activeRating]}</span>
+            )}
+          </div>
+
+          {/* Helpful */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Membantu?</span>
+            <button type="button" onClick={() => setIsHelpful(true)}
+              className={`text-xs px-3 py-1 rounded-full border transition font-medium ${isHelpful === true ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-gray-600 border-gray-200 hover:border-emerald-400"}`}>
+              👍 Ya
+            </button>
+            <button type="button" onClick={() => setIsHelpful(false)}
+              className={`text-xs px-3 py-1 rounded-full border transition font-medium ${isHelpful === false ? "bg-red-500 text-white border-red-500" : "bg-white text-gray-600 border-gray-200 hover:border-red-300"}`}>
+              👎 Belum
+            </button>
+          </div>
+
+          {/* Komentar */}
+          <textarea rows={2} value={komentar} onChange={e => setKomentar(e.target.value)}
+            placeholder="Komentar atau saran perbaikan (opsional)..."
+            maxLength={500}
+            className="w-full text-xs p-2.5 border border-gray-200 rounded-lg outline-none focus:border-emerald-400 resize-none bg-white"
+          />
+
+          {error && <p className="text-[11px] text-red-500 font-medium">⚠ {error}</p>}
+
+          <div className="flex gap-2">
+            <button type="button" onClick={() => { setEditing(false); setError(""); }}
+              className="flex-1 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition">
+              Batal
+            </button>
+            <button type="button" onClick={handleSave} disabled={saving || !rating}
+              className="flex-1 py-2 rounded-lg bg-[#006747] hover:bg-emerald-800 text-white text-xs font-semibold transition disabled:opacity-50 flex items-center justify-center gap-1.5">
+              {saving ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"/>Menyimpan...</> : "✓ Simpan Feedback"}
+            </button>
+          </div>
+        </div>
+      ) : fb ? (
+        <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 flex items-start gap-3">
+          <div className="flex gap-0.5 shrink-0 mt-0.5">
+            {[1,2,3,4,5].map(s => (
+              <span key={s} className={`text-base ${s <= fb.rating ? "text-amber-400" : "text-gray-200"}`}>★</span>
+            ))}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-emerald-700">
+              {STAR_LABELS[fb.rating] || `${fb.rating} bintang`}
+              {fb.is_helpful === true  && <span className="ml-2 text-emerald-600">· 👍 Membantu</span>}
+              {fb.is_helpful === false && <span className="ml-2 text-gray-400">· 👎 Belum membantu</span>}
+            </p>
+            {fb.komentar && (
+              <p className="text-[11px] text-gray-500 mt-0.5 italic truncate">"{fb.komentar}"</p>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 // ─── Config ──────────────────────────────────────────────────────────────────
 const TABS = [
   { key: "all",        label: "Semua",       emoji: "🗂️" },
@@ -2833,6 +2974,8 @@ function DetailDrawer({ doc, onClose, onDelete, onSaved }) {
               {type === "rubric"       && <RubricDetail       doc={fullDoc} onDelete={onDelete} onEdit={() => setMode("edit")} />}
               {type === "syllabus"     && <SyllabusDetail     doc={fullDoc} onDelete={onDelete} onEdit={() => setMode("edit")} />}
               {type === "academic"     && <AcademicDetail     doc={fullDoc} onDelete={onDelete} onEdit={() => setMode("edit")} />}
+              {/* Tampilkan feedback/rating jika user pernah memberi rating untuk dokumen ini */}
+              {fullDoc.request_id && <FeedbackBadge requestId={fullDoc.request_id} />}
             </>
           )}
         </div>
