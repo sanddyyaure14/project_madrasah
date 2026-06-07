@@ -248,6 +248,81 @@ const GuruModel = {
     // =========================================================================
 
     /**
+     * Ambil statistik generate: kuota + breakdown per feature_type bulan ini
+     */
+    getGenerateStats: async (userId) => {
+        const quotaQuery = `
+            SELECT plan_type, monthly_limit, used_this_month, reset_date
+            FROM usage_quotas
+            WHERE user_id = $1;
+        `;
+        const breakdownQuery = `
+            SELECT
+                feature_type,
+                COUNT(*)::int AS total,
+                COUNT(CASE WHEN status = 'completed' THEN 1 END)::int AS berhasil,
+                COUNT(CASE WHEN status = 'failed'    THEN 1 END)::int AS gagal,
+                ROUND(AVG(processing_time_ms))::int                   AS avg_ms
+            FROM generation_requests
+            WHERE user_id = $1
+              AND created_at >= date_trunc('month', NOW())
+            GROUP BY feature_type
+            ORDER BY total DESC;
+        `;
+        const [quotaRes, breakdownRes] = await Promise.all([
+            db.query(quotaQuery, [userId]),
+            db.query(breakdownQuery, [userId]),
+        ]);
+        return {
+            kuota:     quotaRes.rows[0]   ?? null,
+            breakdown: breakdownRes.rows  ?? [],
+        };
+    },
+
+    /**
+     * Statistik penggunaan harian — jumlah generate per hari (14 hari terakhir)
+     */
+    getDailyUsageStats: async (userId) => {
+        const query = `
+            SELECT
+                DATE(created_at AT TIME ZONE 'Asia/Jakarta') AS hari,
+                COUNT(*)::int                                  AS total,
+                COUNT(CASE WHEN status = 'completed' THEN 1 END)::int AS berhasil
+            FROM generation_requests
+            WHERE user_id = $1
+              AND created_at >= NOW() - INTERVAL '14 days'
+            GROUP BY hari
+            ORDER BY hari ASC;
+        `;
+        const { rows } = await db.query(query, [userId]);
+        return rows;
+    },
+
+    /**
+     * Ambil semua feedback yang diberikan user: rating bintang + komentar
+     */
+    getUserFeedbackList: async (userId) => {
+        const query = `
+            SELECT
+                uf.id,
+                uf.rating,
+                uf.komentar,
+                uf.is_helpful,
+                uf.created_at,
+                gr.feature_type,
+                gr.input_data->>'topik'         AS topik,
+                gr.input_data->>'mata_pelajaran' AS mata_pelajaran,
+                gr.input_data->>'jenis_konten'   AS jenis_konten
+            FROM user_feedback uf
+            INNER JOIN generation_requests gr ON gr.id = uf.request_id
+            WHERE uf.user_id = $1
+            ORDER BY uf.created_at DESC;
+        `;
+        const { rows } = await db.query(query, [userId]);
+        return rows;
+    },
+
+    /**
      * Ambil informasi kuota penggunaan guru
      */
     getQuotaUsage: async (userId) => {
@@ -262,7 +337,49 @@ const GuruModel = {
         `;
         const { rows } = await db.query(query, [userId]);
         return rows[0] || null;
-    }
+    },
+
+    // =========================================================================
+    // D. FEEDBACK STATS
+    // =========================================================================
+
+    /**
+     * Ambil statistik feedback dari user_feedback
+     * - rata-rata rating (1-5)
+     * - total feedback yang diberikan
+     * - waktu generate terakhir (created_at dari generation_requests terbaru)
+     */
+    getFeedbackStats: async (userId) => {
+        const feedbackQuery = `
+            SELECT
+                COUNT(uf.id)::int                            AS total_feedback,
+                ROUND(AVG(uf.rating), 1)::float              AS rata_rata_rating,
+                COUNT(CASE WHEN uf.is_helpful = true THEN 1 END)::int AS total_helpful
+            FROM user_feedback uf
+            INNER JOIN generation_requests gr ON gr.id = uf.request_id
+            WHERE uf.user_id = $1;
+        `;
+
+        const lastUsageQuery = `
+            SELECT created_at
+            FROM generation_requests
+            WHERE user_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1;
+        `;
+
+        const [feedbackResult, lastUsageResult] = await Promise.all([
+            db.query(feedbackQuery, [userId]),
+            db.query(lastUsageQuery, [userId]),
+        ]);
+
+        return {
+            total_feedback:    feedbackResult.rows[0]?.total_feedback    ?? 0,
+            rata_rata_rating:  feedbackResult.rows[0]?.rata_rata_rating  ?? null,
+            total_helpful:     feedbackResult.rows[0]?.total_helpful     ?? 0,
+            waktu_terakhir:    lastUsageResult.rows[0]?.created_at       ?? null,
+        };
+    },
 };
 
 module.exports = GuruModel;

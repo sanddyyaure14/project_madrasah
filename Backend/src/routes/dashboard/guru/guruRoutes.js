@@ -41,6 +41,31 @@ router.get(
     guruController.getDashboardSummary
 );
 
+// ── STATISTIK ──────────────────────────────────────────────────────────────
+// GET /api/guru/stats/generate         → Kuota + breakdown per feature type
+router.get(
+    '/guru/stats/generate',
+    verifyToken,
+    authorizeRoles('guru'),
+    guruController.getGenerateStats
+);
+
+// GET /api/guru/stats/usage            → Penggunaan harian 14 hari terakhir
+router.get(
+    '/guru/stats/usage',
+    verifyToken,
+    authorizeRoles('guru'),
+    guruController.getDailyUsageStats
+);
+
+// GET /api/guru/stats/feedback         → List feedback bintang + komentar
+router.get(
+    '/guru/stats/feedback',
+    verifyToken,
+    authorizeRoles('guru'),
+    guruController.getUserFeedbackList
+);
+
 // ── DOKUMEN SAYA / HISTORY ─────────────────────────────────────────────────
 // GET /api/guru/documents              → Semua riwayat dokumen (dengan pagination)
 // GET /api/guru/documents?feature_type=multiple_choice → Filter per jenis

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth, API_URL } from '../lib/auth';
 import { TOOLS } from '../lib/tools';
 import { TEACHERS, PENDING, SCHOOL_STATS, ACTIVITY } from '../lib/mockSchool';
@@ -12,10 +13,10 @@ function getInitials(name) {
   return name.split(' ').map(s => s[0]).slice(0, 2).join('');
 }
 
-function StatCard({ icon, label, value, accent }) {
+function StatCard({ icon, label, value, accent, onPress }) {
   const isGold = accent === 'gold';
-  return (
-    <View style={[styles.statCard, S.shadow]}>
+  const inner = (
+    <>
       <View style={[styles.statIcon, isGold ? styles.statIconGold : styles.statIconEmerald]}>
         <Ionicons name={icon} size={20} color={isGold ? C.goldFg : C.primary} />
       </View>
@@ -23,8 +24,17 @@ function StatCard({ icon, label, value, accent }) {
         <Text style={styles.statLabel} numberOfLines={1}>{label}</Text>
         <Text style={styles.statValue} numberOfLines={1}>{value}</Text>
       </View>
-    </View>
+    </>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity style={[styles.statCard, S.shadow]} onPress={onPress} activeOpacity={0.75}>
+        {inner}
+      </TouchableOpacity>
+    );
+  }
+  return <View style={[styles.statCard, S.shadow]}>{inner}</View>;
 }
 
 function StatusPill({ status }) {
@@ -204,19 +214,24 @@ function GuruHome({ navigation }) {
   const [summary, setSummary] = useState(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
 
-  useEffect(() => {
-    async function fetchSummary() {
-      try {
-        const res  = await fetch(`${API_URL}/guru/dashboard/summary`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const json = await res.json();
-        if (json.success) setSummary(json.data);
-      } catch { /* silent */ }
-      finally { setLoadingSummary(false); }
-    }
-    fetchSummary();
-  }, [token]);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      async function fetchSummary() {
+        setLoadingSummary(true);
+        try {
+          const res  = await fetch(`${API_URL}/guru/dashboard/summary`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const json = await res.json();
+          if (active && json.success) setSummary(json.data);
+        } catch { /* silent */ }
+        finally { if (active) setLoadingSummary(false); }
+      }
+      fetchSummary();
+      return () => { active = false; };
+    }, [token])
+  );
 
   const generateValue = loadingSummary
     ? '...'
@@ -230,6 +245,30 @@ function GuruHome({ navigation }) {
       ? summary.dokumen_tersimpan
       : '-';
 
+  // Format waktu penggunaan — tampilkan kapan terakhir aktif
+  const waktuValue = loadingSummary
+    ? '...'
+    : summary?.waktu_terakhir_generate
+      ? (() => {
+          const d = new Date(summary.waktu_terakhir_generate);
+          const now = new Date();
+          const diffMs = now - d;
+          const diffMnt = Math.floor(diffMs / 60000);
+          const diffJam = Math.floor(diffMnt / 60);
+          const diffHari = Math.floor(diffJam / 24);
+          if (diffMnt < 60) return `${diffMnt} mnt lalu`;
+          if (diffJam < 24) return `${diffJam} jam lalu`;
+          return `${diffHari} hari lalu`;
+        })()
+      : 'Belum ada';
+
+  // Format rating feedback
+  const ratingValue = loadingSummary
+    ? '...'
+    : summary?.feedback?.rata_rata != null
+      ? `★ ${Number(summary.feedback.rata_rata).toFixed(1)} / 5`
+      : 'Belum ada';
+
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       {/* Banner */}
@@ -239,10 +278,36 @@ function GuruHome({ navigation }) {
         <Text style={styles.bannerSub}>Pilih salah satu dari 8 alat di bawah, isi parameter, lalu biarkan MadrasahAI menyusunnya untuk Anda.</Text>
       </View>
 
-      {/* Guru stats */}
+      {/* Guru stats — 4 card dalam 2x2 grid */}
       <View style={styles.statsGrid}>
-        <StatCard icon="sparkles" label="Generate bulan ini" value={generateValue} accent="primary" />
-        <StatCard icon="document-text" label="Dokumen tersimpan" value={dokumenValue} accent="gold" />
+        <StatCard
+          icon="sparkles"
+          label="Generate bulan ini"
+          value={generateValue}
+          accent="primary"
+          onPress={() => navigation.navigate('GenerateStats')}
+        />
+        <StatCard
+          icon="document-text"
+          label="Dokumen tersimpan"
+          value={dokumenValue}
+          accent="gold"
+          onPress={() => navigation.navigate('Dokumen')}
+        />
+        <StatCard
+          icon="time-outline"
+          label="Waktu penggunaan"
+          value={waktuValue}
+          accent="primary"
+          onPress={() => navigation.navigate('UsageStats')}
+        />
+        <StatCard
+          icon="star"
+          label="Rating feedback"
+          value={ratingValue}
+          accent="gold"
+          onPress={() => navigation.navigate('FeedbackStats')}
+        />
       </View>
 
       {/* Assessment tools */}

@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
+import FeedbackRating from '../components/FeedbackRating';
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -548,6 +549,12 @@ export default function WorksheetDetailScreen({ route, navigation }) {
             </View>
           </View>
         ))}
+
+        {/* ── Rating & Feedback AI ── */}
+        <FeedbackRating
+          requestId={data.request_id}
+          endpoint="worksheet"
+        />
 
       </ScrollView>
 

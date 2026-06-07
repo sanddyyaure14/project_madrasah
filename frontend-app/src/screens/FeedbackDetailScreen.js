@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
+import FeedbackRating from '../components/FeedbackRating';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -440,6 +441,13 @@ export default function FeedbackDetailScreen({ route, navigation }) {
             <Text style={styles.tulisanText}>{data.tulisan_siswa}</Text>
           </View>
         ) : null}
+
+        {/* Rating & Feedback AI */}
+        <Text style={styles.tulisanTitle}>Nilai Hasil Generate</Text>
+        <FeedbackRating
+          requestId={data.request_id}
+          endpoint="writing"
+        />
 
       </ScrollView>
 
