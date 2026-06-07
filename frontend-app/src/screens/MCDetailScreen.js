@@ -17,6 +17,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useAuth, API_URL } from '../lib/auth';
 import { C, S } from '../lib/theme';
+import FeedbackRating from '../components/FeedbackRating';
 
 async function downloadWithToken(url, token, filename) {
   try {
@@ -249,12 +250,12 @@ const dm = StyleSheet.create({
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function MCDetailScreen({ route, navigation }) {
-  const { id } = route.params;
+  const { id, data: initialData } = route.params;
   const { token } = useAuth();
 
-  const [assessment, setAssessment] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [assessment, setAssessment] = useState(initialData ?? null);
+  const [questions, setQuestions] = useState(initialData?.questions_json ?? []);
+  const [loading, setLoading] = useState(!initialData); // jika ada data awal, skip loading
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [editQuestion, setEditQuestion] = useState(null);
@@ -379,10 +380,28 @@ export default function MCDetailScreen({ route, navigation }) {
 
         {/* Action bar */}
         <View style={styles.actionBar}>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionBtnSave]}
+            onPress={() => {
+              Alert.alert(
+                'Tersimpan ✅',
+                'Soal ini sudah tersimpan di Dokumen Saya. Kamu bisa menemukannya di tab Dokumen.',
+                [
+                  { text: 'Lihat Dokumen', onPress: () => navigation.navigate('Dokumen') },
+                  { text: 'OK', style: 'cancel' },
+                ]
+              );
+            }}
+          >
+            <Ionicons name="bookmark" size={18} color="#fff" />
+            <Text style={[styles.actionBtnText, { color: '#fff' }]}>Simpan</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.actionBtn} onPress={() => setShowDownload(true)}>
             <Ionicons name="download-outline" size={18} color={C.primary} />
             <Text style={styles.actionBtnText}>Download PDF</Text>
           </TouchableOpacity>
+
           {hasChanges && (
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: C.primary, borderColor: C.primary }]}
@@ -448,6 +467,15 @@ export default function MCDetailScreen({ route, navigation }) {
             ) : null}
           </View>
         ))}
+        <View style={{ height: 8 }} />
+
+        {/* Rating & Feedback AI */}
+        <Text style={styles.sectionTitle}>Nilai Hasil Generate</Text>
+        <FeedbackRating
+          requestId={assessment?.request_id}
+          endpoint="mc"
+        />
+
         <View style={{ height: 32 }} />
       </ScrollView>
 
@@ -502,6 +530,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 10, backgroundColor: C.card,
   },
   actionBtnDanger: { borderColor: '#fca5a5', backgroundColor: '#fff5f5' },
+  actionBtnSave: { backgroundColor: C.primary, borderColor: C.primary },
   actionBtnText: { fontSize: 13, fontWeight: '600', color: C.ink },
 
   sectionTitle: { fontSize: 15, fontWeight: '700', color: C.ink },
