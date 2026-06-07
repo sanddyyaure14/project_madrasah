@@ -57,7 +57,7 @@ function SuperAdminTabs() {
     >
       <Tab.Screen name="Dashboard" component={DashboardStack} options={{ headerShown: false }} />
       <Tab.Screen name="Dokumen" component={DocsStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Guru" component={TeachersScreen} options={{ title: 'Daftar Guru' }} />
+      <Tab.Screen name="Guru" component={GuruStack} options={{ headerShown: false }} />
       <Tab.Screen name="Persetujuan" component={ApprovalsScreen} options={{ title: 'Persetujuan' }} />
       <Tab.Screen name="Profil" component={KepsekProfilStack} options={{ headerShown: false }} />
     </Tab.Navigator>
@@ -115,6 +115,20 @@ function DocsStack() {
       <Stack.Screen name="AcademicContentDetail" component={AcademicContentDetailScreen} options={{ title: 'Detail Konten Akademik' }} />
       <Stack.Screen name="AcademicContentEdit" component={AcademicContentEditScreen} options={{ title: 'Edit Konten Akademik' }} />
       <Stack.Screen name="PresentationDetail" component={PresentationDetailScreen} options={{ title: 'Detail Presentasi' }} />
+    </Stack.Navigator>
+  );
+}
+
+function GuruStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: C.card },
+        headerTitleStyle: { fontSize: 17, fontWeight: '700', color: C.ink },
+        headerTintColor: C.primary,
+      }}
+    >
+      <Stack.Screen name="TeachersList" component={TeachersScreen} options={{ title: 'Daftar Guru' }} />
     </Stack.Navigator>
   );
 }

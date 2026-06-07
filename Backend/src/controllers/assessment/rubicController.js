@@ -186,13 +186,13 @@ PENTING:
 const getAllRubrics = async (req, res) => {
     try {
         const finalUserId = req.user?.id;
-        const isKepsek = req.user?.role === 'kepala_sekolah';
         
         if (!finalUserId) {
             return res.status(401).json({ success: false, message: "User tidak terautentikasi" });
         }
 
-        const rubrics = await RubicModel.getAllRubrics(finalUserId, isKepsek);
+        // Selalu filter by userId — kepsek hanya lihat dokumen miliknya sendiri
+        const rubrics = await RubicModel.getAllRubrics(finalUserId, false);
 
         res.status(200).json({
             success: true,

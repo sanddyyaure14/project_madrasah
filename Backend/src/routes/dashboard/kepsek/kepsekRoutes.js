@@ -1,46 +1,55 @@
 const express = require('express');
 const router = express.Router();
 const kepsekController = require('../../../controllers/dashboard/kepsek/kepsekController');
+const { verifyToken } = require('../../../middlewares/authMiddleware');
+const db = require('../../../config/db');
+const bcrypt = require('bcrypt');
 
-// 1. Endpoint Summary Dashboard (Bawaan lama yang sudah benar)
-router.get('/kepsek/dashboard/summary', kepsekController.getDashboardSummary);
+// ── semua route dilindungi verifyToken ────────────────────────────────────────
 
-// =========================================================================
-// 🌟 TAMBAHAN BARU: ENDPOINT ANTRIAN & APPROVE GURU (AUTH VERIFIKASI)
-// =========================================================================
+// 1. Summary Dashboard
+router.get('/kepsek/dashboard/summary', verifyToken, kepsekController.getDashboardSummary);
 
-// 2. Endpoint Kepsek untuk melihat list pendaftar guru (is_active = false)
-// URL: GET http://localhost:3000/api/kepsek/pending-teachers
-router.get('/kepsek/pending-teachers', kepsekController.getRegistrationQueue);
+// 2. List pendaftar guru (is_active = false)
+router.get('/kepsek/pending-teachers', verifyToken, kepsekController.getRegistrationQueue);
 
-// 3. Endpoint Kepsek untuk klik tombol ACC (Approve) atau Tolak (Reject)
-// URL: POST http://localhost:3000/api/kepsek/review-teacher
-router.post('/kepsek/review-teacher', kepsekController.reviewTeacherAccount);
-// 4. Daftar guru aktif
-router.get('/kepsek/guru', kepsekController.getDaftarGuru);
+// 3. ACC atau Tolak pendaftar guru (saat approve → set kuota free)
+router.post('/kepsek/review-teacher', verifyToken, kepsekController.reviewTeacherAccount);
+
+// 4. Daftar guru aktif (termasuk semua madrasah, filter instansi ada di controller)
+router.get('/kepsek/guru', verifyToken, kepsekController.getDaftarGuru);
 
 // 5. Detail satu guru
-router.get('/kepsek/guru/:guruId', kepsekController.getDetailGuru);
+router.get('/kepsek/guru/:guruId', verifyToken, kepsekController.getDetailGuru);
 
-// 6. History semua guru (opsional filter: ?feature_type=rubric)
-router.get('/kepsek/history', kepsekController.getHistoryAllGuru);
+// 6. Edit guru (semua field profil + nama + email)
+router.put('/kepsek/guru/:guruId', verifyToken, kepsekController.updateGuru);
 
-// 7. History satu guru
-router.get('/kepsek/history/:guruId', kepsekController.getHistoryByGuru);
+// 7. Reset/ubah password guru
+router.put('/kepsek/guru/:guruId/password', verifyToken, kepsekController.resetGuruPassword);
 
-// 8. Statistik per guru
-router.get('/kepsek/statistik', kepsekController.getStatistikGuru);
-module.exports = router;
+// 8. Hapus guru
+router.delete('/kepsek/guru/:guruId', verifyToken, kepsekController.deleteGuru);
 
-// 9. Endpoint Kepsek untuk memberi atau update paket kuota bulanan guru
-// URL: POST http://localhost:3000/api/kepsek/quota/assign
-router.post('/kepsek/quota/assign', kepsekController.assignQuotaToTeacher);
+// 9. Ubah plan_type guru (free/basic/premium)
+router.put('/kepsek/guru/:guruId/plan', verifyToken, kepsekController.updateGuruPlan);
 
-// 10. Profil kepsek
-router.get('/kepsek/profile', require('../../../middlewares/authMiddleware').verifyToken, async (req, res) => {
+// 10. History semua guru (opsional filter: ?feature_type=rubric)
+router.get('/kepsek/history', verifyToken, kepsekController.getHistoryAllGuru);
+
+// 11. History satu guru
+router.get('/kepsek/history/:guruId', verifyToken, kepsekController.getHistoryByGuru);
+
+// 12. Statistik per guru
+router.get('/kepsek/statistik', verifyToken, kepsekController.getStatistikGuru);
+
+// 13. Alokasi kuota bulanan guru
+router.post('/kepsek/quota/assign', verifyToken, kepsekController.assignQuotaToTeacher);
+
+// 10. GET Profil kepsek
+router.get('/kepsek/profile', verifyToken, async (req, res) => {
     try {
-        const pool = require('../../../config/db');
-        const result = await pool.query(`
+        const result = await db.query(`
             SELECT u.id, u.nama_lengkap, u.email, u.role, u.avatar_url,
                    p.nip, p.no_hp, p.jenjang, p.kurikulum, p.instansi_id,
                    i.nama AS nama_instansi
@@ -49,29 +58,36 @@ router.get('/kepsek/profile', require('../../../middlewares/authMiddleware').ver
             LEFT JOIN institutions i ON p.instansi_id = i.id
             WHERE u.id = $1
         `, [req.user.id]);
-        if (!result.rows[0]) return res.status(404).json({ success: false, message: 'User tidak ditemukan.' });
+        if (!result.rows[0]) {
+            return res.status(404).json({ success: false, message: 'User tidak ditemukan.' });
+        }
         res.json({ success: true, data: result.rows[0] });
     } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }
 });
 
-router.put('/kepsek/profile', require('../../../middlewares/authMiddleware').verifyToken, async (req, res) => {
-    const pool = require('../../../config/db');
-    const client = await pool.connect();
+// 11. PUT Update profil kepsek
+router.put('/kepsek/profile', verifyToken, async (req, res) => {
+    const client = await db.connect();
     try {
         await client.query('BEGIN');
         const { nama_lengkap, nip, no_hp, jenjang, kurikulum } = req.body;
-        if (!nama_lengkap) return res.status(400).json({ success: false, message: 'nama_lengkap wajib diisi.' });
+        if (!nama_lengkap) {
+            return res.status(400).json({ success: false, message: 'nama_lengkap wajib diisi.' });
+        }
 
-        // Update tabel users
+        // Update nama di tabel users
         await client.query(
             'UPDATE users SET nama_lengkap = $1 WHERE id = $2',
             [nama_lengkap, req.user.id]
         );
 
         // Upsert user_profiles
-        const existing = await client.query('SELECT id FROM user_profiles WHERE user_id = $1', [req.user.id]);
+        const existing = await client.query(
+            'SELECT id FROM user_profiles WHERE user_id = $1',
+            [req.user.id]
+        );
         if (existing.rows.length > 0) {
             await client.query(
                 'UPDATE user_profiles SET nip=$1, no_hp=$2, jenjang=$3, kurikulum=$4 WHERE user_id=$5',
@@ -83,8 +99,21 @@ router.put('/kepsek/profile', require('../../../middlewares/authMiddleware').ver
                 [req.user.id, nip || null, no_hp || null, jenjang || null, kurikulum || null]
             );
         }
+
         await client.query('COMMIT');
-        res.json({ success: true, message: 'Profil berhasil diperbarui.' });
+
+        // Ambil data terbaru untuk response
+        const updated = await db.query(`
+            SELECT u.id, u.nama_lengkap, u.email, u.role,
+                   p.nip, p.no_hp, p.jenjang, p.kurikulum,
+                   i.nama AS nama_instansi
+            FROM users u
+            LEFT JOIN user_profiles p ON u.id = p.user_id
+            LEFT JOIN institutions i ON p.instansi_id = i.id
+            WHERE u.id = $1
+        `, [req.user.id]);
+
+        res.json({ success: true, message: 'Profil berhasil diperbarui.', data: updated.rows[0] });
     } catch (e) {
         await client.query('ROLLBACK');
         res.status(500).json({ success: false, message: e.message });
@@ -92,3 +121,5 @@ router.put('/kepsek/profile', require('../../../middlewares/authMiddleware').ver
         client.release();
     }
 });
+
+module.exports = router;

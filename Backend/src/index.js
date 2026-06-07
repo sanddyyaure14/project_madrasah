@@ -27,6 +27,9 @@ const guruRoutes = require('./routes/dashboard/guru/guruRoutes');
 // Error Handlers
 const contentErrorHandler = require('./middlewares/content/contentErrorHandler');
 
+// Scheduler: auto-reset kuota bulanan
+require('./scheduler');
+
 // INISIALISASI APP & PORT
 const app = express();
 const PORT = process.env.PORT || 3000;
