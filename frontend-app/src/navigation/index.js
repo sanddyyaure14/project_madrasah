@@ -32,6 +32,9 @@ import SyllabusDetailScreen from '../screens/SyllabusDetailScreen';
 import AcademicContentDetailScreen from '../screens/AcademicContentDetailScreen';
 import SyllabusEditScreen from '../screens/SyllabusEditScreen';
 import AcademicContentEditScreen from '../screens/AcademicContentEditScreen';
+import PresentationFormScreen from '../screens/PresentationFormScreen';
+import PresentationPreviewScreen from '../screens/PresentationPreviewScreen';
+import PresentationDetailScreen from '../screens/PresentationDetailScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -111,6 +114,7 @@ function DocsStack() {
       <Stack.Screen name="SyllabusEdit" component={SyllabusEditScreen} options={{ title: 'Edit Silabus' }} />
       <Stack.Screen name="AcademicContentDetail" component={AcademicContentDetailScreen} options={{ title: 'Detail Konten Akademik' }} />
       <Stack.Screen name="AcademicContentEdit" component={AcademicContentEditScreen} options={{ title: 'Edit Konten Akademik' }} />
+      <Stack.Screen name="PresentationDetail" component={PresentationDetailScreen} options={{ title: 'Detail Presentasi' }} />
     </Stack.Navigator>
   );
 }
@@ -180,6 +184,9 @@ function DashboardStack() {
       <Stack.Screen name="SyllabusPreview" component={SyllabusPreviewScreen} options={{ title: 'Preview Silabus' }} />
       <Stack.Screen name="AcademicContentForm" component={AcademicContentFormScreen} options={{ title: 'Buat Konten Akademik' }} />
       <Stack.Screen name="AcademicContentPreview" component={AcademicContentPreviewScreen} options={{ title: 'Preview Konten Akademik' }} />
+      <Stack.Screen name="PresentationForm" component={PresentationFormScreen} options={{ title: 'Buat Presentasi' }} />
+      <Stack.Screen name="PresentationPreview" component={PresentationPreviewScreen} options={{ title: 'Preview Presentasi' }} />
+      <Stack.Screen name="PresentationDetail" component={PresentationDetailScreen} options={{ title: 'Detail Presentasi' }} />
       <Stack.Screen name="Teachers" component={TeachersScreen} options={{ title: 'Daftar Guru' }} />
       <Stack.Screen name="Approvals" component={ApprovalsScreen} options={{ title: 'Persetujuan' }} />
     </Stack.Navigator>

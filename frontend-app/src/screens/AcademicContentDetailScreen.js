@@ -22,6 +22,57 @@ const JENIS_LABEL = {
 
 const MAPEL_OPTIONS = ['Fiqih', 'Akidah Akhlak', "Al-Qur'an Hadis", 'Bahasa Arab', 'SKI', 'Matematika', 'IPA Terpadu', 'Bahasa Indonesia', 'Bahasa Inggris', 'IPS Terpadu'];
 const KELAS_OPTIONS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+const HURUF = ['A', 'B', 'C', 'D', 'E'];
+
+// ---------------------------------------------------------------------------
+// Soal PG Card
+// ---------------------------------------------------------------------------
+function SoalPGCard({ soal, index }) {
+  let opsiArray = [];
+  if (soal.pilihan) {
+    opsiArray = ['A', 'B', 'C', 'D'].map(k => soal.pilihan[k]).filter(Boolean);
+  } else {
+    opsiArray = soal.opsi || soal.options || [];
+  }
+  const jawaban = (soal.jawaban || soal.kunci_jawaban || soal.answer || '').toUpperCase();
+  const pembahasan = soal.pembahasan || soal.explanation || '';
+
+  return (
+    <View style={styles.soalCard}>
+      <View style={styles.soalHeader}>
+        <View style={styles.soalNomorBadge}>
+          <Text style={styles.soalNomorText}>{index + 1}</Text>
+        </View>
+        <Text style={styles.soalPertanyaan}>{soal.pertanyaan || soal.question || '-'}</Text>
+      </View>
+      {opsiArray.length > 0 && (
+        <View style={styles.opsiList}>
+          {opsiArray.map((o, i) => {
+            const huruf = HURUF[i] || String(i + 1);
+            const isBenar = jawaban === huruf;
+            return (
+              <View key={i} style={[styles.opsiRow, isBenar && styles.opsiRowBenar]}>
+                <View style={[styles.hurufBadge, isBenar && styles.hurufBadgeBenar]}>
+                  <Text style={[styles.hurufText, isBenar && styles.hurufTextBenar]}>{huruf}</Text>
+                </View>
+                <Text style={[styles.opsiText, isBenar && styles.opsiTextBenar]}>{o}</Text>
+                {isBenar && <Ionicons name="checkmark-circle" size={16} color="#16a34a" />}
+              </View>
+            );
+          })}
+        </View>
+      )}
+      {pembahasan ? (
+        <View style={styles.pembahasanBox}>
+          <View style={styles.pembahasanTitleRow}>
+            <Text style={styles.pembahasanTitle}>💡 Pembahasan</Text>
+          </View>
+          <Text style={styles.pembahasanText}>{pembahasan}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 function ChipGroup({ options, selected, onSelect }) {
   return (
@@ -172,6 +223,8 @@ export default function AcademicContentDetailScreen({ route, navigation }) {
   const ringkasan = contentJson.ringkasan || '';
   const kataKunci = contentJson.kata_kunci || [];
   const referensi = contentJson.referensi || [];
+  const soalList = contentJson.soal || contentJson.questions || [];
+  const isContohSoal = data.jenis_konten === 'contoh_soal' || data.jenis_konten === 'Contoh Soal';
   const jenisLabel = JENIS_LABEL[data.jenis_konten] || data.jenis_konten || '-';
 
   return (
@@ -195,27 +248,35 @@ export default function AcademicContentDetailScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* Konten Utama */}
-          {konten ? (
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionTitleRow}>
-                <Ionicons name="document-text" size={14} color={C.primary} />
-                <Text style={styles.sectionTitle}>Isi Konten</Text>
-              </View>
-              <Text style={styles.kontenText}>{konten}</Text>
+          {/* Soal PG — contoh_soal */}
+          {isContohSoal && soalList.length > 0 ? (
+            <View style={{ gap: 10 }}>
+              <Text style={styles.soalSectionLabel}>SOAL PILIHAN GANDA</Text>
+              {soalList.map((s, i) => <SoalPGCard key={i} soal={s} index={i} />)}
             </View>
-          ) : null}
+          ) : (
+            <>
+              {konten ? (
+                <View style={styles.sectionCard}>
+                  <View style={styles.sectionTitleRow}>
+                    <Ionicons name="document-text" size={14} color={C.primary} />
+                    <Text style={styles.sectionTitle}>Isi Konten</Text>
+                  </View>
+                  <Text style={styles.kontenText}>{konten}</Text>
+                </View>
+              ) : null}
 
-          {/* Ringkasan */}
-          {ringkasan ? (
-            <View style={styles.ringkasanBox}>
-              <View style={styles.ringkasanTitleRow}>
-                <Ionicons name="reader" size={14} color={C.primary} />
-                <Text style={styles.ringkasanTitle}>Ringkasan</Text>
-              </View>
-              <Text style={styles.ringkasanText}>{ringkasan}</Text>
-            </View>
-          ) : null}
+              {ringkasan ? (
+                <View style={styles.ringkasanBox}>
+                  <View style={styles.ringkasanTitleRow}>
+                    <Ionicons name="reader" size={14} color={C.primary} />
+                    <Text style={styles.ringkasanTitle}>Ringkasan</Text>
+                  </View>
+                  <Text style={styles.ringkasanText}>{ringkasan}</Text>
+                </View>
+              ) : null}
+            </>
+          )}
 
           {/* Kata Kunci */}
           {kataKunci.length > 0 && (
@@ -347,6 +408,26 @@ const styles = StyleSheet.create({
   refBullet: { width: 22, height: 22, borderRadius: 11, backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center' },
   refBulletText: { fontSize: 10, fontWeight: '700', color: C.primary },
   refText: { flex: 1, fontSize: 13, color: C.ink, lineHeight: 20 },
+  // Soal PG
+  soalSectionLabel: { fontSize: 11, fontWeight: '800', color: C.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  soalCard: { backgroundColor: C.bg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 14, gap: 12 },
+  soalHeader: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  soalNomorBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#fee2e2', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  soalNomorText: { fontSize: 13, fontWeight: '700', color: '#ef4444' },
+  soalPertanyaan: { flex: 1, fontSize: 14, fontWeight: '700', color: C.ink, lineHeight: 21 },
+  opsiList: { gap: 8 },
+  opsiRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
+  opsiRowBenar: { backgroundColor: '#f0fdf4', borderColor: '#16a34a' },
+  hurufBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  hurufBadgeBenar: { backgroundColor: '#16a34a', borderColor: '#16a34a' },
+  hurufText: { fontSize: 12, fontWeight: '700', color: C.ink },
+  hurufTextBenar: { color: '#fff' },
+  opsiText: { flex: 1, fontSize: 14, fontWeight: '700', color: C.ink },
+  opsiTextBenar: { color: '#15803d' },
+  pembahasanBox: { backgroundColor: '#fffbeb', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#fde68a', gap: 6 },
+  pembahasanTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  pembahasanTitle: { fontSize: 13, fontWeight: '700', color: '#b45309' },
+  pembahasanText: { fontSize: 14, fontWeight: '600', color: C.ink, lineHeight: 22 },
   resultActions: { flexDirection: 'row', gap: 8 },
   btnEdit: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: C.primary, borderRadius: 12, paddingVertical: 12 },
   btnEditText: { fontSize: 13, fontWeight: '600', color: C.primary },

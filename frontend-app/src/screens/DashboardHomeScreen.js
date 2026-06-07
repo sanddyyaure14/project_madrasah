@@ -52,6 +52,8 @@ function SuperAdminHome({ navigation }) {
       navigation.navigate('SyllabusForm');
     } else if (t.slug === 'academic-content') {
       navigation.navigate('AcademicContentForm');
+    } else if (t.slug === 'presentation') {
+      navigation.navigate('PresentationForm');
     } else if (t.slug === 'writing-feedback') {
       navigation.navigate('WritingFeedback');
     } else if (t.slug === 'worksheet') {
@@ -238,6 +240,8 @@ function GuruHome({ navigation }) {
                   navigation.navigate('SyllabusForm');
                 } else if (t.slug === 'academic-content') {
                   navigation.navigate('AcademicContentForm');
+                } else if (t.slug === 'presentation') {
+                  navigation.navigate('PresentationForm');
                 } else {
                   navigation.navigate('ToolPage', { slug: t.slug });
                 }

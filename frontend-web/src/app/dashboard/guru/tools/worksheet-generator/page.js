@@ -3,9 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 const KELAS_OPTIONS = ['VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-
 const TIPE_OPTIONS = ['pilihan ganda', 'isian', 'esai', 'praktik', 'observasi'];
-
 const MAPEL_SUGGESTIONS = ['Akidah Akhlak', 'Al-Qur\'an Hadis', 'Fiqih', 'SKI', 'Bahasa Arab', 'Matematika', 'IPA', 'IPS', 'Bahasa Indonesia'];
 
 export default function WorksheetGeneratorPage() {
@@ -109,120 +107,126 @@ export default function WorksheetGeneratorPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* ===== FORM ===== */}
-        <form onSubmit={handleGenerate} className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5 h-fit">
+      {/* ===== GRID: FORM + PREVIEW ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
-          {/* Mata pelajaran */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">
-              Mata Pelajaran <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text" value={mapel}
-              onChange={e => { setMapel(e.target.value); if (error) setError(''); }}
-              placeholder="cth. Akidah Akhlak"
-              className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50"
-            />
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {MAPEL_SUGGESTIONS.map(s => (
-                <button key={s} type="button" onClick={() => setMapel(s)}
-                  className="text-[10px] px-2.5 py-1 rounded-full border border-gray-200 text-gray-500 hover:border-emerald-400 hover:text-emerald-700 transition">
-                  {s}
-                </button>
-              ))}
-            </div>
+        {/* ===== FORM (fixed height sama dengan preview, tidak scroll) ===== */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+          <div className="flex-1 overflow-y-auto">
+            <form onSubmit={handleGenerate} className="p-6 space-y-5">
+
+              {/* Mata pelajaran */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                  Mata Pelajaran <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text" value={mapel}
+                  onChange={e => { setMapel(e.target.value); if (error) setError(''); }}
+                  placeholder="cth. Akidah Akhlak"
+                  className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {MAPEL_SUGGESTIONS.map(s => (
+                    <button key={s} type="button" onClick={() => setMapel(s)}
+                      className="text-[10px] px-2.5 py-1 rounded-full border border-gray-200 text-gray-500 hover:border-emerald-400 hover:text-emerald-700 transition">
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Topik */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                  Topik Bahasan <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text" value={topik}
+                  onChange={e => { setTopik(e.target.value); if (error) setError(''); }}
+                  placeholder="cth. Akhlak Terpuji kepada Orang Tua"
+                  className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50"
+                />
+              </div>
+
+              {/* Kelas */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">Kelas <span className="text-red-500">*</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {KELAS_OPTIONS.map(opt => (
+                    <button key={opt} type="button" onClick={() => setKelas(opt)}
+                      className={`px-4 py-2 rounded-full text-sm border transition font-medium
+                        ${kelas === opt ? 'bg-[#006747] text-white border-[#006747]' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-400'}`}>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Durasi */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">Durasi (Menit)</label>
+                <input
+                  type="number" value={durasi}
+                  onChange={e => setDurasi(parseInt(e.target.value) || 0)}
+                  className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50"
+                />
+              </div>
+
+              {/* Tipe aktivitas */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                  Tipe Aktivitas <span className="text-xs text-gray-400">(bisa lebih dari satu)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {TIPE_OPTIONS.map(opt => (
+                    <button key={opt} type="button" onClick={() => toggleTipe(opt)}
+                      className={`px-4 py-2 rounded-full text-sm border transition font-medium capitalize
+                        ${tipeSelected.includes(opt) ? 'bg-[#006747] text-white border-[#006747]' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-400'}`}>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-emerald-600 italic mt-1.5">Terpilih: {tipeSelected.join(', ')}</p>
+              </div>
+
+              {/* Tujuan pembelajaran */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">Tujuan Pembelajaran <span className="text-xs text-gray-400">(opsional)</span></label>
+                <textarea
+                  rows={2} value={tujuan}
+                  onChange={e => setTujuan(e.target.value)}
+                  placeholder="cth. Siswa mampu menjelaskan pengertian akhlak terpuji..."
+                  className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 resize-none bg-gray-50"
+                />
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
+                  <span className="text-red-500 text-sm">⚠</span>
+                  <p className="text-xs text-red-700 font-medium">{error}</p>
+                </div>
+              )}
+
+              <button type="submit" disabled={loading}
+                className="w-full flex items-center justify-center gap-2 bg-[#006747] hover:bg-emerald-800 text-white font-bold py-4 rounded-xl text-sm transition disabled:opacity-70">
+                {loading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Menyusun LKS via Groq AI...
+                  </>
+                ) : <>🛠️ Generate LKS</>}
+              </button>
+            </form>
           </div>
-
-          {/* Topik */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">
-              Topik Bahasan <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text" value={topik}
-              onChange={e => { setTopik(e.target.value); if (error) setError(''); }}
-              placeholder="cth. Akhlak Terpuji kepada Orang Tua"
-              className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50"
-            />
-          </div>
-
-          {/* Kelas */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Kelas <span className="text-red-500">*</span></label>
-            <div className="flex flex-wrap gap-2">
-              {KELAS_OPTIONS.map(opt => (
-                <button key={opt} type="button" onClick={() => setKelas(opt)}
-                  className={`px-4 py-2 rounded-full text-sm border transition font-medium
-                    ${kelas === opt ? 'bg-[#006747] text-white border-[#006747]' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-400'}`}>
-                  {opt}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Durasi */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Durasi (Menit)</label>
-            <input
-              type="number" value={durasi}
-              onChange={e => setDurasi(parseInt(e.target.value) || 0)}
-              className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50"
-            />
-          </div>
-
-          {/* Tipe aktivitas */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">
-              Tipe Aktivitas <span className="text-xs text-gray-400">(bisa lebih dari satu)</span>
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {TIPE_OPTIONS.map(opt => (
-                <button key={opt} type="button" onClick={() => toggleTipe(opt)}
-                  className={`px-4 py-2 rounded-full text-sm border transition font-medium capitalize
-                    ${tipeSelected.includes(opt) ? 'bg-[#006747] text-white border-[#006747]' : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-400'}`}>
-                  {opt}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-emerald-600 italic mt-1.5">Terpilih: {tipeSelected.join(', ')}</p>
-          </div>
-
-          {/* Tujuan pembelajaran (opsional) */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Tujuan Pembelajaran <span className="text-xs text-gray-400">(opsional)</span></label>
-            <textarea
-              rows={2} value={tujuan}
-              onChange={e => setTujuan(e.target.value)}
-              placeholder="cth. Siswa mampu menjelaskan pengertian akhlak terpuji..."
-              className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 resize-none bg-gray-50"
-            />
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
-              <span className="text-red-500 text-sm">⚠</span>
-              <p className="text-xs text-red-700 font-medium">{error}</p>
-            </div>
-          )}
-
-          <button type="submit" disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-[#006747] hover:bg-emerald-800 text-white font-bold py-4 rounded-xl text-sm transition disabled:opacity-70">
-            {loading ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Menyusun LKS via Groq AI...
-              </>
-            ) : <>🛠️ Generate LKS</>}
-          </button>
-        </form>
+        </div>
 
         {/* ===== PREVIEW ===== */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {lks ? (
-            <div className="h-full flex flex-col">
-              {/* Toolbar */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
+            <>
+              {/* Toolbar — fixed, tidak ikut scroll */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50 shrink-0">
                 <p className="text-xs font-semibold text-gray-600">Pratinjau LKS</p>
                 <div className="flex gap-2">
                   <button type="button" onClick={handleCetakPDF}
@@ -240,8 +244,8 @@ export default function WorksheetGeneratorPage() {
                 </div>
               </div>
 
-              {/* LKS Content */}
-              <div className="overflow-y-auto flex-1 p-6 space-y-5 text-xs">
+              {/* LKS Content — scrollable */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
                 {/* Header LKS */}
                 <div className="text-center border-b-2 border-gray-800 pb-4">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Lembar Kerja Siswa (LKS)</p>
@@ -299,15 +303,16 @@ export default function WorksheetGeneratorPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </>
           ) : (
-            <div className="h-full min-h-72 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
               <span className="text-4xl">📋</span>
               <p className="font-medium">Pratinjau LKS akan tampil di sini</p>
               <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate LKS</p>
             </div>
           )}
         </div>
+
       </div>
     </div>
   );
