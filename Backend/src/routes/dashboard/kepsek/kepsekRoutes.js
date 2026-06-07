@@ -46,6 +46,15 @@ router.get('/kepsek/statistik', verifyToken, kepsekController.getStatistikGuru);
 // 13. Alokasi kuota bulanan guru
 router.post('/kepsek/quota/assign', verifyToken, kepsekController.assignQuotaToTeacher);
 
+// 14. Statistik generate semua user bulan ini (kepsek view)
+router.get('/kepsek/stats/generate', verifyToken, kepsekController.getKepsekGenerateStats);
+
+// 15. Semua feedback dari semua user (kepsek view)
+router.get('/kepsek/stats/feedback', verifyToken, kepsekController.getKepsekFeedbackStats);
+
+// 16. Aktivitas terbaru semua user (guru + kepsek)
+router.get('/kepsek/activity/recent', verifyToken, kepsekController.getKepsekRecentActivity);
+
 // 10. GET Profil kepsek
 router.get('/kepsek/profile', verifyToken, async (req, res) => {
     try {

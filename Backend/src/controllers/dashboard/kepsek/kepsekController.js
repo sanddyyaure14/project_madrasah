@@ -14,18 +14,17 @@ const getDashboardSummary = async (req, res) => {
         // 2. Response JSON yang dikelompokkan dengan rapi untuk Front-end (Fokus komponen Cards)
         return res.status(200).json({
             success: true,
-            message: "Haris Berhasil memuat data full Cards Summary untuk Dashboard Kepsek.",
+            message: "Berhasil memuat data Cards Summary untuk Dashboard Kepsek.",
             data: {
                 card_total_guru: {
                     total: totalGuru
                 },
                 card_rata_rating: {
-                    rating: ratingData.rata_rata,        // Nanti muncul 4.1 di UI
-                    total_feedback: ratingData.jumlah_feedback // Nanti muncul "Dari 10 feedback" di UI
+                    rating: ratingData.rata_rata,
+                    total_feedback: ratingData.jumlah_feedback
                 },
-                // 🌟 CARD BARU: Menggantikan struktur tabel lama dengan objek card ringkas
                 card_total_generate: {
-                    total: globalGenerate               // Muncul akumulasi berapa kali generate semua guru
+                    total: globalGenerate
                 }
             }
         });
@@ -37,6 +36,131 @@ const getDashboardSummary = async (req, res) => {
             error: error.message,
             data: null
         });
+    }
+};
+
+// =========================================================================
+// STATISTIK GENERATE SEMUA USER (KEPSEK VIEW)
+// =========================================================================
+const getKepsekGenerateStats = async (req, res) => {
+    try {
+        const { rows: breakdown } = await db.query(`
+            SELECT
+                gr.feature_type,
+                COUNT(*)::int                                               AS total,
+                COUNT(CASE WHEN gr.status = 'completed' THEN 1 END)::int  AS berhasil,
+                COUNT(CASE WHEN gr.status = 'failed'    THEN 1 END)::int  AS gagal,
+                ROUND(AVG(gr.processing_time_ms))::int                     AS avg_ms
+            FROM generation_requests gr
+            WHERE gr.created_at >= date_trunc('month', NOW())
+            GROUP BY gr.feature_type
+            ORDER BY total DESC
+        `);
+
+        const { rows: totalRow } = await db.query(`
+            SELECT COUNT(*)::int AS total
+            FROM generation_requests
+            WHERE created_at >= date_trunc('month', NOW())
+        `);
+
+        const { rows: perGuru } = await db.query(`
+            SELECT
+                u.nama_lengkap,
+                u.role,
+                COUNT(gr.id)::int AS total
+            FROM generation_requests gr
+            INNER JOIN users u ON u.id = gr.user_id
+            WHERE gr.created_at >= date_trunc('month', NOW())
+            GROUP BY u.id, u.nama_lengkap, u.role
+            ORDER BY total DESC
+            LIMIT 10
+        `);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                total_bulan_ini: totalRow[0]?.total ?? 0,
+                breakdown,
+                top_users: perGuru,
+            }
+        });
+    } catch (error) {
+        console.error("Error getKepsekGenerateStats:", error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// =========================================================================
+// SEMUA FEEDBACK (KEPSEK VIEW) — rating + komentar + nama pemberi
+// =========================================================================
+const getKepsekFeedbackStats = async (req, res) => {
+    try {
+        const { rows: list } = await db.query(`
+            SELECT
+                uf.id,
+                uf.rating,
+                uf.komentar,
+                uf.is_helpful,
+                uf.created_at,
+                gr.feature_type,
+                gr.input_data->>'topik'          AS topik,
+                gr.input_data->>'mata_pelajaran'  AS mata_pelajaran,
+                gr.input_data->>'jenis_konten'    AS jenis_konten,
+                u.nama_lengkap                   AS nama_pemberi,
+                u.role                           AS role_pemberi
+            FROM user_feedback uf
+            INNER JOIN generation_requests gr ON gr.id = uf.request_id
+            INNER JOIN users u ON u.id = uf.user_id
+            ORDER BY uf.created_at DESC
+        `);
+
+        const rataRow = await db.query(`
+            SELECT
+                ROUND(AVG(rating), 1)::float AS rata_rata,
+                COUNT(*)::int                AS total
+            FROM user_feedback
+        `);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                rata_rata: rataRow.rows[0]?.rata_rata ?? null,
+                total:     rataRow.rows[0]?.total     ?? 0,
+                list,
+            }
+        });
+    } catch (error) {
+        console.error("Error getKepsekFeedbackStats:", error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// =========================================================================
+// AKTIVITAS TERBARU SEMUA USER (GURU + KEPSEK)
+// =========================================================================
+const getKepsekRecentActivity = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT
+                gr.id            AS request_id,
+                gr.feature_type,
+                gr.status,
+                gr.created_at,
+                gr.input_data->>'topik'          AS topik,
+                gr.input_data->>'mata_pelajaran'  AS mata_pelajaran,
+                gr.input_data->>'jenis_konten'    AS jenis_konten,
+                u.nama_lengkap   AS nama_user,
+                u.role           AS role_user
+            FROM generation_requests gr
+            INNER JOIN users u ON u.id = gr.user_id
+            ORDER BY gr.created_at DESC
+            LIMIT 20
+        `);
+
+        return res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        console.error("Error getKepsekRecentActivity:", error);
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
@@ -511,4 +635,7 @@ module.exports = {
     resetGuruPassword,
     deleteGuru,
     updateGuruPlan,
+    getKepsekGenerateStats,
+    getKepsekFeedbackStats,
+    getKepsekRecentActivity,
 };
