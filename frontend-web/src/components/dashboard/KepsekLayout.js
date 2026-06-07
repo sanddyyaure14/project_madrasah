@@ -26,24 +26,67 @@ export default function KepsekLayout({ children }) {
   };
 
   const menuManajemen = [
-    { label: "Dashboard", href: "/dashboard/kepsek", icon: "⊞", exact: true },
-    { label: "Daftar Guru", href: "/dashboard/kepsek/teachers", icon: "👨‍🏫" },
-    { label: "Persetujuan", href: "/dashboard/kepsek/approvals", icon: "📋" },
-    { label: "Laporan & Statistik", href: "/dashboard/kepsek/reports", icon: "📊" },
+    {
+      label: "Dashboard", href: "/dashboard/kepsek", exact: true,
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+    },
+    {
+      label: "Daftar Guru", href: "/dashboard/kepsek/teachers",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+    },
+    {
+      label: "Persetujuan", href: "/dashboard/kepsek/approvals",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+    },
+    {
+      label: "Laporan & Statistik", href: "/dashboard/kepsek/reports",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+    },
   ];
 
   const menuAsesmen = [
-    { label: "Multiple Choice", href: "#", icon: "📝" },
-    { label: "Rubric Generator", href: "#", icon: "📚" },
-    { label: "Writing Feedback", href: "#", icon: "✍" },
-    { label: "Worksheet Generator", href: "#", icon: "📄" },
+    {
+      label: "Multiple Choice", href: "/dashboard/kepsek/tools/multiple-choice",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+    },
+    {
+      label: "Rubric Generator", href: "/dashboard/kepsek/tools/rubric-generator",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M3 14h18M10 3v18M6 3v18" /></svg>
+    },
+    {
+      label: "Writing Feedback", href: "/dashboard/kepsek/tools/writing-feedback",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+    },
+    {
+      label: "Worksheet Generator", href: "/dashboard/kepsek/tools/worksheet-generator",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+    },
   ];
 
   const menuKonten = [
-    { label: "Presentation Generator", href: "/dashboard/kepsek/tools/presentation-generator", icon: "🖥️" },
-    { label: "Syllabus Generator", href: "/dashboard/kepsek/tools/syllabus-generator", icon: "📋" },
-    { label: "Unit Plan / RPP", href: "/dashboard/kepsek/tools/unit-plan", icon: "📖" },
-    { label: "Academic Content", href: "/dashboard/kepsek/tools/academic-content", icon: "🎓" },
+    {
+      label: "Presentation Generator", href: "/dashboard/kepsek/tools/presentation-generator",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
+    },
+    {
+      label: "Syllabus Generator", href: "/dashboard/kepsek/tools/syllabus-generator",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+    },
+    {
+      label: "Unit Plan / RPP", href: "/dashboard/kepsek/tools/unit-plan",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+    },
+    {
+      label: "Academic Content", href: "/dashboard/kepsek/tools/academic-content",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+    },
+  ];
+
+  const menuSaya = [
+    {
+      label: "Dokumen Saya", href: "/dashboard/kepsek/dokumen",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
+    },
   ];
 
   // Helper to get initials
@@ -81,7 +124,7 @@ export default function KepsekLayout({ children }) {
                   const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
                   return (
                     <Link key={i} href={item.href} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${isActive ? 'bg-[#153428] text-[#ECA823] shadow-inner border border-white/5' : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'}`}>
-                      <span className="text-base w-5 text-center">{item.icon}</span> {item.label}
+                      <span className="w-4 h-4 shrink-0 flex items-center justify-center">{item.icon}</span> {item.label}
                     </Link>
                   );
                 })}
@@ -90,13 +133,16 @@ export default function KepsekLayout({ children }) {
 
             {/* Asesmen */}
             <div>
-              <p className="px-3 text-[10px] uppercase font-bold tracking-widest text-emerald-400/50 mb-2">Pratinjau Alat — Asesmen</p>
+              <p className="px-3 text-[10px] uppercase font-bold tracking-widest text-emerald-400/50 mb-2">Asesmen</p>
               <div className="space-y-0.5">
-                {menuAsesmen.map((item, i) => (
-                  <Link key={i} href={item.href} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium text-emerald-100/70 hover:bg-white/5 hover:text-white transition-colors">
-                    <span className="text-base w-5 text-center grayscale opacity-70">{item.icon}</span> {item.label}
-                  </Link>
-                ))}
+                {menuAsesmen.map((item, i) => {
+                  const isActive = pathname.startsWith(item.href);
+                  return (
+                    <Link key={i} href={item.href} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${isActive ? 'bg-[#153428] text-[#ECA823] shadow-inner border border-white/5' : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'}`}>
+                      <span className="w-4 h-4 shrink-0 flex items-center justify-center">{item.icon}</span> {item.label}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
 
@@ -105,18 +151,25 @@ export default function KepsekLayout({ children }) {
               <p className="px-3 text-[10px] uppercase font-bold tracking-widest text-emerald-400/50 mb-2">Konten & Kurikulum</p>
               <div className="space-y-0.5">
                 {menuKonten.map((item, i) => {
-                  const isActive = item.href !== "#" && pathname.startsWith(item.href);
+                  const isActive = pathname.startsWith(item.href);
                   return (
-                    <Link key={i} href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${
-                        isActive
-                          ? 'bg-[#153428] text-[#ECA823] shadow-inner border border-white/5'
-                          : item.href === "#"
-                          ? 'text-emerald-100/70 pointer-events-none'
-                          : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'
-                      }`}>
-                      <span className={`text-base w-5 text-center ${isActive ? '' : 'grayscale opacity-70'}`}>{item.icon}</span>
-                      {item.label}
+                    <Link key={i} href={item.href} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${isActive ? 'bg-[#153428] text-[#ECA823] shadow-inner border border-white/5' : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'}`}>
+                      <span className="w-4 h-4 shrink-0 flex items-center justify-center">{item.icon}</span> {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Saya */}
+            <div>
+              <p className="px-3 text-[10px] uppercase font-bold tracking-widest text-emerald-400/50 mb-2">Saya</p>
+              <div className="space-y-0.5">
+                {menuSaya.map((item, i) => {
+                  const isActive = pathname.startsWith(item.href);
+                  return (
+                    <Link key={i} href={item.href} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${isActive ? 'bg-[#153428] text-[#ECA823] shadow-inner border border-white/5' : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'}`}>
+                      <span className="w-4 h-4 shrink-0 flex items-center justify-center">{item.icon}</span> {item.label}
                     </Link>
                   );
                 })}
