@@ -14,10 +14,12 @@ export default function RubricGeneratorPage() {
     skala_nilai: "1-4",
   });
 
-  const [loading, setLoading]   = useState(false);
-  const [rubric, setRubric]     = useState(null);
-  const [rubricId, setRubricId] = useState(null);
-  const [error, setError]       = useState(null);
+  const [loading, setLoading]         = useState(false);
+  const [rubric, setRubric]           = useState(null);
+  const [rubricId, setRubricId]       = useState(null);   // request_id (untuk feedback)
+  const [rubicDocId, setRubicDocId]   = useState(null);   // rubic_id (untuk export Excel)
+  const [excelLoading, setExcelLoading] = useState(false);
+  const [error, setError]             = useState(null);
 
   const handleGenerate = async (e) => {
     e.preventDefault();
@@ -26,6 +28,7 @@ export default function RubricGeneratorPage() {
     setError(null);
     setRubric(null);
     setRubricId(null);
+    setRubicDocId(null);
 
     try {
       const token = sessionStorage.getItem("accessToken");
@@ -59,10 +62,34 @@ export default function RubricGeneratorPage() {
 
       setRubric(result.data.rubric);
       setRubricId(result.data?.request_id || null);
+      setRubicDocId(result.data?.rubic_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    if (!rubicDocId) return;
+    setExcelLoading(true);
+    try {
+      const token = sessionStorage.getItem("accessToken");
+      const res = await fetch(`${API_URL}/api/rubrics/${rubicDocId}/export-excel`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Gagal mengunduh Excel");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Rubrik_${formData.jenis_tugas || "penilaian"}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Gagal unduh Excel: " + err.message);
+    } finally {
+      setExcelLoading(false);
     }
   };
 
@@ -175,9 +202,21 @@ export default function RubricGeneratorPage() {
         >
           {rubric ? (
             <div className="flex-1 overflow-y-auto overflow-x-auto p-6 space-y-5">
-              <div className="border-b pb-3 mb-4">
-                <h3 className="text-lg font-bold text-gray-800">{rubric.judul}</h3>
-                <p className="text-xs text-gray-500 mt-1">{rubric.tujuan_pembelajaran}</p>
+              <div className="border-b pb-3 mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800">{rubric.judul}</h3>
+                  <p className="text-xs text-gray-500 mt-1">{rubric.tujuan_pembelajaran}</p>
+                </div>
+                {rubicDocId && (
+                  <button
+                    type="button"
+                    onClick={handleExportExcel}
+                    disabled={excelLoading}
+                    className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-1.5 rounded-lg transition disabled:opacity-60"
+                  >
+                    {excelLoading ? "Mengunduh..." : "📊 Export Excel"}
+                  </button>
+                )}
               </div>
 
               <table className="w-full border-collapse text-sm">

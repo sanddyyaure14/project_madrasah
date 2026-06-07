@@ -15,10 +15,12 @@ export default function MultipleChoicePage() {
     tingkat_kesulitan: "Sedang",
   });
 
-  const [loading, setLoading]     = useState(false);
-  const [questions, setQuestions] = useState([]);
-  const [mcId, setMcId]           = useState(null);
-  const [error, setError]         = useState(null);
+  const [loading, setLoading]         = useState(false);
+  const [questions, setQuestions]     = useState([]);
+  const [mcId, setMcId]               = useState(null);   // request_id (untuk feedback)
+  const [mcDocId, setMcDocId]         = useState(null);   // mc_id (untuk print PDF)
+  const [printLoading, setPrintLoading] = useState(false);
+  const [error, setError]             = useState(null);
 
   const handleGenerate = async (e) => {
     e.preventDefault();
@@ -27,6 +29,7 @@ export default function MultipleChoicePage() {
     setError(null);
     setQuestions([]);
     setMcId(null);
+    setMcDocId(null);
 
     try {
       const token = sessionStorage.getItem("accessToken");
@@ -59,10 +62,34 @@ export default function MultipleChoicePage() {
 
       setQuestions(result.data.questions || []);
       setMcId(result.request_id || null);
+      setMcDocId(result.mc_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePrintPDF = async () => {
+    if (!mcDocId) return;
+    setPrintLoading(true);
+    try {
+      const token = sessionStorage.getItem("accessToken");
+      const res = await fetch(`${API_URL}/api/assessment/print/${mcDocId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Gagal mengunduh PDF");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Soal_${formData.topik || "pilihan_ganda"}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Gagal unduh PDF: " + err.message);
+    } finally {
+      setPrintLoading(false);
     }
   };
 
@@ -187,6 +214,25 @@ export default function MultipleChoicePage() {
         >
           {questions.length > 0 ? (
             <>
+              {/* Toolbar */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50 shrink-0">
+                <p className="text-xs font-semibold text-gray-600">
+                  {questions.length} Soal Berhasil Dibuat
+                </p>
+                <div className="flex gap-2">
+                  {mcDocId && (
+                    <button
+                      type="button"
+                      onClick={handlePrintPDF}
+                      disabled={printLoading}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-1.5 rounded-lg transition disabled:opacity-60"
+                    >
+                      {printLoading ? "Mengunduh..." : "🖨️ Print PDF"}
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div className="flex-1 overflow-y-auto p-6 space-y-5">
                 <div className="border-b pb-3">
                   <h3 className="text-lg font-bold text-gray-800">Hasil Generate Soal</h3>
