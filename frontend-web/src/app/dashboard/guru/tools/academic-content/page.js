@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import RatingFeedback from "@/components/RatingFeedback";
 
 const JENIS_KONTEN_OPTIONS = [
   { label: "Rangkuman Materi", value: "ringkasan", icon: "📋", desc: "Poin-poin terstruktur" },
@@ -229,7 +230,7 @@ function RenderKamus({ data }) {
 
       {istilahList.length === 0 && (
         <div className="text-center text-gray-400 text-xs py-6">
-          Tidak ada istilah yang cocok dengan "{search}"
+          Tidak ada istilah yang cocok dengan &quot;{search}&quot;
         </div>
       )}
     </div>
@@ -288,7 +289,7 @@ export default function AcademicContentPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "Gagal generate konten.");
       setResult(json.data?.content_json || json.data);
-      setContentId(json.data?.id || null);
+      setContentId(json.data?.request_id || json.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -430,11 +431,12 @@ export default function AcademicContentPage() {
         </div>
 
         {/* ===== PREVIEW ===== */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+        <div className="lg:col-span-7 flex flex-col gap-4">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {result ? (
-            <div className="h-full flex flex-col">
+            <div className="h-full flex flex-col min-h-0">
               {/* Toolbar */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50 shrink-0">
                 <div className="flex items-center gap-2">
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${meta.color}`}>
                     {meta.icon} {meta.label}
@@ -501,6 +503,12 @@ export default function AcademicContentPage() {
               <p className="text-gray-300 text-center">Isi form di sebelah kiri lalu klik Generate</p>
             </div>
           )}
+        </div>
+
+        {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
+        {result && contentId && (
+          <RatingFeedback requestId={contentId} featureLabel="konten akademik" />
+        )}
         </div>
       </div>
     </div>

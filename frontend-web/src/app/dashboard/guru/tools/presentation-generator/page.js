@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import RatingFeedback from "@/components/RatingFeedback";
 
 const AUDIENS_OPTIONS = ["Siswa MI", "Siswa MTs", "Siswa MA", "Guru", "Orang Tua", "Umum"];
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -47,7 +48,7 @@ export default function PresentationGeneratorPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "Gagal generate presentasi.");
       setResult(json.data?.slides_json || json.data);
-      setPresentationId(json.data?.id || null);
+      setPresentationId(json.data?.request_id || json.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -201,9 +202,10 @@ export default function PresentationGeneratorPage() {
         </div>
 
         {/* ===== PREVIEW ===== */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+        <div className="lg:col-span-7 flex flex-col gap-4">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {result ? (
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0">
               {/* Toolbar */}
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
                 <p className="text-xs font-semibold text-gray-600">
@@ -263,6 +265,12 @@ export default function PresentationGeneratorPage() {
               <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate</p>
             </div>
           )}
+        </div>
+
+        {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
+        {result && presentationId && (
+          <RatingFeedback requestId={presentationId} featureLabel="presentasi" />
+        )}
         </div>
       </div>
     </div>

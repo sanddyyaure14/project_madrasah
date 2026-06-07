@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import RatingFeedback from "@/components/RatingFeedback";
 
 const KELAS_OPTIONS = ['VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 const TIPE_OPTIONS = ['pilihan ganda', 'isian', 'esai', 'praktik', 'observasi'];
@@ -56,7 +57,7 @@ export default function WorksheetGeneratorPage() {
       const resData = await response.json();
       if (!response.ok) throw new Error(resData.message || "Gagal membuat worksheet.");
       setLks(resData.data?.worksheet);
-      setWorksheetId(resData.data?.worksheet_id);
+      setWorksheetId(resData.data?.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -222,6 +223,7 @@ export default function WorksheetGeneratorPage() {
         </div>
 
         {/* ===== PREVIEW ===== */}
+        <div className="flex flex-col gap-4">
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {lks ? (
             <>
@@ -313,6 +315,11 @@ export default function WorksheetGeneratorPage() {
           )}
         </div>
 
+        {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
+        {lks && worksheetId && (
+          <RatingFeedback requestId={worksheetId} featureLabel="worksheet" />
+        )}
+        </div>
       </div>
     </div>
   );

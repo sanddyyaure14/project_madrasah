@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import RatingFeedback from "@/components/RatingFeedback";
 
 const MATA_PELAJARAN_OPTIONS = [
   "Fiqih", "Akidah Akhlak", "Al-Qur'an Hadis", "Bahasa Arab",
@@ -63,7 +64,7 @@ export default function SyllabusGeneratorPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "Gagal generate silabus.");
       setResult(json.data?.silabus_json || json.data);
-      setSyllabusId(json.data?.id || null);
+      setSyllabusId(json.data?.request_id || json.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -214,12 +215,14 @@ export default function SyllabusGeneratorPage() {
           </div>
         </div>
 
-        {/* ===== PREVIEW ===== */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+        {/* ===== PREVIEW + RATING ===== */}
+        <div className="lg:col-span-7 flex flex-col gap-4">
+          {/* Panel Preview */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {result ? (
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0">
               {/* Toolbar */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50 shrink-0">
                 <p className="text-xs font-semibold text-gray-600">Pratinjau Silabus</p>
                 <div className="flex gap-2">
                   {syllabusId && (
@@ -241,7 +244,7 @@ export default function SyllabusGeneratorPage() {
                 </div>
               </div>
 
-              {/* Content */}
+              {/* Content — scrollable */}
               <div className="overflow-y-auto flex-1 p-6 space-y-5 text-xs">
                 {/* Header */}
                 <div className="text-center border-b-2 border-gray-800 pb-4">
@@ -310,6 +313,12 @@ export default function SyllabusGeneratorPage() {
               <p className="font-medium">Pratinjau silabus akan tampil di sini</p>
               <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate Silabus</p>
             </div>
+          )}
+          </div>
+
+          {/* Rating & Feedback — di bawah panel preview, muncul setelah generate */}
+          {result && syllabusId && (
+            <RatingFeedback requestId={syllabusId} featureLabel="silabus" />
           )}
         </div>
       </div>
