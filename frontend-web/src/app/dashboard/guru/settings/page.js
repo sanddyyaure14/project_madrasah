@@ -16,8 +16,17 @@ export default function GuruSettingsPage() {
     jenjang: "",
     kurikulum: "",
     mata_pelajaran: "",
-    bio: "",
   });
+
+  // State form keamanan
+  const [securityData, setSecurityData] = useState({
+    password_lama: "",
+    password_baru: "",
+    konfirmasi_password: "",
+  });
+  const [isSavingSecurity, setIsSavingSecurity] = useState(false);
+  const [securitySuccessMsg, setSecuritySuccessMsg] = useState("");
+  const [securityErrorMsg, setSecurityErrorMsg] = useState("");
 
   const [isLoading, setIsLoading] = useState(true);   // loading awal (fetch profil)
   const [isSaving, setIsSaving] = useState(false);    // loading saat simpan
@@ -58,7 +67,6 @@ export default function GuruSettingsPage() {
           mata_pelajaran: Array.isArray(p.mata_pelajaran)
             ? p.mata_pelajaran.join(", ")
             : p.mata_pelajaran || "",
-          bio: "",
         });
       } catch (err) {
         setErrorMsg(err.message);
@@ -124,11 +132,64 @@ export default function GuruSettingsPage() {
     }
   };
 
+  // ─── Kirim perubahan password ke API saat tombol Ubah Password diklik ────
+  const handleSaveSecurity = async (e) => {
+    e.preventDefault();
+    setIsSavingSecurity(true);
+    setSecuritySuccessMsg("");
+    setSecurityErrorMsg("");
+
+    try {
+      const token = sessionStorage.getItem("accessToken");
+      if (!token) {
+        setSecurityErrorMsg("Sesi tidak ditemukan. Silakan login ulang.");
+        return;
+      }
+
+      if (securityData.password_baru.length < 6) {
+        setSecurityErrorMsg("Password baru minimal 6 karakter.");
+        return;
+      }
+
+      if (securityData.password_baru !== securityData.konfirmasi_password) {
+        setSecurityErrorMsg("Konfirmasi password tidak cocok dengan password baru.");
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/api/guru/change-password`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          password_lama: securityData.password_lama,
+          password_baru: securityData.password_baru,
+          konfirmasi_password: securityData.konfirmasi_password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Gagal mengubah password.");
+      }
+
+      setSecuritySuccessMsg("Password berhasil diubah!");
+      setSecurityData({
+        password_lama: "",
+        password_baru: "",
+        konfirmasi_password: "",
+      });
+    } catch (err) {
+      setSecurityErrorMsg(err.message);
+    } finally {
+      setIsSavingSecurity(false);
+    }
+  };
+
   const tabs = [
     { id: "Profil",      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> },
-    { id: "Madrasah",    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg> },
-    { id: "Notifikasi",  icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg> },
-    { id: "Tampilan",    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg> },
     { id: "Keamanan",   icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg> },
   ];
 
@@ -296,17 +357,7 @@ export default function GuruSettingsPage() {
 
                 </div>
 
-                {/* Bio Singkat */}
-                <div>
-                  <label className="block text-[13px] text-gray-700 mb-2 font-semibold">Bio Singkat</label>
-                  <textarea
-                    rows="3"
-                    value={formData.bio}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                    placeholder="Tentang Anda..."
-                    className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm resize-none"
-                  />
-                </div>
+
 
                 <div className="pt-2">
                   <button
@@ -330,8 +381,86 @@ export default function GuruSettingsPage() {
         </div>
       )}
 
+      {/* ─── TAB KEAMANAN ─────────────────────────────────────────────────── */}
+      {activeTab === "Keamanan" && (
+        <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 p-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="mb-8">
+            <h3 className="text-lg font-bold text-gray-900 m-0">Keamanan Akun</h3>
+            <p className="text-[13px] text-gray-500 m-0 mt-1">Kelola kata sandi untuk mengamankan akun Anda.</p>
+          </div>
+
+          {securitySuccessMsg && (
+            <div className="mb-5 px-4 py-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[13px] rounded-xl flex items-center gap-2">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              {securitySuccessMsg}
+            </div>
+          )}
+          {securityErrorMsg && (
+            <div className="mb-5 px-4 py-3 bg-red-50 border border-red-200 text-red-600 text-[13px] rounded-xl flex items-center gap-2">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              {securityErrorMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleSaveSecurity} className="space-y-6 max-w-md">
+            <div>
+              <label className="block text-[13px] text-gray-700 mb-2 font-semibold">Password Lama</label>
+              <input
+                type="password"
+                required
+                value={securityData.password_lama}
+                onChange={(e) => setSecurityData({ ...securityData, password_lama: e.target.value })}
+                placeholder="Masukkan password saat ini"
+                className="w-full px-4 py-2.5 bg-white rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[13px] text-gray-700 mb-2 font-semibold">Password Baru</label>
+              <input
+                type="password"
+                required
+                value={securityData.password_baru}
+                onChange={(e) => setSecurityData({ ...securityData, password_baru: e.target.value })}
+                placeholder="Minimal 6 karakter"
+                className="w-full px-4 py-2.5 bg-white rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[13px] text-gray-700 mb-2 font-semibold">Konfirmasi Password Baru</label>
+              <input
+                type="password"
+                required
+                value={securityData.konfirmasi_password}
+                onChange={(e) => setSecurityData({ ...securityData, konfirmasi_password: e.target.value })}
+                placeholder="Ulangi password baru"
+                className="w-full px-4 py-2.5 bg-white rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+              />
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={isSavingSecurity}
+                className="px-6 py-2.5 text-[13px] font-semibold text-white bg-[#006747] rounded-xl shadow-sm hover:bg-[#005238] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isSavingSecurity ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  "Ubah Password"
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Tab Content Placeholder (Madrasah, Notifikasi, dll) */}
-      {activeTab !== "Profil" && (
+      {activeTab !== "Profil" && activeTab !== "Keamanan" && (
         <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 p-16 text-center animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="w-16 h-16 bg-gray-50 text-gray-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-gray-100">
             {tabs.find((t) => t.id === activeTab)?.icon}
