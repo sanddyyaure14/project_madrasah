@@ -300,7 +300,7 @@ PEMBAGIAN THAHARAH:
 
 // --- Tool Forms ---
 
-function MultipleChoiceForm() {
+function MultipleChoiceForm({ navigation }) {
   const { token } = useAuth();
   const [mapel, setMapel] = useState(MAPEL[0]);
   const [kelas, setKelas] = useState(KELAS[0]);
@@ -310,18 +310,14 @@ function MultipleChoiceForm() {
   const [kd, setKd] = useState('');
   const [includeKunci, setIncludeKunci] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [questions, setQuestions] = useState([]);
-  const [mcId, setMcId] = useState(null);
   const [error, setError] = useState('');
-  const [showPdfModal, setShowPdfModal] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const KESULITAN = ['mudah', 'sedang', 'sulit'];
 
   async function handleGenerate() {
     if (!topik.trim()) { Alert.alert('Input Kurang', 'Topik/Materi wajib diisi.'); return; }
     const jml = parseInt(jumlah);
     if (isNaN(jml) || jml < 1 || jml > 50) { Alert.alert('Input Tidak Valid', 'Jumlah soal antara 1–50.'); return; }
-    setLoading(true); setQuestions([]); setError(''); setMcId(null);
+    setLoading(true); setError('');
     try {
       const res = await fetch(`${API_URL}/generate-mc`, {
         method: 'POST',
@@ -334,31 +330,24 @@ function MultipleChoiceForm() {
       });
       const data = await res.json();
       if (!data.success) { setError(data.message ?? 'Gagal generate soal.'); return; }
-      setQuestions(data.data?.questions ?? []);
-      setMcId(data.mc_id ?? null); // simpan ID untuk download PDF
+
+      // ── Navigasi ke halaman detail setelah generate berhasil ──
+      navigation.navigate('MCDetail', {
+        id: data.mc_id,
+        data: {
+          id: data.mc_id,
+          mata_pelajaran: mapel,
+          tingkat_kelas: kelas,
+          topik: topik.trim(),
+          jumlah_soal: jml,
+          tingkat_kesulitan: kesulitan,
+          include_kunci: includeKunci,
+          questions_json: data.data?.questions ?? [],
+        },
+      });
     } catch (e) {
       setError('Tidak dapat terhubung ke server. Pastikan backend berjalan.');
     } finally { setLoading(false); }
-  }
-
-  function copyAll() {
-    const text = questions.map(q => {
-      const pilihan = Object.entries(q.pilihan ?? {}).map(([k, v]) => `   ${k}. ${v}`).join('\n');
-      const kunci = q.kunci ? `\nJawaban: ${q.kunci}` : '';
-      const bahas = q.pembahasan ? `\nPembahasan: ${q.pembahasan}` : '';
-      return `${q.no}. ${q.soal}\n${pilihan}${kunci}${bahas}`;
-    }).join('\n\n');
-    Clipboard.setString(text);
-    Alert.alert('Tersalin!', 'Semua soal berhasil disalin.');
-  }
-
-  async function handleDownloadPDF(withKunci) {
-    if (!mcId) { Alert.alert('Error', 'ID soal tidak ditemukan.'); return; }
-    setDownloading(true);
-    setShowPdfModal(false);
-    const filename = `Soal_${topik.replace(/\s+/g, '_')}_${withKunci ? 'dengan_kunci' : 'tanpa_kunci'}.pdf`;
-    await downloadWithToken(`${API_URL}/assessment/print/${mcId}`, token, filename);
-    setDownloading(false);
   }
 
   return (
@@ -419,95 +408,11 @@ function MultipleChoiceForm() {
           <Text style={mcS.errorText}>{error}</Text>
         </View>
       ) : null}
-
-      {/* Output */}
-      {questions.length > 0 && (
-        <View style={mcS.resultWrap}>
-          <View style={mcS.resultHeader}>
-            <View>
-              <Text style={mcS.resultTitle}>📋 Hasil Soal</Text>
-              <Text style={mcS.resultSub}>{questions.length} soal · {mapel} Kelas {kelas}</Text>
-            </View>
-          </View>
-
-          {/* Action buttons: Copy | Cetak PDF | Simpan */}
-          <View style={mcS.actionRow}>
-            <TouchableOpacity style={mcS.actionBtn} onPress={copyAll}>
-              <Ionicons name="copy-outline" size={16} color={C.primary} />
-              <Text style={mcS.actionBtnText}>Copy</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={mcS.actionBtn}
-              onPress={() => setShowPdfModal(true)}
-              disabled={downloading}
-            >
-              {downloading
-                ? <ActivityIndicator size="small" color={C.primary} />
-                : <Ionicons name="print-outline" size={16} color={C.primary} />
-              }
-              <Text style={mcS.actionBtnText}>Cetak PDF</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[mcS.actionBtn, mcS.actionBtnSave]}
-              onPress={() => Alert.alert('Tersimpan! ✅', 'Soal sudah otomatis tersimpan ke Dokumen Saya saat generate.')}
-            >
-              <Ionicons name="bookmark" size={16} color="#fff" />
-              <Text style={[mcS.actionBtnText, { color: '#fff' }]}>Simpan</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Modal pilihan PDF */}
-          {showPdfModal && (
-            <View style={mcS.pdfModal}>
-              <Text style={mcS.pdfModalTitle}>📥 Pilih versi PDF:</Text>
-              <TouchableOpacity style={[mcS.pdfBtn, { backgroundColor: C.primary }]} onPress={() => handleDownloadPDF(true)}>
-                <Ionicons name="key" size={16} color="#fff" />
-                <Text style={mcS.pdfBtnText}>Dengan Kunci Jawaban</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[mcS.pdfBtn, { backgroundColor: C.gold }]} onPress={() => handleDownloadPDF(false)}>
-                <Ionicons name="document-outline" size={16} color={C.goldFg} />
-                <Text style={[mcS.pdfBtnText, { color: C.goldFg }]}>Tanpa Kunci Jawaban</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowPdfModal(false)}>
-                <Text style={mcS.pdfCancelText}>Batal</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {questions.map((q, idx) => (
-            <View key={idx} style={mcS.qCard}>
-              <View style={mcS.qHeader}>
-                <View style={mcS.noBadge}><Text style={mcS.noText}>{q.no}</Text></View>
-                <Text style={mcS.soalText}>{q.soal}</Text>
-              </View>
-              <View style={mcS.pilihanList}>
-                {Object.entries(q.pilihan ?? {}).map(([key, val]) => {
-                  const isKunci = includeKunci && q.kunci === key;
-                  return (
-                    <View key={key} style={[mcS.pilihanRow, isKunci && mcS.pilihanKunci]}>
-                      <View style={[mcS.pilihanKey, isKunci && mcS.pilihanKeyActive]}>
-                        <Text style={[mcS.pilihanKeyText, isKunci && { color: '#fff' }]}>{key}</Text>
-                      </View>
-                      <Text style={[mcS.pilihanVal, isKunci && { color: C.primary, fontWeight: '600' }]}>{val}</Text>
-                      {isKunci && <Ionicons name="checkmark-circle" size={16} color={C.primary} />}
-                    </View>
-                  );
-                })}
-              </View>
-              {includeKunci && q.pembahasan ? (
-                <View style={mcS.pembahasanBox}>
-                  <Text style={mcS.pembahasanLabel}>💡 Pembahasan</Text>
-                  <Text style={mcS.pembahasanText}>{q.pembahasan}</Text>
-                </View>
-              ) : null}
-            </View>
-          ))}
-        </View>
-      )}
     </>
   );
 }
 
-function RubricForm() {
+function RubricForm({ navigation }) {
   const { token } = useAuth();
   const [tugas, setTugas] = useState('');
   const [aspek, setAspek] = useState('');
@@ -515,9 +420,6 @@ function RubricForm() {
   const [tpKd, setTpKd] = useState('');
   const [deskripsi, setDeskripsi] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [rubricId, setRubricId] = useState(null);
-  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
 
   const SKALA = ['1-4', '1-10', '1-100'];
@@ -528,7 +430,7 @@ function RubricForm() {
     const aspekArray = aspek.split(',').map(a => a.trim()).filter(Boolean);
     if (aspekArray.length === 0) { Alert.alert('Input Tidak Valid', 'Pisahkan aspek dengan koma.'); return; }
 
-    setLoading(true); setResult(null); setError(''); setRubricId(null);
+    setLoading(true); setError('');
     try {
       const res = await fetch(`${API_URL}/generate`, {
         method: 'POST',
@@ -543,21 +445,23 @@ function RubricForm() {
       });
       const data = await res.json();
       if (!data.success) { setError(data.message ?? 'Gagal generate rubrik.'); return; }
-      let rj = data.data?.rubric;
-      if (typeof rj === 'string') rj = JSON.parse(rj);
-      setResult({ rubricId: data.data?.rubic_id, rubric: rj, tp: data.data?.tujuan_pembelajaran });
-      setRubricId(data.data?.rubic_id ?? null);
+
+      // ── Navigasi ke halaman detail setelah generate berhasil ──
+      navigation.navigate('RubricDetail', {
+        id: data.data?.rubic_id,
+        data: {
+          id: data.data?.rubic_id,
+          request_id: data.data?.request_id,
+          jenis_tugas: tugas.trim(),
+          aspek_penilaian: aspekArray,
+          skala_nilai: skala,
+          tujuan_pembelajaran: data.data?.tujuan_pembelajaran || tpKd.trim() || null,
+          rubric_json: data.data?.rubric ?? {},
+        },
+      });
     } catch {
       setError('Tidak dapat terhubung ke server. Pastikan backend berjalan.');
     } finally { setLoading(false); }
-  }
-
-  async function handleExportExcel() {
-    if (!rubricId) { Alert.alert('Error', 'ID rubrik tidak ditemukan.'); return; }
-    setExporting(true);
-    const filename = `Rubrik_${tugas.replace(/\s+/g, '_')}.xlsx`;
-    await downloadWithToken(`${API_URL}/rubrics/${rubricId}/export-excel`, token, filename);
-    setExporting(false);
   }
 
   return (
@@ -586,82 +490,11 @@ function RubricForm() {
       </TouchableOpacity>
 
       {error ? (
-        <View style={rubricS.errorBox}>
+        <View style={mcS.errorBox}>
           <Ionicons name="alert-circle" size={16} color="#dc2626" />
-          <Text style={rubricS.errorText}>{error}</Text>
+          <Text style={mcS.errorText}>{error}</Text>
         </View>
       ) : null}
-
-      {result && (
-        <View style={rubricS.resultWrap}>
-          <View style={rubricS.resultHeader}>
-            <View>
-              <Text style={rubricS.resultTitle}>📊 Rubrik Berhasil Dibuat</Text>
-              <Text style={rubricS.resultSub}>{result.rubric?.judul ?? tugas}</Text>
-            </View>
-          </View>
-
-          {/* Action buttons: Copy | Export Excel | Simpan */}
-          <View style={mcS.actionRow}>
-            <TouchableOpacity style={mcS.actionBtn} onPress={() => {
-              const text = (result.rubric?.aspek ?? []).map(a =>
-                `${a.nama} (${a.bobot}%)\n` +
-                (a.level ?? []).map(l => `  ${l.nama} (${l.skor}): ${l.deskripsi}`).join('\n')
-              ).join('\n\n');
-              Clipboard.setString(text);
-              Alert.alert('Tersalin!', 'Rubrik berhasil disalin.');
-            }}>
-              <Ionicons name="copy-outline" size={16} color={C.primary} />
-              <Text style={mcS.actionBtnText}>Copy</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={mcS.actionBtn}
-              onPress={handleExportExcel}
-              disabled={exporting || !rubricId}
-            >
-              {exporting
-                ? <ActivityIndicator size="small" color={C.primary} />
-                : <Ionicons name="download-outline" size={16} color={C.primary} />
-              }
-              <Text style={mcS.actionBtnText}>Export Excel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[mcS.actionBtn, mcS.actionBtnSave]}
-              onPress={() => Alert.alert('Tersimpan! ✅', 'Rubrik sudah otomatis tersimpan ke Dokumen Saya saat generate.')}
-            >
-              <Ionicons name="bookmark" size={16} color="#fff" />
-              <Text style={[mcS.actionBtnText, { color: '#fff' }]}>Simpan</Text>
-            </TouchableOpacity>
-          </View>
-          {result.tp ? (
-            <View style={rubricS.tpBox}>
-              <Text style={rubricS.tpLabel}>🎯 Tujuan Pembelajaran</Text>
-              <Text style={rubricS.tpText}>{result.tp}</Text>
-            </View>
-          ) : null}
-          {(result.rubric?.aspek ?? []).map((a, idx) => (
-            <View key={idx} style={rubricS.aspekCard}>
-              <View style={rubricS.aspekHeader}>
-                <Text style={rubricS.aspekNama}>{a.nama}</Text>
-                <View style={rubricS.bobotBadge}>
-                  <Text style={rubricS.bobotText}>{a.bobot}%</Text>
-                </View>
-              </View>
-              {(a.level ?? []).map((lv, li) => (
-                <View key={li} style={rubricS.levelRow}>
-                  <View style={rubricS.levelHeader}>
-                    <Text style={rubricS.levelNama}>{lv.nama}</Text>
-                    <View style={rubricS.skorBadge}>
-                      <Text style={rubricS.skorText}>{lv.skor}</Text>
-                    </View>
-                  </View>
-                  <Text style={rubricS.levelDesc}>{lv.deskripsi}</Text>
-                </View>
-              ))}
-            </View>
-          ))}
-        </View>
-      )}
     </>
   );
 }
@@ -812,7 +645,7 @@ export default function ToolPageScreen({ route, navigation }) {
 
       {/* Form card */}
       <View style={[styles.formCard, S.shadow]}>
-        <ToolForm />
+        <ToolForm navigation={navigation} />
       </View>
     </ScrollView>
   );

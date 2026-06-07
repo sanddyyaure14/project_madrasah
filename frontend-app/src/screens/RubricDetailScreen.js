@@ -13,6 +13,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useAuth, API_URL } from '../lib/auth';
 import { C, S } from '../lib/theme';
+import FeedbackRating from '../components/FeedbackRating';
 
 async function downloadWithToken(url, token, filename) {
   try {
@@ -124,13 +125,19 @@ const em = StyleSheet.create({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function RubricDetailScreen({ route, navigation }) {
-  const { id } = route.params;
+  const { id, data: initialData } = route.params;
   const { token } = useAuth();
 
-  const [rubric, setRubric] = useState(null);
-  const [aspekList, setAspekList] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [rubric, setRubric]       = useState(initialData ?? null);
+  const [aspekList, setAspekList] = useState(() => {
+    if (!initialData?.rubric_json) return [];
+    let rj = initialData.rubric_json;
+    if (typeof rj === 'string') rj = JSON.parse(rj);
+    const rubricData = rj?.rubric ?? rj;
+    return rubricData?.aspek ?? [];
+  });
+  const [loading, setLoading]     = useState(!initialData);
+  const [saving, setSaving]       = useState(false);
   const [exporting, setExporting] = useState(false);
   const [editAspek, setEditAspek] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
@@ -278,6 +285,23 @@ export default function RubricDetailScreen({ route, navigation }) {
 
         {/* Action bar */}
         <View style={styles.actionBar}>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionBtnSave]}
+            onPress={() => {
+              Alert.alert(
+                'Tersimpan ✅',
+                'Rubrik ini sudah tersimpan di Dokumen Saya.',
+                [
+                  { text: 'Lihat Dokumen', onPress: () => navigation.navigate('Dokumen') },
+                  { text: 'OK', style: 'cancel' },
+                ]
+              );
+            }}
+          >
+            <Ionicons name="bookmark" size={18} color="#fff" />
+            <Text style={[styles.actionBtnText, { color: '#fff' }]}>Simpan</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.actionBtn} onPress={handleExportExcel} disabled={exporting}>
             {exporting
               ? <ActivityIndicator size="small" color={C.primary} />
@@ -292,7 +316,7 @@ export default function RubricDetailScreen({ route, navigation }) {
               disabled={saving}
             >
               {saving ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="save-outline" size={18} color="#fff" />}
-              <Text style={[styles.actionBtnText, { color: '#fff' }]}>Simpan</Text>
+              <Text style={[styles.actionBtnText, { color: '#fff' }]}>Simpan Perubahan</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger]} onPress={handleDelete}>
@@ -335,6 +359,15 @@ export default function RubricDetailScreen({ route, navigation }) {
           </View>
         ))}
 
+        <View style={{ height: 8 }} />
+
+        {/* Rating & Feedback AI */}
+        <Text style={styles.sectionTitle}>Nilai Hasil Generate</Text>
+        <FeedbackRating
+          requestId={rubric?.request_id}
+          endpoint="rubric"
+        />
+
         <View style={{ height: 32 }} />
       </ScrollView>
 
@@ -372,6 +405,7 @@ const styles = StyleSheet.create({
   actionBar: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: C.card },
   actionBtnDanger: { borderColor: '#fca5a5', backgroundColor: '#fff5f5' },
+  actionBtnSave: { backgroundColor: C.primary, borderColor: C.primary },
   actionBtnText: { fontSize: 13, fontWeight: '600', color: C.ink },
 
   sectionTitle: { fontSize: 15, fontWeight: '700', color: C.ink },
