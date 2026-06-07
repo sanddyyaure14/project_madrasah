@@ -21,9 +21,13 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import KepsekEditProfileScreen from '../screens/KepsekEditProfileScreen';
-import { useNotifications } from '../lib/notifications';
+import { useNotifications, usePendingApprovals } from '../lib/notifications';
+import { API_URL } from '../lib/auth';
 import MCDetailScreen from '../screens/MCDetailScreen';
 import RubricDetailScreen from '../screens/RubricDetailScreen';
+import KepsekGenerateStatsScreen from '../screens/KepsekGenerateStatsScreen';
+import KepsekFeedbackStatsScreen from '../screens/KepsekFeedbackStatsScreen';
+import KepsekActivityScreen from '../screens/KepsekActivityScreen';
 import SyllabusFormScreen from '../screens/SyllabusFormScreen';
 import SyllabusPreviewScreen from '../screens/SyllabusPreviewScreen';
 import AcademicContentFormScreen from '../screens/AcademicContentFormScreen';
@@ -43,6 +47,10 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function SuperAdminTabs() {
+  const { token } = useAuth();
+  const { unreadCount } = useNotifications();
+  const { pendingCount } = usePendingApprovals({ token, apiUrl: API_URL, enabled: true });
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -61,8 +69,24 @@ function SuperAdminTabs() {
       <Tab.Screen name="Dashboard" component={DashboardStack} options={{ headerShown: false }} />
       <Tab.Screen name="Dokumen" component={DocsStack} options={{ headerShown: false }} />
       <Tab.Screen name="Guru" component={GuruStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Persetujuan" component={ApprovalsScreen} options={{ title: 'Persetujuan' }} />
-      <Tab.Screen name="Profil" component={KepsekProfilStack} options={{ headerShown: false }} />
+      <Tab.Screen
+        name="Persetujuan"
+        component={ApprovalsScreen}
+        options={{
+          title: 'Persetujuan',
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#dc2626', fontSize: 10 },
+        }}
+      />
+      <Tab.Screen
+        name="Profil"
+        component={KepsekProfilStack}
+        options={{
+          headerShown: false,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#dc2626', fontSize: 10 },
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -209,6 +233,9 @@ function DashboardStack() {
       <Stack.Screen name="GenerateStats" component={GenerateStatsScreen} options={{ title: 'Statistik Generate' }} />
       <Stack.Screen name="UsageStats" component={UsageStatsScreen} options={{ title: 'Waktu Penggunaan' }} />
       <Stack.Screen name="FeedbackStats" component={FeedbackStatsScreen} options={{ title: 'Rating Feedback' }} />
+      <Stack.Screen name="KepsekGenerateStats" component={KepsekGenerateStatsScreen} options={{ title: 'Statistik Generate' }} />
+      <Stack.Screen name="KepsekFeedbackStats" component={KepsekFeedbackStatsScreen} options={{ title: 'Rating Feedback' }} />
+      <Stack.Screen name="KepsekActivity" component={KepsekActivityScreen} options={{ title: 'Semua Aktivitas' }} />
     </Stack.Navigator>
   );
 }

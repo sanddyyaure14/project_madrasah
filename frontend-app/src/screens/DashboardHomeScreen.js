@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth, API_URL } from '../lib/auth';
 import { TOOLS } from '../lib/tools';
-import { TEACHERS, PENDING, SCHOOL_STATS, ACTIVITY } from '../lib/mockSchool';
 import { C, S } from '../lib/theme';
 
 function getInitials(name) {
@@ -37,25 +36,83 @@ function StatCard({ icon, label, value, accent, onPress }) {
   return <View style={[styles.statCard, S.shadow]}>{inner}</View>;
 }
 
-function StatusPill({ status }) {
-  const map = {
-    Aktif: { bg: C.primaryLight, fg: C.primary },
-    Cuti: { bg: '#fef3c7', fg: '#92400e' },
-    Nonaktif: { bg: '#fee2e2', fg: C.danger },
-  };
-  const s = map[status] ?? map['Aktif'];
-  return (
-    <View style={[styles.pill, { backgroundColor: s.bg }]}>
-      <Text style={[styles.pillText, { color: s.fg }]}>{status}</Text>
-    </View>
-  );
+const FEATURE_LABEL_SHORT = {
+  multiple_choice:  'Multiple Choice',
+  writing:          'Writing Feedback',
+  rubric:           'Rubric',
+  worksheet:        'Worksheet',
+  syllabus:         'Silabus',
+  unit_plan:        'Unit Plan',
+  presentation:     'Presentasi',
+  academic_content: 'Konten Akademik',
+};
+
+const ROLE_LABEL = { guru: 'Guru', superadmin: 'Kepsek', kepala_sekolah: 'Kepsek' };
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Baru saja';
+  if (mins < 60) return `${mins} mnt lalu`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} jam lalu`;
+  return `${Math.floor(hours / 24)} hari lalu`;
+}
+
+function getInitialsLocal(name = '') {
+  return name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
 }
 
 function SuperAdminHome({ navigation }) {
-  const stats = SCHOOL_STATS;
-  const topTeachers = [...TEACHERS].sort((a, b) => b.generates - a.generates).slice(0, 5);
+  const { token } = useAuth();
   const assessmentTools = TOOLS.filter(t => t.module === 'assessment');
   const contentTools = TOOLS.filter(t => t.module === 'content');
+
+  const [summary, setSummary]         = useState(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [activity, setActivity]       = useState([]);
+  const [loadingSummary, setLoadingSummary] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      async function fetchData() {
+        setLoadingSummary(true);
+        try {
+          const [summaryRes, pendingRes, activityRes] = await Promise.all([
+            fetch(`${API_URL}/kepsek/dashboard/summary`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch(`${API_URL}/kepsek/pending-teachers`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch(`${API_URL}/kepsek/activity/recent`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+          ]);
+          const summaryJson  = await summaryRes.json();
+          const pendingJson  = await pendingRes.json();
+          const activityJson = await activityRes.json();
+          if (active && summaryJson.success)  setSummary(summaryJson.data);
+          if (active && pendingJson.success)  setPendingCount((pendingJson.data ?? []).length);
+          if (active && activityJson.success) setActivity(activityJson.data ?? []);
+        } catch { /* silent */ }
+        finally { if (active) setLoadingSummary(false); }
+      }
+      fetchData();
+      return () => { active = false; };
+    }, [token])
+  );
+
+  const totalGuru = loadingSummary ? '...' : (summary?.card_total_guru?.total ?? '-');
+  const generateBulanIni = loadingSummary ? '...' : (summary?.card_total_generate?.total ?? '-');
+  const ratingValue = loadingSummary
+    ? '...'
+    : summary?.card_rata_rating?.rating != null
+      ? `★ ${Number(summary.card_rata_rating.rating).toFixed(1)} / 5`
+      : 'Belum ada';
+  const pendingValue = loadingSummary ? '...' : pendingCount;
 
   function navigateToTool(t) {
     if (t.slug === 'syllabus') {
@@ -83,105 +140,92 @@ function SuperAdminHome({ navigation }) {
         </View>
         <Text style={styles.bannerArabic}>الحمد لله</Text>
         <Text style={styles.bannerTitle}>Ringkasan kinerja madrasah hari ini.</Text>
-        <Text style={styles.bannerSub}>Pantau aktivitas guru, persetujuan dokumen, dan statistik penggunaan AI.</Text>
+        <Text style={styles.bannerSub}>Pantau aktivitas guru, persetujuan, dan statistik penggunaan AI.</Text>
       </View>
 
-      {/* Stats grid */}
+      {/* Stats grid — 4 card saja */}
       <View style={styles.statsGrid}>
-        <StatCard icon="people" label="Total Guru" value={stats.guru} accent="primary" />
-        <StatCard icon="school" label="Total Siswa" value={stats.siswa} accent="gold" />
-        <StatCard icon="book" label="Kelas Aktif" value={stats.kelas} accent="primary" />
-        <StatCard icon="document-text" label="Dokumen Dibuat" value={stats.dokumen} accent="gold" />
-        <StatCard icon="sparkles" label="Generate Bulan Ini" value={stats.generateBulanIni} accent="primary" />
-        <StatCard icon="time" label="Jam Dihemat" value={`${stats.hematJam}j`} accent="gold" />
-        <StatCard icon="clipboard" label="Menunggu Persetujuan" value={PENDING.length} accent="primary" />
-        <StatCard icon="trending-up" label="Tingkat Aktif" value="92%" accent="gold" />
+        <StatCard
+          icon="people"
+          label="Total Guru"
+          value={totalGuru}
+          accent="primary"
+          onPress={() => navigation.navigate('Guru')}
+        />
+        <StatCard
+          icon="sparkles"
+          label="Generate Bulan Ini"
+          value={generateBulanIni}
+          accent="gold"
+          onPress={() => navigation.navigate('KepsekGenerateStats')}
+        />
+        <StatCard
+          icon="clipboard"
+          label="Menunggu Persetujuan"
+          value={pendingValue}
+          accent="primary"
+          onPress={() => navigation.navigate('Persetujuan')}
+        />
+        <StatCard
+          icon="star"
+          label="Rating Feedback"
+          value={ratingValue}
+          accent="gold"
+          onPress={() => navigation.navigate('KepsekFeedbackStats')}
+        />
       </View>
 
-      {/* Pending Approvals */}
+      {/* Aktivitas Terbaru */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={styles.sectionTitle}>Menunggu Persetujuan</Text>
-            <Text style={styles.sectionSub}>Dokumen yang diajukan guru untuk disetujui.</Text>
+            <Text style={styles.sectionTitle}>Aktivitas Terbaru</Text>
+            <Text style={styles.sectionSub}>Generate terbaru dari semua pengguna.</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Approvals')}>
-            <Text style={styles.linkText}>Lihat semua →</Text>
-          </TouchableOpacity>
+          {activity.length > 0 && (
+            <TouchableOpacity onPress={() => navigation.navigate('KepsekActivity')}>
+              <Text style={styles.linkText}>Lihat semua →</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        {PENDING.slice(0, 3).map((p) => (
-          <View key={p.id} style={styles.pendingItem}>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <View style={styles.pendingMeta}>
-                <View style={styles.typeBadge}>
-                  <Text style={styles.typeBadgeText}>{p.type}</Text>
+        {loadingSummary ? (
+          <ActivityIndicator color={C.primary} size="small" />
+        ) : activity.length === 0 ? (
+          <View style={styles.activityEmpty}>
+            <Ionicons name="time-outline" size={32} color={C.mutedLight} />
+            <Text style={styles.activityEmptyText}>Belum ada aktivitas</Text>
+          </View>
+        ) : (
+          activity.slice(0, 4).map((a, i) => {
+            const isKepsek = a.role_user !== 'guru';
+            const topik = a.topik || a.mata_pelajaran || a.jenis_konten
+              || FEATURE_LABEL_SHORT[a.feature_type] || a.feature_type;
+            const statusOk = a.status === 'completed';
+            return (
+              <View key={a.request_id ?? i} style={[styles.activityItem, i > 0 && styles.activityBorder]}>
+                <View style={[styles.activityAvatar, isKepsek && styles.activityAvatarKepsek]}>
+                  <Text style={[styles.activityAvatarText, isKepsek && styles.activityAvatarTextKepsek]}>
+                    {getInitialsLocal(a.nama_user)}
+                  </Text>
                 </View>
-                <Text style={styles.pendingTeacher} numberOfLines={1}>{p.teacher} · {p.submitted}</Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.activityName} numberOfLines={1}>
+                    {a.nama_user}
+                    <Text style={styles.activityRole}> · {ROLE_LABEL[a.role_user] ?? a.role_user}</Text>
+                  </Text>
+                  <Text style={styles.activityWhat} numberOfLines={1}>
+                    {FEATURE_LABEL_SHORT[a.feature_type] ?? a.feature_type}
+                    {topik ? ` — ${topik}` : ''}
+                  </Text>
+                </View>
+                <View style={styles.activityRight}>
+                  <View style={[styles.statusDot, statusOk ? styles.statusOk : styles.statusFail]} />
+                  <Text style={styles.activityWhen}>{timeAgo(a.created_at)}</Text>
+                </View>
               </View>
-              <Text style={styles.pendingTitle} numberOfLines={1}>{p.title}</Text>
-            </View>
-            <View style={styles.pendingActions}>
-              <TouchableOpacity style={styles.btnOutline}>
-                <Text style={styles.btnOutlineText}>Tolak</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.btnPrimary}>
-                <Text style={styles.btnPrimaryText}>Setujui</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      {/* Activity */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Aktivitas Terbaru</Text>
-        </View>
-        {ACTIVITY.map((a, i) => (
-          <View key={i} style={styles.activityItem}>
-            <View style={styles.activityAvatar}>
-              <Text style={styles.activityAvatarText}>{getInitials(a.who)}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.activityText}>
-                <Text style={{ fontWeight: '700' }}>{a.who}</Text> {a.what}
-              </Text>
-              <Text style={styles.activityWhen}>{a.when}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      {/* Top Teachers */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <View>
-            <Text style={styles.sectionTitle}>Guru Paling Aktif</Text>
-            <Text style={styles.sectionSub}>Berdasarkan jumlah dokumen bulan ini.</Text>
-          </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Teachers')}>
-            <Text style={styles.linkText}>Kelola guru →</Text>
-          </TouchableOpacity>
-        </View>
-        {topTeachers.map((t) => (
-          <View key={t.id} style={styles.teacherRow}>
-            <View style={styles.teacherAvatar}>
-              <Text style={styles.teacherAvatarText}>{getInitials(t.name)}</Text>
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.teacherName} numberOfLines={1}>{t.name}</Text>
-              <Text style={styles.teacherSubject} numberOfLines={1}>{t.subject}</Text>
-            </View>
-            <StatusPill status={t.status} />
-            <Text style={styles.teacherCount}>{t.generates}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Tools AI — Kepsek juga bisa akses semua fitur */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>⚡ Alat AI (Unlimited)</Text>
-        <Text style={styles.sectionSub}>Kepala Madrasah memiliki akses unlimited ke semua fitur AI.</Text>
+            );
+          })
+        )}
       </View>
 
       <View style={styles.section}>
@@ -419,38 +463,26 @@ const styles = StyleSheet.create({
   linkText: { fontSize: 13, color: C.primary, fontWeight: '600' },
   moduleLabel: { fontSize: 10, fontWeight: '800', color: C.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 },
 
-  pendingItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.separator },
-  pendingMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  typeBadge: { backgroundColor: '#f3f4f6', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
-  typeBadgeText: { fontSize: 9, fontWeight: '700', color: C.ink, textTransform: 'uppercase' },
-  pendingTeacher: { fontSize: 11, color: C.muted, flex: 1 },
-  pendingTitle: { fontSize: 13, fontWeight: '600', color: C.ink },
-  pendingActions: { flexDirection: 'row', gap: 6 },
-  btnOutline: { borderWidth: 1, borderColor: C.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  btnOutlineText: { fontSize: 12, color: C.ink },
-  btnPrimary: { backgroundColor: C.primary, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  btnPrimaryText: { fontSize: 12, color: '#fff', fontWeight: '600' },
-
-  activityItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  // Aktivitas terbaru
+  activityItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  activityBorder: { borderTopWidth: 1, borderTopColor: C.separator },
   activityAvatar: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: C.primaryLight,
-    alignItems: 'center', justifyContent: 'center',
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center',
   },
-  activityAvatarText: { fontSize: 11, fontWeight: '700', color: C.primary },
-  activityText: { fontSize: 13, color: C.ink, lineHeight: 18 },
-  activityWhen: { fontSize: 11, color: C.muted, marginTop: 2 },
-
-  teacherRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.separator },
-  teacherAvatar: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: C.primaryLight,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  teacherAvatarText: { fontSize: 11, fontWeight: '700', color: C.primary },
-  teacherName: { fontSize: 13, fontWeight: '600', color: C.ink },
-  teacherSubject: { fontSize: 11, color: C.muted },
-  teacherCount: { fontSize: 18, fontWeight: '700', color: C.ink, minWidth: 32, textAlign: 'right' },
-  pill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
-  pillText: { fontSize: 10, fontWeight: '700' },
+  activityAvatarKepsek:     { backgroundColor: C.goldLight },
+  activityAvatarText:       { fontSize: 11, fontWeight: '700', color: C.primary },
+  activityAvatarTextKepsek: { color: C.goldFg ?? '#854d0e' },
+  activityName: { fontSize: 13, fontWeight: '600', color: C.ink },
+  activityRole: { fontSize: 11, fontWeight: '400', color: C.muted },
+  activityWhat: { fontSize: 11, color: C.muted, marginTop: 1 },
+  activityRight: { alignItems: 'flex-end', gap: 3 },
+  activityWhen:  { fontSize: 10, color: C.mutedLight },
+  statusDot:   { width: 7, height: 7, borderRadius: 4 },
+  statusOk:    { backgroundColor: '#16a34a' },
+  statusFail:  { backgroundColor: C.danger },
+  activityEmpty: { alignItems: 'center', paddingVertical: 20, gap: 6 },
+  activityEmptyText: { fontSize: 13, color: C.muted },
 
   toolsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   toolCard: {

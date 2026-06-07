@@ -10,7 +10,7 @@
  *   error    — merah
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 
 const MAX_NOTIFICATIONS = 50;
 
@@ -89,6 +89,39 @@ export function NotificationProvider({ children }) {
 
 export function useNotifications() {
   return useContext(NotificationContext);
+}
+
+// ─────────────────────────────────────────────
+// Hook: Pending Approvals (kepsek)
+// Poll jumlah guru pending dari backend setiap 30 detik
+// ─────────────────────────────────────────────
+export function usePendingApprovals({ token, apiUrl, enabled = true }) {
+  const [pendingCount, setPendingCount] = useState(0);
+  const intervalRef = useRef(null);
+
+  const fetchCount = useCallback(async () => {
+    if (!token || !enabled) return;
+    try {
+      const res = await fetch(`${apiUrl}/kepsek/pending-teachers`, {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPendingCount((data.data ?? []).length);
+      }
+    } catch {
+      // Silently fail — badge bukan fitur kritikal
+    }
+  }, [token, apiUrl, enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    fetchCount();
+    intervalRef.current = setInterval(fetchCount, 30000); // poll tiap 30 detik
+    return () => clearInterval(intervalRef.current);
+  }, [fetchCount, enabled]);
+
+  return { pendingCount, refetch: fetchCount };
 }
 
 // ─────────────────────────────────────────────
