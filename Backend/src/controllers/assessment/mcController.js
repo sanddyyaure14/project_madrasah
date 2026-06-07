@@ -475,8 +475,8 @@ const exportToPDF = async (req, res) => {
 const getAllMC = async (req, res) => {
     try {
         const userId = req.user.id;
-        const isKepsek = req.user.role === 'kepala_sekolah';
-        const assessments = await MCModel.getAllAssessment(userId, isKepsek); 
+        // Selalu filter by userId — kepsek hanya lihat dokumen miliknya sendiri
+        const assessments = await MCModel.getAllAssessment(userId, false);
 
         res.status(200).json({
             success: true,

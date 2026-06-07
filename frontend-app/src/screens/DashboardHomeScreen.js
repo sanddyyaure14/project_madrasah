@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../lib/auth';
+import { useAuth, API_URL } from '../lib/auth';
 import { TOOLS } from '../lib/tools';
 import { TEACHERS, PENDING, SCHOOL_STATS, ACTIVITY } from '../lib/mockSchool';
 import { C, S } from '../lib/theme';
@@ -194,10 +194,39 @@ function SuperAdminHome({ navigation }) {
 }
 
 function GuruHome({ navigation }) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const firstName = user?.name?.split(',')[0] ?? '';
   const assessmentTools = TOOLS.filter(t => t.module === 'assessment');
   const contentTools = TOOLS.filter(t => t.module === 'content');
+
+  const [summary, setSummary] = useState(null);
+  const [loadingSummary, setLoadingSummary] = useState(true);
+
+  useEffect(() => {
+    async function fetchSummary() {
+      try {
+        const res  = await fetch(`${API_URL}/guru/dashboard/summary`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (json.success) setSummary(json.data);
+      } catch { /* silent */ }
+      finally { setLoadingSummary(false); }
+    }
+    fetchSummary();
+  }, [token]);
+
+  const generateValue = loadingSummary
+    ? '...'
+    : summary
+      ? `${summary.kuota.digunakan} / ${summary.kuota.limit_bulanan}`
+      : '-';
+
+  const dokumenValue = loadingSummary
+    ? '...'
+    : summary
+      ? summary.dokumen_tersimpan
+      : '-';
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
@@ -210,9 +239,8 @@ function GuruHome({ navigation }) {
 
       {/* Guru stats */}
       <View style={styles.statsGrid}>
-        <StatCard icon="sparkles" label="Generate bulan ini" value="12 / 20" accent="primary" />
-        <StatCard icon="document-text" label="Dokumen tersimpan" value={47} accent="gold" />
-        <StatCard icon="time" label="Waktu dihemat" value="≈ 9 jam" accent="primary" />
+        <StatCard icon="sparkles" label="Generate bulan ini" value={generateValue} accent="primary" />
+        <StatCard icon="document-text" label="Dokumen tersimpan" value={dokumenValue} accent="gold" />
       </View>
 
       {/* Assessment tools */}
