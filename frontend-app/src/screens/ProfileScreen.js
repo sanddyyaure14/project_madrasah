@@ -59,30 +59,40 @@ export default function ProfileScreen({ navigation }) {
 
   const [profile, setProfile] = useState(null);
   const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(!isSuper);
+  const [loading, setLoading] = useState(true);
 
   // Reload profil setiap kali screen difokuskan (setelah edit)
   useFocusEffect(
     useCallback(() => {
-      if (!isSuper) fetchData();
+      fetchData();
     }, [token, isSuper])
   );
 
   async function fetchData() {
     setLoading(true);
     try {
-      const [resProfile, resSummary] = await Promise.allSettled([
-        fetch(`${API_URL}/guru/profile`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_URL}/guru/dashboard/summary`, { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
-
-      if (resProfile.status === 'fulfilled') {
-        const json = await resProfile.value.json();
+      if (isSuper) {
+        // Fetch profil kepsek
+        const resProfile = await fetch(`${API_URL}/kepsek/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await resProfile.json();
         if (json.success) setProfile(json.data);
-      }
-      if (resSummary.status === 'fulfilled') {
-        const json = await resSummary.value.json();
-        if (json.success) setSummary(json.data);
+      } else {
+        // Fetch profil guru + summary
+        const [resProfile, resSummary] = await Promise.allSettled([
+          fetch(`${API_URL}/guru/profile`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_URL}/guru/dashboard/summary`, { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+
+        if (resProfile.status === 'fulfilled') {
+          const json = await resProfile.value.json();
+          if (json.success) setProfile(json.data);
+        }
+        if (resSummary.status === 'fulfilled') {
+          const json = await resSummary.value.json();
+          if (json.success) setSummary(json.data);
+        }
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -125,7 +135,7 @@ export default function ProfileScreen({ navigation }) {
         ) : null}
       </View>
 
-      {/* ── Info profil detail (guru saja) ── */}
+      {/* ── Info profil detail (guru) ── */}
       {!isSuper && profile && (
         <View style={[styles.section, S.shadow]}>
           <Text style={styles.sectionTitle}>Informasi Profil</Text>
@@ -137,6 +147,28 @@ export default function ProfileScreen({ navigation }) {
           {!profile.nip && !profile.jenjang && !profile.no_hp ? (
             <Text style={styles.emptyInfo}>Lengkapi profil kamu agar lebih informatif →</Text>
           ) : null}
+        </View>
+      )}
+
+      {/* ── Info profil detail (kepsek) ── */}
+      {isSuper && (
+        <View style={[styles.section, S.shadow]}>
+          <Text style={styles.sectionTitle}>Informasi Profil</Text>
+          {loading ? (
+            <ActivityIndicator color={C.primary} style={{ paddingVertical: 12 }} />
+          ) : profile ? (
+            <>
+              <InfoRow icon="card-outline" label="NIP" value={profile.nip} />
+              <InfoRow icon="layers-outline" label="Jenjang Madrasah" value={profile.jenjang} />
+              <InfoRow icon="document-text-outline" label="Kurikulum" value={profile.kurikulum} />
+              <InfoRow icon="call-outline" label="No. HP" value={profile.no_hp} />
+              {!profile.nip && !profile.jenjang && !profile.no_hp ? (
+                <Text style={styles.emptyInfo}>Lengkapi profil untuk informasi lebih lengkap →</Text>
+              ) : null}
+            </>
+          ) : (
+            <Text style={styles.emptyInfo}>Lengkapi profil untuk informasi lebih lengkap →</Text>
+          )}
         </View>
       )}
 
@@ -170,13 +202,11 @@ export default function ProfileScreen({ navigation }) {
       {/* ── Menu Akun ── */}
       <View style={[styles.section, S.shadow]}>
         <Text style={styles.sectionTitle}>Akun</Text>
-        {!isSuper && (
-          <MenuItem
-            icon="person"
-            label="Edit Profil"
-            onPress={() => navigation.navigate('EditProfile')}
-          />
-        )}
+        <MenuItem
+          icon="person"
+          label="Edit Profil"
+          onPress={() => navigation.navigate('EditProfile')}
+        />
         <MenuItem
           icon="lock-closed"
           label="Ubah Password"

@@ -239,8 +239,8 @@ const generateWritingFeedback = async (req, res) => {
 const getAllFeedback = async (req, res) => {
     try {
         const userId = req.user.id;
-        const isKepsek = req.user.role === 'kepala_sekolah';
-        const feedbacks = await WritingModel.getAllFeedback(userId, isKepsek);
+        // Selalu filter by userId — kepsek hanya lihat dokumen miliknya sendiri
+        const feedbacks = await WritingModel.getAllFeedback(userId, false);
         
         const formattedFeedbacks = feedbacks.map(item => {
             const fJson = typeof item.feedback_json === 'string' ? JSON.parse(item.feedback_json) : item.feedback_json;
