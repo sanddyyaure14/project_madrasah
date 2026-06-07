@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function GuruDashboard() {
   const [user, setUser] = useState({ nama_lengkap: "Ust. Ahmad Fauzi" });

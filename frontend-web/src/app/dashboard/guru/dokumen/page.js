@@ -209,7 +209,7 @@ function scoreColor(n) {
 }
 
 function getApiBase() {
-  return (typeof window !== "undefined" ? process.env.NEXT_PUBLIC_API_URL : "") || "http://localhost:3000";
+  return (typeof window !== "undefined" ? process.env.NEXT_PUBLIC_API_URL : "") || "";
 }
 function getToken() {
   return typeof window !== "undefined" ? sessionStorage.getItem("accessToken") : "";

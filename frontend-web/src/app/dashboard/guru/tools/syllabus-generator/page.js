@@ -19,7 +19,7 @@ const SEMESTER_OPTIONS = [
   { label: "Genap", value: "genap" },
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function SyllabusGeneratorPage() {
   const [mataPelajaran, setMataPelajaran] = useState("Fiqih");

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import RatingFeedback from "@/components/RatingFeedback";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function MultipleChoicePage() {
   const [formData, setFormData] = useState({

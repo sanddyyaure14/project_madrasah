@@ -13,7 +13,7 @@ const MAPEL_SUGGESTIONS = [
   "Fiqih", "Akidah Akhlak", "Al-Qur'an Hadis", "Bahasa Arab",
   "SKI", "Matematika", "IPA Terpadu", "Bahasa Indonesia",
 ];
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 function RenderRingkasan({ data }) {
   return (
