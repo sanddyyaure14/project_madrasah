@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
 import { useNotifications } from '../lib/notifications';
+import FeedbackRating from '../components/FeedbackRating';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -154,7 +155,7 @@ function buildShareText(data) {
 // ---------------------------------------------------------------------------
 // Result panel — Copy | Simpan | Kirim ke Siswa | Buat Baru
 // ---------------------------------------------------------------------------
-function ResultPanel({ data, onReset, onSave }) {
+function ResultPanel({ data, requestId, onReset, onSave }) {
   function handleCopy() {
     const text = buildShareText(data);
     Clipboard.setString(text);
@@ -249,6 +250,11 @@ function ResultPanel({ data, onReset, onSave }) {
         <Ionicons name="refresh" size={16} color={C.muted} />
         <Text style={styles.btnResetText}>Buat Feedback Baru</Text>
       </TouchableOpacity>
+
+      {/* Rating & Feedback AI */}
+      {requestId && (
+        <FeedbackRating requestId={requestId} endpoint="writing" />
+      )}
     </View>
   );
 }
@@ -444,7 +450,7 @@ export default function WritingFeedbackScreen({ navigation }) {
       )}
 
       {/* RESULT */}
-      {result && <ResultPanel data={result} onReset={handleReset} onSave={handleSave} />}
+      {result && <ResultPanel data={result} requestId={result.request_id} onReset={handleReset} onSave={handleSave} />}
     </ScrollView>
   );
 }

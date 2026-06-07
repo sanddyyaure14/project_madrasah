@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
-import { setAuthToken, clearAuthToken, API_URL } from './api';
+import { setAuthToken, clearAuthToken } from './api';
 
-export { API_URL };
+export const API_URL = 'http://10.0.2.2:3000/api';
 
 const AuthContext = createContext(null);
 
