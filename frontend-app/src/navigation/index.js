@@ -35,6 +35,9 @@ import AcademicContentEditScreen from '../screens/AcademicContentEditScreen';
 import PresentationFormScreen from '../screens/PresentationFormScreen';
 import PresentationPreviewScreen from '../screens/PresentationPreviewScreen';
 import PresentationDetailScreen from '../screens/PresentationDetailScreen';
+import GenerateStatsScreen from '../screens/GenerateStatsScreen';
+import UsageStatsScreen from '../screens/UsageStatsScreen';
+import FeedbackStatsScreen from '../screens/FeedbackStatsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -203,6 +206,9 @@ function DashboardStack() {
       <Stack.Screen name="PresentationDetail" component={PresentationDetailScreen} options={{ title: 'Detail Presentasi' }} />
       <Stack.Screen name="Teachers" component={TeachersScreen} options={{ title: 'Daftar Guru' }} />
       <Stack.Screen name="Approvals" component={ApprovalsScreen} options={{ title: 'Persetujuan' }} />
+      <Stack.Screen name="GenerateStats" component={GenerateStatsScreen} options={{ title: 'Statistik Generate' }} />
+      <Stack.Screen name="UsageStats" component={UsageStatsScreen} options={{ title: 'Waktu Penggunaan' }} />
+      <Stack.Screen name="FeedbackStats" component={FeedbackStatsScreen} options={{ title: 'Rating Feedback' }} />
     </Stack.Navigator>
   );
 }

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
 import { useNotifications } from '../lib/notifications';
+import FeedbackRating from '../components/FeedbackRating';
 
 // ─────────────────────────────────────────────
 // Constants
@@ -156,7 +157,7 @@ function buildDownloadText(ws) {
 // ─────────────────────────────────────────────
 // Result Panel
 // ─────────────────────────────────────────────
-function ResultPanel({ data, worksheetId, navigation, onReset }) {
+function ResultPanel({ data, worksheetId, requestId, navigation, onReset }) {
   const ws = data.worksheet || data;
 
   function handleCopy() {
@@ -254,6 +255,11 @@ function ResultPanel({ data, worksheetId, navigation, onReset }) {
         <Ionicons name="refresh" size={15} color={C.muted} />
         <Text style={styles.btnResetText}>Buat LKS Baru</Text>
       </TouchableOpacity>
+
+      {/* Rating & Feedback AI */}
+      {requestId && (
+        <FeedbackRating requestId={requestId} endpoint="worksheet" />
+      )}
     </View>
   );
 }
@@ -281,6 +287,7 @@ export default function WorksheetScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [worksheetId, setWorksheetId] = useState(null);
+  const [requestId, setRequestId] = useState(null);
   const [error, setError] = useState('');
 
   const scrollRef = useRef(null);
@@ -338,6 +345,7 @@ export default function WorksheetScreen({ navigation }) {
       if (data.success && data.data) {
         setResult(data.data);
         setWorksheetId(data.data.worksheet_id);
+        setRequestId(data.data.request_id);
         addNotification({
           title: 'Worksheet Berhasil Dibuat 📋',
           message: `LKS ${mapel} Kelas ${kelas} — "${topik.trim()}" berhasil digenerate.`,
@@ -363,6 +371,7 @@ export default function WorksheetScreen({ navigation }) {
   function handleReset() {
     setResult(null);
     setWorksheetId(null);
+    setRequestId(null);
     setError('');
     setTopik('');
     setTipeSelected(['Pilihan Ganda']);
@@ -519,6 +528,7 @@ export default function WorksheetScreen({ navigation }) {
         <ResultPanel
           data={result}
           worksheetId={worksheetId}
+          requestId={requestId}
           navigation={navigation}
           onReset={handleReset}
         />

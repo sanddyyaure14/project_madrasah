@@ -221,16 +221,17 @@ const resolveContentData = (doc) => {
 
 /**
  * GET /api/guru/dashboard/summary
- * Ambil summary kuota dan total dokumen untuk dashboard guru
+ * Ambil summary kuota, total dokumen, dan statistik feedback
  */
 const getDashboardSummary = async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Ambil data kuota dan jumlah dokumen secara paralel
-        const [quotaData, totalDocuments] = await Promise.all([
+        // Ambil data kuota, jumlah dokumen, dan feedback secara paralel
+        const [quotaData, totalDocuments, feedbackStats] = await Promise.all([
             GuruModel.getQuotaUsage(userId),
-            GuruModel.countDocumentHistory(userId)
+            GuruModel.countDocumentHistory(userId),
+            GuruModel.getFeedbackStats(userId),
         ]);
 
         let kuotaTersedia = 0;
@@ -253,9 +254,16 @@ const getDashboardSummary = async (req, res) => {
                     tersedia: kuotaTersedia,
                     digunakan: digunakan,
                     limit_bulanan: limit,
-                    plan: quotaData ? quotaData.plan_type : 'free'
+                    plan: quotaData ? quotaData.plan_type : 'free',
+                    reset_date: quotaData ? quotaData.reset_date : null,
                 },
-                dokumen_tersimpan: totalDocuments
+                dokumen_tersimpan: totalDocuments,
+                feedback: {
+                    total:         feedbackStats.total_feedback,
+                    rata_rata:     feedbackStats.rata_rata_rating,   // null jika belum ada
+                    total_helpful: feedbackStats.total_helpful,
+                },
+                waktu_terakhir_generate: feedbackStats.waktu_terakhir,  // ISO timestamp / null
             }
         });
     } catch (error) {
@@ -333,11 +341,96 @@ const changePassword = async (req, res) => {
     }
 };
 
+// =========================================================================
+// D. STATISTIK TAMBAHAN
+// =========================================================================
+
+/**
+ * GET /api/guru/stats/generate
+ * Kuota bulan ini + breakdown per feature_type
+ */
+const getGenerateStats = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const data = await GuruModel.getGenerateStats(userId);
+
+        const kuota = data.kuota;
+        return res.status(200).json({
+            success: true,
+            message: 'Statistik generate berhasil dimuat.',
+            data: {
+                kuota: kuota ? {
+                    plan:           kuota.plan_type,
+                    digunakan:      kuota.used_this_month,
+                    limit_bulanan:  kuota.monthly_limit,
+                    tersedia:       Math.max(0, kuota.monthly_limit - kuota.used_this_month),
+                    reset_date:     kuota.reset_date,
+                } : null,
+                breakdown: data.breakdown,
+            },
+        });
+    } catch (error) {
+        console.error('Error getGenerateStats:', error);
+        return res.status(500).json({ success: false, message: 'Gagal memuat statistik generate.', error: error.message });
+    }
+};
+
+/**
+ * GET /api/guru/stats/usage
+ * Statistik penggunaan harian 14 hari terakhir
+ */
+const getDailyUsageStats = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const rows = await GuruModel.getDailyUsageStats(userId);
+        return res.status(200).json({
+            success: true,
+            message: 'Statistik penggunaan harian berhasil dimuat.',
+            data: rows,
+        });
+    } catch (error) {
+        console.error('Error getDailyUsageStats:', error);
+        return res.status(500).json({ success: false, message: 'Gagal memuat statistik harian.', error: error.message });
+    }
+};
+
+/**
+ * GET /api/guru/stats/feedback
+ * List feedback (bintang + komentar) yang pernah diberikan user
+ */
+const getUserFeedbackList = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const rows = await GuruModel.getUserFeedbackList(userId);
+
+        // Hitung rata-rata rating
+        const rataRata = rows.length > 0
+            ? (rows.reduce((sum, r) => sum + r.rating, 0) / rows.length).toFixed(1)
+            : null;
+
+        return res.status(200).json({
+            success: true,
+            message: 'Feedback berhasil dimuat.',
+            data: {
+                rata_rata: rataRata ? parseFloat(rataRata) : null,
+                total:     rows.length,
+                list:      rows,
+            },
+        });
+    } catch (error) {
+        console.error('Error getUserFeedbackList:', error);
+        return res.status(500).json({ success: false, message: 'Gagal memuat feedback.', error: error.message });
+    }
+};
+
 module.exports = {
     getProfile,
     updateProfile,
     changePassword,
     getDocuments,
     getDocumentDetail,
-    getDashboardSummary
+    getDashboardSummary,
+    getGenerateStats,
+    getDailyUsageStats,
+    getUserFeedbackList,
 };
