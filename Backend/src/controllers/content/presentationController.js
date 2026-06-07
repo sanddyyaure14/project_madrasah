@@ -51,12 +51,18 @@ const generatePresentation = async (req, res) => {
         await PresentationModel.updateRequestStatus(requestId, 'processing');
 
         // 2. Panggil Groq AI Llama 3.3
-        const prompt = `Anda adalah asisten pembuat materi presentasi yang ahli. Buatlah presentasi sebanyak ${jumlah_slide} slide tentang topik: "${topik}".
+        const prompt = `Anda adalah asisten pembuat materi presentasi yang ahli. Buatlah presentasi tentang topik: "${topik}".
 Tujuan presentasi: ${tujuan || 'Edukasi / Penjelasan umum'}.
 Target Audiens: ${audiens || 'Umum'}.
 Sertakan catatan presenter: ${include_catatan ? 'Ya' : 'Tidak'}.
 
-Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut:
+ATURAN WAJIB:
+1. Anda HARUS membuat TEPAT ${jumlah_slide} slide. Tidak boleh kurang, tidak boleh lebih.
+2. Setiap slide harus memiliki konten yang berbeda dan bermakna.
+3. Distribusikan materi secara merata di seluruh ${jumlah_slide} slide.
+4. Gunakan struktur: Slide 1 = Pembuka/Pengenalan, Slide ${jumlah_slide} = Penutup/Kesimpulan, slide di antaranya = isi materi.
+
+Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut (harus ada ${jumlah_slide} objek di dalam array slides_json):
 {
     "slides_json": [
         {
@@ -65,9 +71,11 @@ Anda wajib memberikan respon dalam format JSON murni dengan struktur berikut:
             "content": ["Poin 1", "Poin 2", "Poin 3"]${include_catatan ? ',\n            "catatan": "Catatan untuk presenter saat menjelaskan slide ini"' : ''}
         }
     ]
-}`;
+}
 
-        const systemPrompt = "Anda adalah asisten pembuat materi presentasi yang ahli. Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun.";
+PENTING: Array slides_json harus berisi TEPAT ${jumlah_slide} elemen.`;
+
+        const systemPrompt = `Anda adalah asisten pembuat materi presentasi yang ahli. Anda wajib memberikan respon dalam format JSON murni tanpa teks penjelasan apa pun. Anda HARUS menghasilkan TEPAT ${jumlah_slide} slide dalam array slides_json, tidak kurang dari itu.`;
 
         const chatCompletion = await groq.chat.completions.create({
             messages: [

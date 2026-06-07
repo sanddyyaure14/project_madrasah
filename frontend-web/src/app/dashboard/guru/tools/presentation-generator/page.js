@@ -102,9 +102,11 @@ export default function PresentationGeneratorPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ===== FORM ===== */}
-        <form onSubmit={handleGenerate} className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5 h-fit">
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+          <div className="flex-1 overflow-y-auto">
+            <form onSubmit={handleGenerate} className="p-6 space-y-5">
 
           {/* Topik */}
           <div>
@@ -194,12 +196,14 @@ export default function PresentationGeneratorPage() {
               </>
             ) : <>🖥️ Generate Presentasi</>}
           </button>
-        </form>
+            </form>
+          </div>
+        </div>
 
         {/* ===== PREVIEW ===== */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {result ? (
-            <div className="h-full flex flex-col">
+            <div className="flex-1 flex flex-col">
               {/* Toolbar */}
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
                 <p className="text-xs font-semibold text-gray-600">
@@ -253,7 +257,7 @@ export default function PresentationGeneratorPage() {
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-72 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
               <span className="text-4xl">🖥️</span>
               <p className="font-medium">Pratinjau slide presentasi akan tampil di sini</p>
               <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate</p>

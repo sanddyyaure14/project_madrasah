@@ -334,9 +334,11 @@ export default function AcademicContentPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ===== FORM ===== */}
-        <form onSubmit={handleGenerate} className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5 h-fit">
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+          <div className="flex-1 overflow-y-auto">
+            <form onSubmit={handleGenerate} className="p-6 space-y-5">
 
           {/* Topik */}
           <div>
@@ -423,10 +425,12 @@ export default function AcademicContentPage() {
               <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Menyusun via Groq AI...</>
             ) : <>✦ Generate {JENIS_KONTEN_OPTIONS.find(o => o.value === jenisKonten)?.label}</>}
           </button>
-        </form>
+            </form>
+          </div>
+        </div>
 
         {/* ===== PREVIEW ===== */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {result ? (
             <div className="h-full flex flex-col">
               {/* Toolbar */}
@@ -489,7 +493,7 @@ export default function AcademicContentPage() {
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-72 flex flex-col items-center justify-center text-gray-400 text-xs gap-3 p-8">
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs gap-3 p-8">
               <span className="text-5xl">{JENIS_KONTEN_OPTIONS.find(o => o.value === jenisKonten)?.icon || "🎓"}</span>
               <p className="font-medium text-gray-500">
                 {JENIS_KONTEN_OPTIONS.find(o => o.value === jenisKonten)?.label} akan tampil di sini

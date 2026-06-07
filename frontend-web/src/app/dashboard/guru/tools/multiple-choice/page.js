@@ -94,11 +94,13 @@ export default function MultipleChoicePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2">
-        <form
-          onSubmit={handleGenerate}
-          className="lg:col-span-5 bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4 h-fit"
-        >
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2 items-start">
+        <div className="lg:col-span-5 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+          <div className="flex-1 overflow-y-auto">
+            <form
+              onSubmit={handleGenerate}
+              className="p-5 space-y-4"
+            >
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
               Mata Pelajaran
@@ -203,15 +205,15 @@ export default function MultipleChoicePage() {
             disabled={loading}
             className="w-full bg-[#006747] hover:bg-emerald-800 text-white font-medium py-2 rounded-lg text-sm transition"
           >
-            {loading
-              ? "Generating Questions..."
-              : "🛠️ Generate Soal"}
+            {loading ? "Generating Questions..." : "🛠️ Generate Soal"}
           </button>
-        </form>
+            </form>
+          </div>
+        </div>
 
-        <div className="lg:col-span-7 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <div className="lg:col-span-7 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {questions.length > 0 ? (
-            <div className="space-y-5">
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
               <div className="border-b pb-3">
                 <h3 className="text-lg font-bold text-gray-800">
                   Hasil Generate Soal
@@ -253,7 +255,7 @@ export default function MultipleChoicePage() {
               ))}
             </div>
           ) : (
-            <div className="h-72 flex items-center justify-center text-gray-400 text-xs border border-dashed rounded-lg">
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-xs border border-dashed rounded-lg m-6">
               Hasil generate soal akan tampil di sini.
             </div>
           )}

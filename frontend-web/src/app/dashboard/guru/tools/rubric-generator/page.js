@@ -99,12 +99,14 @@ export default function RubricGeneratorPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2 items-start">
         {/* FORM */}
-        <form
-          onSubmit={handleGenerate}
-          className="lg:col-span-5 bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4 h-fit"
-        >
+        <div className="lg:col-span-5 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+          <div className="flex-1 overflow-y-auto">
+            <form
+              onSubmit={handleGenerate}
+              className="p-5 space-y-4"
+            >
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
               Jenis Tugas
@@ -199,12 +201,14 @@ export default function RubricGeneratorPage() {
               ? "Generating Rubric..."
               : "📚 Generate Rubrik"}
           </button>
-        </form>
+            </form>
+          </div>
+        </div>
 
         {/* HASIL */}
-        <div className="lg:col-span-7 bg-white p-6 rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+        <div className="lg:col-span-7 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {rubric ? (
-            <div>
+            <div className="flex-1 overflow-y-auto overflow-x-auto p-6 space-y-5">
               <div className="border-b pb-3 mb-4">
                 <h3 className="text-lg font-bold text-gray-800">
                   {rubric.judul}
@@ -280,7 +284,7 @@ export default function RubricGeneratorPage() {
               </table>
             </div>
           ) : (
-            <div className="h-72 flex items-center justify-center text-gray-400 text-xs border border-dashed rounded-lg">
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-xs border border-dashed rounded-lg m-6">
               Hasil rubric akan tampil di sini.
             </div>
           )}
