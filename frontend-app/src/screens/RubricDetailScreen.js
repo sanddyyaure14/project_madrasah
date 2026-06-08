@@ -6,35 +6,29 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, TextInput, Modal,
+  ActivityIndicator, Alert, TextInput, Modal, Linking, Clipboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { useAuth, API_URL } from '../lib/auth';
 import { C, S } from '../lib/theme';
 import FeedbackRating from '../components/FeedbackRating';
+import { useNotifications } from '../lib/notifications';
 
-async function downloadWithToken(url, token, filename) {
-  try {
-    const localUri = FileSystem.documentDirectory + filename;
-    const result = await FileSystem.downloadAsync(url, localUri, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (result.status !== 200) { Alert.alert('Gagal', 'Server menolak permintaan download.'); return; }
-    const canShare = await Sharing.isAvailableAsync();
-    if (canShare) {
-      await Sharing.shareAsync(result.uri, {
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        dialogTitle: `Buka ${filename}`,
-      });
-    } else {
-      Alert.alert('Selesai', `File tersimpan di: ${result.uri}`);
-    }
-  } catch (e) {
-    Alert.alert('Error', 'Gagal download: ' + e.message);
+// ─── Buka file di browser (mirip pola WorksheetDetailScreen) ────────────────
+async function openFileInBrowser(url, token) {
+  const urlWithToken = `${url}?token=${token}`;
+  const supported = await Linking.canOpenURL(urlWithToken);
+  if (supported) {
+    await Linking.openURL(urlWithToken);
+  } else {
+    Clipboard.setString(url);
+    Alert.alert(
+      'Tidak bisa buka browser',
+      'URL sudah disalin ke clipboard. Buka di browser dan tambahkan header Authorization Bearer.',
+    );
   }
 }
+
 
 // ─── Badge Skala ──────────────────────────────────────────────────────────────
 function BadgeSkala({ skala }) {
@@ -127,6 +121,7 @@ const em = StyleSheet.create({
 export default function RubricDetailScreen({ route, navigation }) {
   const { id, data: initialData } = route.params;
   const { token } = useAuth();
+  const { addNotification } = useNotifications();
 
   const [rubric, setRubric]       = useState(initialData ?? null);
   const [aspekList, setAspekList] = useState(() => {
@@ -142,7 +137,12 @@ export default function RubricDetailScreen({ route, navigation }) {
   const [editAspek, setEditAspek] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
 
-  useEffect(() => { fetchDetail(); }, [id]);
+  useEffect(() => {
+    // Jika tidak ada data awal, fetch dari server
+    if (!initialData) {
+      fetchDetail();
+    }
+  }, [id]);
 
   async function fetchDetail() {
     setLoading(true);
@@ -198,6 +198,12 @@ export default function RubricDetailScreen({ route, navigation }) {
       const data = await res.json();
       if (data.success) {
         Alert.alert('Tersimpan', 'Perubahan rubrik berhasil disimpan.');
+        addNotification({
+          title: 'Rubrik Diperbarui 📊',
+          message: `Perubahan pada rubrik "${rubric?.jenis_tugas}" berhasil disimpan.`,
+          type: 'success',
+          icon: 'checkmark-circle',
+        });
         setHasChanges(false);
       } else Alert.alert('Gagal', data.message);
     } catch { Alert.alert('Error', 'Tidak dapat terhubung ke server.'); }
@@ -224,10 +230,16 @@ export default function RubricDetailScreen({ route, navigation }) {
   }
 
   async function handleExportExcel() {
+    if (!rubric?.id) {
+      Alert.alert('Error', 'Data rubrik belum termuat. Silakan tunggu atau coba lagi.');
+      return;
+    }
     setExporting(true);
-    const filename = `Rubrik_${rubric?.jenis_tugas?.replace(/\s+/g, '_') ?? 'rubrik'}.xlsx`;
-    await downloadWithToken(`${API_URL}/rubrics/${id}/export-excel`, token, filename);
-    setExporting(false);
+    try {
+      await openFileInBrowser(`${API_URL}/rubrics/${id}/export-excel`, token);
+    } finally {
+      setExporting(false);
+    }
   }
 
   if (loading) {
@@ -288,6 +300,12 @@ export default function RubricDetailScreen({ route, navigation }) {
           <TouchableOpacity
             style={[styles.actionBtn, styles.actionBtnSave]}
             onPress={() => {
+              addNotification({
+                title: 'Rubrik Tersimpan 📊',
+                message: `Rubrik "${rubric?.jenis_tugas}" dengan ${aspekList.length} aspek tersimpan di Dokumen Saya.`,
+                type: 'info',
+                icon: 'bookmark',
+              });
               Alert.alert(
                 'Tersimpan ✅',
                 'Rubrik ini sudah tersimpan di Dokumen Saya.',

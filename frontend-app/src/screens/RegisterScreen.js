@@ -4,6 +4,7 @@ import {
   TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../lib/auth';
 import { C, S } from '../lib/theme';
 
@@ -22,8 +23,53 @@ const MAPEL = [
 const JENJANG = ['MI', 'MTs', 'MA'];
 const KURIKULUM = ['Merdeka', 'K13'];
 
+function TipRow({ ok, text }) {
+  return (
+    <View style={styles.tipRow}>
+      <Ionicons name={ok ? 'checkmark-circle' : 'ellipse-outline'} size={14} color={ok ? '#16a34a' : C.mutedLight} />
+      <Text style={[styles.tipText, { color: ok ? '#16a34a' : C.mutedLight }]}>{text}</Text>
+    </View>
+  );
+}
+
+function ConfirmPwField({ value, onChange, passwordBaru }) {
+  const [show, setShow] = useState(false);
+  const match = value.length > 0 && value === passwordBaru;
+  const noMatch = value.length > 0 && value !== passwordBaru;
+  return (
+    <View style={[
+      styles.pwWrap,
+      noMatch ? styles.pwWrapError : null,
+      match   ? styles.pwWrapSuccess : null,
+    ]}>
+      <TextInput
+        style={[styles.input, { flex: 1, borderWidth: 0 }]}
+        value={value}
+        onChangeText={onChange}
+        secureTextEntry={!show}
+        placeholder="Ulangi password..."
+        placeholderTextColor={C.mutedLight}
+        autoCapitalize="none"
+      />
+      <TouchableOpacity onPress={() => setShow(v => !v)} style={{ padding: 8 }}>
+        {value.length > 0
+          ? <Ionicons name={match ? 'checkmark-circle' : 'close-circle'} size={18} color={match ? '#16a34a' : C.danger} />
+          : <Ionicons name={show ? 'eye-off' : 'eye'} size={18} color={C.muted} />
+        }
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function RegisterScreen({ navigation }) {
   const { register, getInstitutions } = useAuth();
+
+  // Pastikan header navigation benar-benar tersembunyi setiap kali screen ini aktif
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.setOptions({ headerShown: false });
+    }, [navigation])
+  );
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -31,6 +77,7 @@ export default function RegisterScreen({ navigation }) {
   // Step 1 - Akun
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
 
   // Step 2 - Profil Guru
@@ -59,9 +106,11 @@ export default function RegisterScreen({ navigation }) {
 
   function validateStep1() {
     if (!email || !password) { Alert.alert('Error', 'Isi email dan password.'); return false; }
-    if (password.length < 8) { Alert.alert('Error', 'Password minimal 8 karakter.'); return false; }
+    if (password.length < 6) { Alert.alert('Error', 'Password minimal 6 karakter.'); return false; }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) { Alert.alert('Error', 'Format email tidak valid.'); return false; }
+    if (!confirmPassword) { Alert.alert('Error', 'Konfirmasi password wajib diisi.'); return false; }
+    if (password !== confirmPassword) { Alert.alert('Error', 'Konfirmasi password tidak cocok.'); return false; }
     return true;
   }
 
@@ -103,17 +152,28 @@ export default function RegisterScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
-        {/* Back button */}
+      {/* ── Fixed back button — di luar ScrollView ── */}
+      <View style={styles.topBar}>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => step === 1 ? navigation.goBack() : setStep(s => s - 1)}
+          onPress={() => {
+            if (step === 1 || step === 4) {
+              navigation.replace('Login');
+            } else {
+              setStep(s => s - 1);
+            }
+          }}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 32 }}
+          activeOpacity={0.6}
         >
-          <Ionicons name="arrow-back" size={16} color={C.muted} />
-          <Text style={styles.backText}>Kembali</Text>
+          <Ionicons name="arrow-back" size={20} color={C.ink} />
+          <Text style={styles.backText}>{step === 4 ? 'Ke Login' : 'Kembali'}</Text>
         </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
         {/* Stepper */}
         <View style={styles.stepper}>
@@ -164,13 +224,51 @@ export default function RegisterScreen({ navigation }) {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPw}
-                  placeholder="Min. 8 karakter"
+                  placeholder="Min. 6 karakter"
                   placeholderTextColor={C.mutedLight}
+                  autoCapitalize="none"
                 />
                 <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ padding: 8 }}>
                   <Ionicons name={showPw ? 'eye-off' : 'eye'} size={18} color={C.muted} />
                 </TouchableOpacity>
               </View>
+
+              {/* Indikator kekuatan password */}
+              {password.length > 0 && (() => {
+                let kekuatan;
+                if (password.length < 6) kekuatan = { label: 'Terlalu pendek', color: C.danger, width: '20%' };
+                else if (password.length < 8) kekuatan = { label: 'Lemah', color: '#f59e0b', width: '50%' };
+                else if (/[A-Z]/.test(password) && /[0-9]/.test(password)) kekuatan = { label: 'Kuat', color: '#16a34a', width: '100%' };
+                else kekuatan = { label: 'Cukup', color: '#d97706', width: '75%' };
+                return (
+                  <View style={styles.strengthWrap}>
+                    <View style={styles.strengthBar}>
+                      <View style={[styles.strengthFill, { width: kekuatan.width, backgroundColor: kekuatan.color }]} />
+                    </View>
+                    <Text style={[styles.strengthLabel, { color: kekuatan.color }]}>{kekuatan.label}</Text>
+                  </View>
+                );
+              })()}
+
+              {/* Tips checklist */}
+              {password.length > 0 && (
+                <View style={styles.tipsList}>
+                  <TipRow ok={password.length >= 6} text="Minimal 6 karakter" />
+                  <TipRow ok={password.length >= 8} text="Lebih baik 8+ karakter" />
+                  <TipRow ok={/[A-Z]/.test(password)} text="Mengandung huruf besar" />
+                  <TipRow ok={/[0-9]/.test(password)} text="Mengandung angka" />
+                </View>
+              )}
+            </View>
+
+            {/* Konfirmasi password */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Konfirmasi Password</Text>
+              <ConfirmPwField
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                passwordBaru={password}
+              />
             </View>
 
             <TouchableOpacity style={styles.btn} onPress={() => validateStep1() && setStep(2)}>
@@ -332,7 +430,7 @@ export default function RegisterScreen({ navigation }) {
               <Text style={styles.infoLine}>🏫 {selectedInstitusi?.nama ?? '-'}</Text>
               <Text style={styles.infoLine}>📚 {subject} • {jenjang}</Text>
             </View>
-            <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('Login')}>
+            <TouchableOpacity style={styles.btn} onPress={() => navigation.replace('Login')}>
               <Text style={styles.btnText}>Kembali ke Login</Text>
             </TouchableOpacity>
           </View>
@@ -345,9 +443,23 @@ export default function RegisterScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: C.bg },
-  content: { padding: 20, paddingBottom: 40, gap: 24 },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  backText: { fontSize: 14, color: C.muted },
+  content: { padding: 20, paddingTop: 16, paddingBottom: 40, gap: 24 },
+
+  // Fixed top bar dengan tombol kembali
+  topBar: {
+    backgroundColor: C.bg,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingTop: Platform.OS === 'android' ? 14 : 10,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+    zIndex: 10,
+  },
+  backBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 6, paddingHorizontal: 4, alignSelf: 'flex-start',
+  },
+  backText: { fontSize: 15, fontWeight: '600', color: C.ink },
   stepper: { flexDirection: 'row', alignItems: 'center' },
   stepItem: { alignItems: 'center', gap: 4, flex: 1 },
   stepCircle: {
@@ -375,6 +487,15 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14,
     backgroundColor: '#fff',
   },
+  pwWrapError:   { borderColor: C.danger },
+  pwWrapSuccess: { borderColor: '#16a34a' },
+  strengthWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+  strengthBar: { flex: 1, height: 5, backgroundColor: C.border, borderRadius: 3 },
+  strengthFill: { height: 5, borderRadius: 3 },
+  strengthLabel: { fontSize: 11, fontWeight: '700', minWidth: 80 },
+  tipsList: { gap: 4, marginTop: 4 },
+  tipRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  tipText: { fontSize: 12 },
   btn: { backgroundColor: C.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   rowChips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
