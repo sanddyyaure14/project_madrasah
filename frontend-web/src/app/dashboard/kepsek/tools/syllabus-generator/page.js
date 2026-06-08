@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import FeedbackForm from "@/components/FeedbackForm";
 
 const MATA_PELAJARAN_OPTIONS = [
   "Fiqih", "Akidah Akhlak", "Al-Qur'an Hadis", "Bahasa Arab",
@@ -230,11 +231,11 @@ export default function KepsekSyllabusGeneratorPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ===== FORM ===== */}
         <form
           onSubmit={handleGenerate}
-          className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5 h-fit"
+          className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5 h-[650px] overflow-y-auto custom-scrollbar"
         >
           {/* Mata Pelajaran */}
           <div>
@@ -363,8 +364,10 @@ export default function KepsekSyllabusGeneratorPage() {
           </button>
         </form>
 
-        {/* ===== PREVIEW ===== */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+        {/* ===== RIGHT PANEL ===== */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
+          {/* ===== PREVIEW ===== */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[650px]">
           {result ? (
             <div className="h-full flex flex-col">
               {/* Toolbar */}
@@ -496,6 +499,14 @@ export default function KepsekSyllabusGeneratorPage() {
               <span className="text-4xl">📋</span>
               <p className="font-medium">Pratinjau silabus akan tampil di sini</p>
               <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate Silabus</p>
+            </div>
+          )}
+          </div>
+
+          {/* ===== FEEDBACK ===== */}
+          {result && (
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-6 py-5">
+              <FeedbackForm />
             </div>
           )}
         </div>
