@@ -42,6 +42,7 @@ import PresentationDetailScreen from '../screens/PresentationDetailScreen';
 import GenerateStatsScreen from '../screens/GenerateStatsScreen';
 import UsageStatsScreen from '../screens/UsageStatsScreen';
 import FeedbackStatsScreen from '../screens/FeedbackStatsScreen';
+import UnitPlanDetailScreen from '../screens/UnitPlanDetailScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -142,6 +143,7 @@ function DocsStack() {
       <Stack.Screen name="AcademicContentDetail" component={AcademicContentDetailScreen} options={{ title: 'Detail Konten Akademik' }} />
       <Stack.Screen name="AcademicContentEdit" component={AcademicContentEditScreen} options={{ title: 'Edit Konten Akademik' }} />
       <Stack.Screen name="PresentationDetail" component={PresentationDetailScreen} options={{ title: 'Detail Presentasi' }} />
+      <Stack.Screen name="UnitPlanDetail" component={UnitPlanDetailScreen} options={{ title: 'Detail RPP' }} />
     </Stack.Navigator>
   );
 }

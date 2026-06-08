@@ -25,6 +25,7 @@ const TABS = [
   { key: 'syllabus', label: '📚 Silabus' },
   { key: 'academic', label: '🎓 Konten Akademik' },
   { key: 'presentation', label: '🖥️ Presentasi' },
+  { key: 'unitplan', label: '📖 RPP' },
 ];
 
 // ─── Endpoint map ────────────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ const FETCH_URL = {
   syllabus: '/syllabus',
   academic: '/academic-content',
   presentation: '/presentation',
+  unitplan: '/unit-plan',
 };
 
 const DELETE_URL = (type, id) => {
@@ -47,6 +49,7 @@ const DELETE_URL = (type, id) => {
     case 'academic': return `/academic-content/${id}`;
     case 'feedback': return `/feedback/delete/${id}`;
     case 'presentation': return `/presentation/${id}`;
+    case 'unitplan': return `/unit-plan/${id}`;
     default: return null;
   }
 };
@@ -59,6 +62,7 @@ const DETAIL_SCREEN = {
   academic: 'AcademicContentDetail',
   feedback: 'FeedbackDetail',
   presentation: 'PresentationDetail',
+  unitplan: 'UnitPlanDetail',
 };
 
 // ─── Badge styles per type ───────────────────────────────────────────────────
@@ -70,6 +74,7 @@ const BADGE = {
   academic: { bg: '#eff6ff', color: '#1d4ed8' },
   feedback: { bg: C.primaryLight, color: C.primary },
   presentation: { bg: '#fffbeb', color: C.warning },
+  unitplan: { bg: '#ecfdf5', color: '#15803d' },
 };
 
 const BADGE_LABEL = {
@@ -80,6 +85,7 @@ const BADGE_LABEL = {
   academic: 'Konten Akademik',
   feedback: 'Writing',
   presentation: 'Presentasi',
+  unitplan: 'RPP',
 };
 
 const JENIS_LABEL = {
@@ -101,6 +107,7 @@ function getTitle(doc, type) {
     case 'academic': return doc.topik || doc.judul || doc.title || 'Konten';
     case 'feedback': return doc.judul || doc.nama_siswa || 'Writing Feedback';
     case 'presentation': return doc.topik || 'Slide Presentasi';
+    case 'unitplan': return doc.judul_unit || 'RPP';
     default: return 'Dokumen';
   }
 }
@@ -149,6 +156,12 @@ function getMeta(doc, type) {
       return [
         doc.jumlah_slide && `${doc.jumlah_slide} slide`,
         doc.audiens && `${doc.audiens}`,
+      ].filter(Boolean);
+
+    case 'unitplan':
+      return [
+        doc.mata_pelajaran,
+        doc.tingkat_kelas,
       ].filter(Boolean);
 
     default:
@@ -253,6 +266,16 @@ export default function MyDocsScreen({ navigation }) {
 
       const results = await Promise.all(requests);
       const combined = results.flat();
+
+      console.log('=== UNITPLAN RESULT ===');
+      console.log(
+        combined
+          .filter(d => d.__type === 'unitplan')
+          .map(d => ({
+            id: d.id,
+            judul_unit: d.judul_unit,
+          }))
+      );
 
       combined.sort((a, b) => {
         const getDate = (d) => {
