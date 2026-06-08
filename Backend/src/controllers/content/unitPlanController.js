@@ -5,6 +5,14 @@ const path = require('path');
 const fs = require('fs');
 const { generateUnitPlanDocx } = require('../../utils/docxGenerator');
 
+// Validasi GROQ_API_KEY saat startup
+if (!process.env.GROQ_API_KEY) {
+    console.error('❌ GROQ_API_KEY tidak ditemukan di environment variables!');
+    console.error('   Pastikan file .env sudah dikonfigurasi dengan benar.');
+} else {
+    console.log('✅ GROQ_API_KEY ditemukan:', process.env.GROQ_API_KEY.substring(0, 10) + '...');
+}
+
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const generateUnitPlan = async (req, res) => {
@@ -15,10 +23,18 @@ const generateUnitPlan = async (req, res) => {
     const startTime = performance.now();
     const selectedModel = "llama-3.3-70b-versatile";
 
+    console.log('[UnitPlan] === GENERATE START ===');
+    console.log('[UnitPlan] Request ID:', requestId);
+    console.log('[UnitPlan] Unit Plan ID:', unitPlanId);
+    console.log('[UnitPlan] User ID:', req.user?.id);
+    console.log('[UnitPlan] User Role:', req.user?.role);
+
     try {
         const {
             judul_unit, mata_pelajaran, tingkat_kelas, tujuan_pembelajaran, jumlah_pertemuan, durasi_per_jp
         } = req.body;
+
+        console.log('[UnitPlan] Request body:', { judul_unit, mata_pelajaran, tingkat_kelas, jumlah_pertemuan, durasi_per_jp });
 
         // userId diambil dari JWT token
         const finalUserId = req.user.id;
@@ -34,8 +50,11 @@ const generateUnitPlan = async (req, res) => {
         });
 
         // LANGKAH B: Panggil Cek Kuota — skip untuk kepala_sekolah (unlimited)
+        console.log('[UnitPlan] User role:', req.user.role, 'isKepsek:', isKepsek);
+        
         if (!isKepsek) {
             const quota = await UnitPlanModel.getUserQuota(finalUserId);
+            console.log('[UnitPlan] Quota:', quota);
             if (!quota) {
                 return res.status(403).json({ success: false, message: "Akses ditolak. Profil kuota tidak ditemukan.", data: null, meta: {} });
             }
@@ -47,9 +66,11 @@ const generateUnitPlan = async (req, res) => {
         }
 
         // LANGKAH C: Naikkan status ke processing
+        console.log('[UnitPlan] Updating status to processing...');
         await UnitPlanModel.updateRequestStatus(requestId, 'processing');
 
         // 2. Panggil Groq AI Llama 3.3
+        console.log('[UnitPlan] Calling Groq API...');
         const prompt = `Anda adalah seorang ahli penyusun Modul Ajar / RPP Kurikulum Merdeka (Madrasah). Buatlah rancangan Modul Ajar untuk:
 Mata Pelajaran: ${mata_pelajaran}
 Judul Materi/Unit: ${judul_unit}
@@ -103,9 +124,15 @@ Anda WAJIB memberikan respons dalam format JSON murni dengan struktur berikut:
             model: selectedModel,
             response_format: { "type": "json_object" }
         });
+        
+        console.log('[UnitPlan] Groq API response received');
+        console.log('[UnitPlan] Token usage:', chatCompletion.usage);
+        
         const aiResponseJSON = JSON.parse(chatCompletion.choices[0].message.content);
+        console.log('[UnitPlan] AI response parsed successfully');
 
         // 3. Simpan ke Database
+        console.log('[UnitPlan] Saving to database...');
         const unitPlanData = {
             id: unitPlanId,
             request_id: requestId,
@@ -119,8 +146,10 @@ Anda WAJIB memberikan respons dalam format JSON murni dengan struktur berikut:
         };
 
         const savedUnitPlan = await UnitPlanModel.saveUnitPlanAndDeductQuota(unitPlanData, isKepsek ? null : finalUserId);
+        console.log('[UnitPlan] Saved to database:', savedUnitPlan.id);
 
         // 4. Update Status Request
+        console.log('[UnitPlan] Updating request status to completed...');
         const endTime = performance.now();
         const processingTimeMs = Math.round(endTime - startTime);
         const tokenUsage = {
@@ -156,7 +185,12 @@ Anda WAJIB memberikan respons dalam format JSON murni dengan struktur berikut:
         });
 
     } catch (error) {
-        console.error("Error Detail:", error);
+        console.error("=== UNIT PLAN GENERATE ERROR ===");
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+        console.error("Full error:", JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+        
         const endTime = performance.now();
         const processingTimeMs = Math.round(endTime - startTime);
         try {
@@ -165,12 +199,13 @@ Anda WAJIB memberikan respons dalam format JSON murni dengan struktur berikut:
                 processing_time_ms: processingTimeMs
             });
         } catch (dbErr) {
-            console.error("Gagal update status fail ke DB");
+            console.error("Gagal update status fail ke DB:", dbErr);
         }
         res.status(500).json({
             success: false,
             message: "Terjadi kesalahan pada proses AI atau Database",
             error: error.message,
+            errorDetails: process.env.NODE_ENV === 'development' ? error.stack : undefined,
             data: null,
             meta: {}
         });
@@ -230,6 +265,11 @@ const updateUnitPlan = async (req, res) => {
     try {
         const { id } = req.params;
 
+        console.log('[UpdateUnitPlan] === UPDATE START ===');
+        console.log('[UpdateUnitPlan] ID:', id);
+        console.log('[UpdateUnitPlan] User ID:', req.user.id);
+        console.log('[UpdateUnitPlan] Body:', JSON.stringify(req.body, null, 2));
+
         // Pastikan data ada
         const existing = await UnitPlanModel.getUnitPlanById(id, req.user.id);
         if (!existing) {
@@ -241,7 +281,11 @@ const updateUnitPlan = async (req, res) => {
             });
         }
 
+        console.log('[UpdateUnitPlan] Existing data found, proceeding to update...');
+
         const updated = await UnitPlanModel.updateUnitPlan(id, req.user.id, req.body);
+
+        console.log('[UpdateUnitPlan] Update successful:', updated?.id);
 
         res.status(200).json({
             success: true,
