@@ -80,6 +80,15 @@ function Field({ label, children, hint }) {
   );
 }
 
+function PassTip({ ok, text }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <Ionicons name={ok ? 'checkmark-circle' : 'ellipse-outline'} size={14} color={ok ? '#16a34a' : C.mutedLight} />
+      <Text style={{ fontSize: 12, color: ok ? '#16a34a' : C.mutedLight }}>{text}</Text>
+    </View>
+  );
+}
+
 // ─── main screen ─────────────────────────────────────────────────────────────
 export default function TeachersScreen() {
   const { token } = useAuth();
@@ -112,7 +121,10 @@ export default function TeachersScreen() {
   const [fNoHp,      setFNoHp]      = useState('');
 
   // form password
-  const [fPassword,  setFPassword]  = useState('');
+  const [fPassword,     setFPassword]     = useState('');
+  const [fPasswordConf, setFPasswordConf] = useState('');
+  const [showFPass,     setShowFPass]     = useState(false);
+  const [showFPassConf, setShowFPassConf] = useState(false);
 
   // form plan
   const [fPlan,      setFPlan]      = useState('free');
@@ -162,6 +174,9 @@ export default function TeachersScreen() {
   function openPass(guru) {
     setSelected(guru);
     setFPassword('');
+    setFPasswordConf('');
+    setShowFPass(false);
+    setShowFPassConf(false);
     setPassModal(true);
   }
 
@@ -227,6 +242,10 @@ export default function TeachersScreen() {
   async function handleSavePass() {
     if (!fPassword || fPassword.length < 6) {
       Alert.alert('Validasi', 'Password minimal 6 karakter.');
+      return;
+    }
+    if (fPassword !== fPasswordConf) {
+      Alert.alert('Validasi', 'Konfirmasi password tidak cocok.');
       return;
     }
     Alert.alert(
@@ -672,7 +691,7 @@ export default function TeachersScreen() {
               <Ionicons name="close" size={24} color={C.ink} />
             </TouchableOpacity>
           </View>
-          <View style={styles.modalBody}>
+          <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled">
             {selected && (
               <View style={styles.planTargetInfo}>
                 <Text style={styles.planTargetName}>{selected.nama_lengkap}</Text>
@@ -687,15 +706,79 @@ export default function TeachersScreen() {
               </Text>
             </View>
 
-            <Field label="Password Baru" hint="Minimal 6 karakter">
-              <TextInput
-                style={styles.input}
-                value={fPassword}
-                onChangeText={setFPassword}
-                placeholder="Masukkan password baru..."
-                placeholderTextColor={C.mutedLight}
-                secureTextEntry
-              />
+            {/* Password Baru */}
+            <Field label="Password Baru">
+              <View style={styles.pwWrap}>
+                <TextInput
+                  style={[styles.input, { flex: 1, borderWidth: 0 }]}
+                  value={fPassword}
+                  onChangeText={setFPassword}
+                  placeholder="Min. 6 karakter..."
+                  placeholderTextColor={C.mutedLight}
+                  secureTextEntry={!showFPass}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowFPass(v => !v)}>
+                  <Ionicons name={showFPass ? 'eye-off' : 'eye'} size={18} color={C.muted} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Indikator kekuatan */}
+              {fPassword.length > 0 && (() => {
+                let k;
+                if (fPassword.length < 6)      k = { label: 'Terlalu pendek', color: C.danger,   width: '20%' };
+                else if (fPassword.length < 8)  k = { label: 'Lemah',         color: '#f59e0b',  width: '50%' };
+                else if (/[A-Z]/.test(fPassword) && /[0-9]/.test(fPassword))
+                                                 k = { label: 'Kuat',          color: '#16a34a',  width: '100%' };
+                else                             k = { label: 'Cukup',         color: '#d97706',  width: '75%' };
+                return (
+                  <View style={styles.strengthWrap}>
+                    <View style={styles.strengthBar}>
+                      <View style={[styles.strengthFill, { width: k.width, backgroundColor: k.color }]} />
+                    </View>
+                    <Text style={[styles.strengthLabel, { color: k.color }]}>{k.label}</Text>
+                  </View>
+                );
+              })()}
+
+              {/* Tips checklist */}
+              {fPassword.length > 0 && (
+                <View style={styles.tipsList}>
+                  <PassTip ok={fPassword.length >= 6}            text="Minimal 6 karakter" />
+                  <PassTip ok={fPassword.length >= 8}            text="Lebih baik 8+ karakter" />
+                  <PassTip ok={/[A-Z]/.test(fPassword)}          text="Mengandung huruf besar" />
+                  <PassTip ok={/[0-9]/.test(fPassword)}          text="Mengandung angka" />
+                </View>
+              )}
+            </Field>
+
+            {/* Konfirmasi Password */}
+            <Field label="Konfirmasi Password Baru">
+              <View style={[
+                styles.pwWrap,
+                fPasswordConf.length > 0 && fPassword !== fPasswordConf ? styles.pwWrapError : null,
+                fPasswordConf.length > 0 && fPassword === fPasswordConf ? styles.pwWrapSuccess : null,
+              ]}>
+                <TextInput
+                  style={[styles.input, { flex: 1, borderWidth: 0 }]}
+                  value={fPasswordConf}
+                  onChangeText={setFPasswordConf}
+                  placeholder="Ulangi password baru..."
+                  placeholderTextColor={C.mutedLight}
+                  secureTextEntry={!showFPassConf}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowFPassConf(v => !v)}>
+                  {fPasswordConf.length > 0
+                    ? <Ionicons
+                        name={fPassword === fPasswordConf ? 'checkmark-circle' : 'close-circle'}
+                        size={18}
+                        color={fPassword === fPasswordConf ? '#16a34a' : C.danger}
+                      />
+                    : <Ionicons name={showFPassConf ? 'eye-off' : 'eye'} size={18} color={C.muted} />
+                  }
+                </TouchableOpacity>
+              </View>
             </Field>
 
             <TouchableOpacity
@@ -710,7 +793,7 @@ export default function TeachersScreen() {
                    <Text style={styles.saveBtnText}>Reset Password</Text></>
               }
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
 
@@ -869,4 +952,18 @@ const styles = StyleSheet.create({
     gap: 8, backgroundColor: C.primary, borderRadius: 14, paddingVertical: 15, marginTop: 4,
   },
   saveBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+
+  // Password field
+  pwWrap: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderColor: C.border, borderRadius: 12, backgroundColor: C.card,
+  },
+  pwWrapError:   { borderColor: C.danger },
+  pwWrapSuccess: { borderColor: '#16a34a' },
+  eyeBtn: { padding: 12 },
+  strengthWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+  strengthBar: { flex: 1, height: 5, backgroundColor: C.border, borderRadius: 3 },
+  strengthFill: { height: 5, borderRadius: 3 },
+  strengthLabel: { fontSize: 11, fontWeight: '700', minWidth: 80 },
+  tipsList: { gap: 4, marginTop: 4 },
 });

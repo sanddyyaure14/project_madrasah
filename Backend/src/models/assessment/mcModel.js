@@ -145,7 +145,14 @@ const MCModel = {
                    WHERE id = $1;`;
             const values = userId ? [id, userId] : [id];
             const result = await pool.query(query, values);
-            return result.rows[0] || null; 
+            if (!result.rows[0]) return null;
+
+            const row = result.rows[0];
+            // Parse questions_json jika masih berupa string
+            if (typeof row.questions_json === 'string') {
+                try { row.questions_json = JSON.parse(row.questions_json); } catch { row.questions_json = []; }
+            }
+            return row;
         } catch (error) {
             console.error("Error di MCModel (getAssessmentById):", error);
             throw error;

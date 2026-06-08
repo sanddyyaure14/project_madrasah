@@ -29,18 +29,17 @@ class KepsekModel {
         };
     }
 
-    // 🌟 BARU & RINGKAS: Menghitung akumulasi total berapa kali generate yang sudah dilakukan semua guru
-    // Dipakai untuk Card "TOTAL GENERATE"
+    // Menghitung total generate bulan ini dari tabel generation_requests
+    // Filter: created_at dalam bulan berjalan (date_trunc), reset otomatis tiap bulan baru
     static async getTotalGlobalGenerate() {
         try {
-            // Cukup menjumlahkan (SUM) kolom used_this_month dari seluruh record kuota guru
             const query = `
-                SELECT SUM(used_this_month) AS total_global_generate 
-                FROM usage_quotas;
+                SELECT COUNT(*) AS total_global_generate
+                FROM generation_requests
+                WHERE created_at >= date_trunc('month', NOW())
+                  AND created_at <  date_trunc('month', NOW()) + INTERVAL '1 month';
             `;
             const { rows } = await db.query(query);
-            
-            // Jika hasilnya null (karena belum ada guru yang generate sama sekali), kita amankan ke angka 0
             return rows[0].total_global_generate ? parseInt(rows[0].total_global_generate, 10) : 0;
         } catch (error) {
             console.error("Error di KepsekModel.getTotalGlobalGenerate:", error);
