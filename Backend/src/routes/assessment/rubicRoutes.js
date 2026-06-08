@@ -15,11 +15,11 @@ const {
 // POST   - Generate rubrik baru
 router.post('/generate', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), generateRubric);
 
+// Fix urutan route: export-excel HARUS sebelum :id agar tidak di-match sebagai ID
+router.get('/rubrics/:id/export-excel', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), exportToExcel);
+
 // GET    - Ambil semua rubrik
 router.get('/rubrics', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getAllRubrics);
-
-// GET    - Export rubrik ke Excel
-router.get('/rubrics/:id/export-excel', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), exportToExcel);
 
 // GET    - Ambil detail rubrik berdasarkan ID
 router.get('/rubrics/:id', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getRubricById);

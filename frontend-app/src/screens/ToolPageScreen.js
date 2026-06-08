@@ -1,41 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, ActivityIndicator, Alert, Switch, Clipboard,
+  TextInput, ActivityIndicator, Alert, Switch, Clipboard, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { findTool } from '../lib/tools';
 import { useAuth, API_URL } from '../lib/auth';
+import { useNotifications } from '../lib/notifications';
 import { C, S } from '../lib/theme';
-
-// ─── Download file dengan token (untuk PDF/Excel) ──────────────────────────
-async function downloadWithToken(url, token, filename) {
-  try {
-    const localUri = FileSystem.documentDirectory + filename;
-    const result = await FileSystem.downloadAsync(url, localUri, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (result.status !== 200) {
-      Alert.alert('Gagal', 'Server menolak permintaan download.');
-      return;
-    }
-    const canShare = await Sharing.isAvailableAsync();
-    if (canShare) {
-      await Sharing.shareAsync(result.uri, {
-        mimeType: filename.endsWith('.pdf')
-          ? 'application/pdf'
-          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        dialogTitle: `Buka ${filename}`,
-      });
-    } else {
-      Alert.alert('Selesai', `File tersimpan di: ${result.uri}`);
-    }
-  } catch (e) {
-    Alert.alert('Error', 'Gagal download file: ' + e.message);
-  }
-}
 
 const ICON_MAP = {
   'clipboard-list': 'clipboard',
@@ -49,9 +21,14 @@ const ICON_MAP = {
 };
 
 function Field({ label, children }) {
+  // Pisahkan tanda * agar bisa diberi warna merah seperti WorksheetScreen
+  const hasRequired = label.endsWith('*') || label.includes(' *');
+  const cleanLabel = label.replace(/ \*$/, '').replace(/\*$/, '');
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={styles.fieldLabel}>
+        {cleanLabel}{hasRequired && <Text style={{ color: C.danger }}> *</Text>}
+      </Text>
       {children}
     </View>
   );
@@ -302,6 +279,7 @@ PEMBAGIAN THAHARAH:
 
 function MultipleChoiceForm({ navigation }) {
   const { token } = useAuth();
+  const { addNotification } = useNotifications();
   const [mapel, setMapel] = useState(MAPEL[0]);
   const [kelas, setKelas] = useState(KELAS[0]);
   const [topik, setTopik] = useState('');
@@ -331,11 +309,20 @@ function MultipleChoiceForm({ navigation }) {
       const data = await res.json();
       if (!data.success) { setError(data.message ?? 'Gagal generate soal.'); return; }
 
+      // ── Notifikasi generate berhasil ──
+      addNotification({
+        title: 'Soal PG Berhasil Dibuat 📝',
+        message: `${jml} soal ${mapel} Kelas ${kelas} — "${topik.trim()}" berhasil digenerate.`,
+        type: 'success',
+        icon: 'help-circle',
+      });
+
       // ── Navigasi ke halaman detail setelah generate berhasil ──
       navigation.navigate('MCDetail', {
         id: data.mc_id,
         data: {
           id: data.mc_id,
+          request_id: data.request_id,
           mata_pelajaran: mapel,
           tingkat_kelas: kelas,
           topik: topik.trim(),
@@ -414,6 +401,7 @@ function MultipleChoiceForm({ navigation }) {
 
 function RubricForm({ navigation }) {
   const { token } = useAuth();
+  const { addNotification } = useNotifications();
   const [tugas, setTugas] = useState('');
   const [aspek, setAspek] = useState('');
   const [skala, setSkala] = useState('1-4');
@@ -446,6 +434,14 @@ function RubricForm({ navigation }) {
       const data = await res.json();
       if (!data.success) { setError(data.message ?? 'Gagal generate rubrik.'); return; }
 
+      // ── Notifikasi generate berhasil ──
+      addNotification({
+        title: 'Rubrik Berhasil Dibuat 📊',
+        message: `Rubrik penilaian "${tugas.trim()}" dengan ${aspekArray.length} aspek (skala ${skala}) berhasil digenerate.`,
+        type: 'success',
+        icon: 'bar-chart',
+      });
+
       // ── Navigasi ke halaman detail setelah generate berhasil ──
       navigation.navigate('RubricDetail', {
         id: data.data?.rubic_id,
@@ -469,7 +465,7 @@ function RubricForm({ navigation }) {
       <Field label="Jenis Tugas / Aktivitas *">
         <TextF value={tugas} onChangeText={setTugas} placeholder="cth. Presentasi kelompok, Proyek, Esai" />
       </Field>
-      <Field label="Aspek Penilaian * (pisahkan dengan koma)">
+      <Field label="Aspek Penilaian (pisahkan dengan koma) *">
         <TextF value={aspek} onChangeText={setAspek} placeholder="cth. Isi, Penyampaian, Kerja Sama" multiline />
       </Field>
       <Field label="Skala Nilai *">
