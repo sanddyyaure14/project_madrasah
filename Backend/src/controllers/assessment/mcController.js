@@ -414,6 +414,9 @@ const deleteMC = async (req, res) => {
 const exportToPDF = async (req, res) => {
     try {
         const { id } = req.params;
+        // Query param: ?with_kunci=true|false (override setting dari DB)
+        const withKunciParam = req.query.with_kunci;
+        
         const assessment = await MCModel.getAssessmentById(id, req.user.id);
 
         if (!assessment) {
@@ -425,10 +428,16 @@ const exportToPDF = async (req, res) => {
             });
         }
 
+        // Tentukan apakah tampilkan kunci: ikuti query param jika ada, fallback ke setting DB
+        let showKunci = assessment.include_kunci;
+        if (withKunciParam !== undefined) {
+            showKunci = withKunciParam === 'true';
+        }
+
         const doc = new PDFDocument({ margin: 50 });
 
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=Soal_${assessment.topik.replace(/\s+/g, '_')}.pdf`);
+        res.setHeader('Content-Disposition', `attachment; filename=Soal_${assessment.topik.replace(/\s+/g, '_')}_${showKunci ? 'kunci' : 'tanpa_kunci'}.pdf`);
 
         doc.pipe(res);
 
@@ -437,7 +446,12 @@ const exportToPDF = async (req, res) => {
         doc.text(`Topik: ${assessment.topik} | Kesulitan: ${assessment.tingkat_kesulitan}`, { align: 'center' });
         doc.moveDown(2);
 
-        const daftarSoal = assessment.questions_json || [];
+        // Parse questions_json jika masih berupa string
+        let daftarSoal = assessment.questions_json;
+        if (typeof daftarSoal === 'string') {
+            try { daftarSoal = JSON.parse(daftarSoal); } catch { daftarSoal = []; }
+        }
+        daftarSoal = daftarSoal || [];
 
         daftarSoal.forEach((q) => {
             doc.fontSize(11).text(`${q.no}. ${q.soal}`, { align: 'justify' });
@@ -449,10 +463,13 @@ const exportToPDF = async (req, res) => {
                 });
             }
 
-            if (assessment.include_kunci && q.kunci) {
+            if (showKunci && q.kunci) {
                 doc.moveDown(0.5);
                 doc.fillColor('green').text(`   * Kunci Jawaban: ${q.kunci}`, { bold: true });
-                doc.fillColor('black').text(`   * Pembahasan: ${q.pembahasan || '-'}`);
+                if (q.pembahasan) {
+                    doc.fillColor('black').text(`   * Pembahasan: ${q.pembahasan}`);
+                }
+                doc.fillColor('black');
             }
 
             doc.moveDown(1.5);
@@ -462,13 +479,16 @@ const exportToPDF = async (req, res) => {
 
     } catch (error) {
         console.error("Error saat Cetak PDF:", error);
-        res.status(500).json({
-            success: false,
-            message: "Gagal membuat file cetak PDF di backend.",
-            error: error.message,
-            data: null,
-            meta: {}
-        });
+        // Jika header sudah terkirim, tidak bisa kirim JSON lagi
+        if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                message: "Gagal membuat file cetak PDF di backend.",
+                error: error.message,
+                data: null,
+                meta: {}
+            });
+        }
     }
 };
 

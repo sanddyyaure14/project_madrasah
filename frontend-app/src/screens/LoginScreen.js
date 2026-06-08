@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth';
@@ -59,9 +59,11 @@ export default function LoginScreen({ navigation }) {
         {/* Header brand */}
         <View style={styles.header}>
           <View style={styles.logoRow}>
-            <View style={styles.logoIcon}>
-              <Text style={styles.logoStar}>✦</Text>
-            </View>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <View>
               <Text style={styles.logoText}>MadrasahAI</Text>
               <Text style={styles.logoSub}>Platform Pembelajaran Cerdas</Text>
@@ -163,11 +165,7 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, padding: 24, paddingTop: 60 },
   header: { marginBottom: 24 },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28 },
-  logoIcon: {
-    width: 44, height: 44, borderRadius: 12, backgroundColor: C.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  logoStar: { color: C.gold, fontSize: 20, fontWeight: '700' },
+  logoImage: { width: 52, height: 52 },
   logoText: { fontSize: 20, fontWeight: '700', color: C.ink },
   logoSub: { fontSize: 11, color: C.muted },
   arabicGreet: { fontSize: 26, color: C.gold, marginBottom: 4, textAlign: 'left' },
