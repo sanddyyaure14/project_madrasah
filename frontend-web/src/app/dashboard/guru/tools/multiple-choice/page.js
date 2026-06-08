@@ -168,9 +168,9 @@ export default function MultipleChoicePage() {
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kesulitan *</label>
                   <div className="flex gap-2">
-                    {["mudah", "sedang", "sulit"].map((lvl) => (
+                    {["mudah", "sedang"].map((lvl) => (
                       <button key={lvl} type="button" onClick={() => setFormData({...formData, tingkat_kesulitan: lvl})}
-                        className={`flex-1 py-2 rounded-lg text-xs capitalize border ${formData.tingkat_kesulitan.toLowerCase() === lvl ? 'bg-[#006747] text-white' : 'bg-white border-gray-200'}`}>
+                        className={`flex-1 py-2 rounded-full text-xs capitalize border ${formData.tingkat_kesulitan.toLowerCase() === lvl ? 'bg-[#006747] text-white' : 'bg-white border-gray-200'}`}>
                         {lvl}
                       </button>
                     ))}

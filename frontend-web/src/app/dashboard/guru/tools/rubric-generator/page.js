@@ -96,10 +96,10 @@ export default function RubricGeneratorPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="max-w-7xl mx-auto p-6 space-y-4">
       <Link
         href="/dashboard/guru"
-        className="text-xs font-medium text-gray-500 hover:text-emerald-700"
+        className="block -mt-4 text-xs font-medium text-gray-500 hover:text-emerald-700"
       >
         ← Kembali ke Dashboard
       </Link>
@@ -131,7 +131,7 @@ export default function RubricGeneratorPage() {
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jenis Tugas / Aktivitas *</label>
                 <input 
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg" 
+                  className="w-full text-sm p-3 border border-gray-200 rounded-lg" 
                   placeholder="Contoh: Presentasi Kelompok"
                   value={formData.jenis_tugas} 
                   onChange={(e) => setFormData({...formData, jenis_tugas: e.target.value})} 
@@ -142,7 +142,7 @@ export default function RubricGeneratorPage() {
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tujuan pembelajaran *</label>
                 <input 
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg" 
+                  className="w-full text-sm p-3 border border-gray-200 rounded-lg" 
                   placeholder="Masukkan Tujuan Pembelajaran"
                   value={formData.tujuan_pembelajaran} 
                   onChange={(e) => setFormData({...formData, tujuan_pembelajaran: e.target.value})} 
@@ -154,7 +154,7 @@ export default function RubricGeneratorPage() {
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Aspek Penilaian * (Pisahkan dengan koma)</label>
                 <textarea 
                   rows="3"
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg" 
+                  className="w-full text-sm p-3 border border-gray-200 rounded-lg" 
                   placeholder="Contoh: Isi Materi, Penyampaian, Kerja Sama"
                   value={formData.aspek_penilaian} 
                   onChange={(e) => setFormData({...formData, aspek_penilaian: e.target.value})} 
@@ -170,7 +170,7 @@ export default function RubricGeneratorPage() {
                       key={s} 
                       type="button" 
                       onClick={() => setFormData({...formData, skala_nilai: s})}
-                      className={`px-3 py-1.5 rounded-full text-sm border ${formData.skala_nilai === s ? "bg-[#006747] text-white" : "bg-gray-100"}`}>
+                      className={`px-4 py-2 text-xs rounded-full border transition ${formData.skala_nilai === s ? "bg-[#006747] text-white border-[#006747]" : "bg-white border-gray-200 text-gray-700"}`}>
                       {s}
                     </button>
                   ))}
@@ -180,7 +180,7 @@ export default function RubricGeneratorPage() {
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">TP / KD (Opsional)</label>
                 <input 
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg" 
+                  className="w-full text-sm p-3 border border-gray-200 rounded-lg" 
                   placeholder="Contoh: 3.1 Memahami ketentuan..."
                   value={formData.tp_kd} 
                   onChange={(e) => setFormData({...formData, tp_kd: e.target.value})} 
@@ -191,7 +191,7 @@ export default function RubricGeneratorPage() {
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Deskripsi Tugas (Opsional)</label>
                 <textarea 
                   rows="3"
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg" 
+                  className="w-full text-sm p-3 border border-gray-200 rounded-lg" 
                   placeholder="Contoh: Siswa diminta untuk..."
                   value={formData.deskripsi_tugas} 
                   onChange={(e) => setFormData({...formData, deskripsi_tugas: e.target.value})} 
