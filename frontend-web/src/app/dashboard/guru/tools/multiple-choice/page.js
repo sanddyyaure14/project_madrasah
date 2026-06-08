@@ -13,6 +13,8 @@ export default function MultipleChoicePage() {
     tingkat_kelas: "VII",
     jumlah_soal: 10,
     tingkat_kesulitan: "Sedang",
+    kd: "",
+    include_kunci: true,
   });
 
   const [loading, setLoading]         = useState(false);
@@ -50,7 +52,8 @@ export default function MultipleChoicePage() {
           tingkat_kelas: formData.tingkat_kelas,
           jumlah_soal: Number(formData.jumlah_soal),
           tingkat_kesulitan: formData.tingkat_kesulitan,
-          include_kunci: true,
+          kd: formData.kd,
+          include_kunci: formData.include_kunci,
         }),
       });
 
@@ -94,10 +97,10 @@ export default function MultipleChoicePage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="max-w-7xl mx-auto p-6 space-y-4">
       <Link
         href="/dashboard/guru"
-        className="text-xs font-medium text-gray-500 hover:text-emerald-700"
+        className="block -mt-4 text-xs font-medium text-gray-500 hover:text-emerald-700"
       >
         ← Kembali ke Dashboard
       </Link>
@@ -127,72 +130,71 @@ export default function MultipleChoicePage() {
           <div className="flex-1 overflow-y-auto">
             <form onSubmit={handleGenerate} className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Mata Pelajaran
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Contoh: IPA"
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg"
-                  onChange={(e) => setFormData({ ...formData, mata_pelajaran: e.target.value })}
-                />
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Mata Pelajaran *</label>
+                <div className="flex flex-wrap gap-2">
+                  {["Akidah Akhlak", "Al-Qur'an Hadis", "Fiqih", "SKI", "Bahasa Arab", "Matematika", "IPA", "IPS", "Bahasa Indonesia"].map((m) => (
+                    <button key={m} type="button" onClick={() => setFormData({...formData, mata_pelajaran: m})}
+                      className={`px-3 py-1 text-xs rounded-full border transition ${formData.mata_pelajaran === m ? 'bg-[#006747] text-white border-[#006747]' : 'bg-white border-gray-200 text-gray-700'}`}>
+                      {m}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Tingkat Kelas
-                </label>
-                <select
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg"
-                  value={formData.tingkat_kelas}
-                  onChange={(e) => setFormData({ ...formData, tingkat_kelas: e.target.value })}
-                >
-                  <option>VII</option>
-                  <option>VIII</option>
-                  <option>IX</option>
-                </select>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Kelas *</label>
+                <div className="flex flex-wrap gap-2">
+                  {["VII", "VIII", "IX", "X", "XI", "XII"].map((k) => (
+                    <button key={k} type="button" onClick={() => setFormData({...formData, tingkat_kelas: k})}
+                      className={`px-4 py-1 text-xs rounded-full border transition ${formData.tingkat_kelas === k ? 'bg-[#006747] text-white border-[#006747]' : 'bg-white border-gray-200 text-gray-700'}`}>
+                      {k}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Topik
-                </label>
-                <textarea
-                  rows="4"
-                  required
-                  placeholder="Masukkan topik soal"
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg"
-                  onChange={(e) => setFormData({ ...formData, topik: e.target.value })}
-                />
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Topik / Materi *</label>
+                <textarea rows="3" required placeholder="cth. Thaharah, Wudhu..." className="w-full text-sm p-3 border border-gray-200 rounded-lg" 
+                  onChange={(e) => setFormData({ ...formData, topik: e.target.value })} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jumlah Soal *</label>
+                  <input type="number" value={formData.jumlah_soal} className="w-full text-sm p-2 border border-gray-200 rounded-lg" 
+                    onChange={(e) => setFormData({ ...formData, jumlah_soal: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kesulitan *</label>
+                  <div className="flex gap-2">
+                    {["mudah", "sedang", "sulit"].map((lvl) => (
+                      <button key={lvl} type="button" onClick={() => setFormData({...formData, tingkat_kesulitan: lvl})}
+                        className={`flex-1 py-2 rounded-lg text-xs capitalize border ${formData.tingkat_kesulitan.toLowerCase() === lvl ? 'bg-[#006747] text-white' : 'bg-white border-gray-200'}`}>
+                        {lvl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Jumlah Soal
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg"
-                  value={formData.jumlah_soal}
-                  onChange={(e) => setFormData({ ...formData, jumlah_soal: e.target.value })}
-                />
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kompetensi Dasar (KD)</label>
+                <textarea rows="2" placeholder="cth. 3.1 Memahami ketentuan..." className="w-full text-sm p-3 border border-gray-200 rounded-lg" 
+                  onChange={(e) => setFormData({ ...formData, kd: e.target.value })} />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Tingkat Kesulitan
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <span className="text-xs font-bold text-gray-500 uppercase">Sertakan Kunci Jawaban</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={formData.include_kunci} 
+                    onChange={(e) => setFormData({ ...formData, include_kunci: e.target.checked })} 
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006747]"></div>
                 </label>
-                <select
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg"
-                  value={formData.tingkat_kesulitan}
-                  onChange={(e) => setFormData({ ...formData, tingkat_kesulitan: e.target.value })}
-                >
-                  <option>Mudah</option>
-                  <option>Sedang</option>
-                  <option>Sulit</option>
-                </select>
               </div>
 
               <button
@@ -261,8 +263,10 @@ export default function MultipleChoicePage() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-400 text-xs border border-dashed rounded-lg m-6">
-              Hasil generate soal akan tampil di sini.
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
+              <span className="text-4xl">📝</span>
+              <p className="font-medium">Hasil Generate akan tampil di sini</p>
+              <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate Soal</p>
             </div>
           )}
         </div>

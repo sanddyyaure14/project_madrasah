@@ -12,6 +12,8 @@ export default function RubricGeneratorPage() {
     tujuan_pembelajaran: "",
     aspek_penilaian: "",
     skala_nilai: "1-4",
+    tp_kd: "",
+    deskripsi_tugas: "",
   });
 
   const [loading, setLoading]         = useState(false);
@@ -127,60 +129,73 @@ export default function RubricGeneratorPage() {
           <div className="flex-1 overflow-y-auto">
             <form onSubmit={handleGenerate} className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Jenis Tugas
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Contoh: Presentasi"
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg"
-                  value={formData.jenis_tugas}
-                  onChange={(e) => setFormData({ ...formData, jenis_tugas: e.target.value })}
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jenis Tugas / Aktivitas *</label>
+                <input 
+                  className="w-full text-sm p-2 border border-gray-200 rounded-lg" 
+                  placeholder="Contoh: Presentasi Kelompok"
+                  value={formData.jenis_tugas} 
+                  onChange={(e) => setFormData({...formData, jenis_tugas: e.target.value})} 
+                  required 
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Tujuan Pembelajaran
-                </label>
-                <textarea
-                  rows="4"
-                  required
-                  placeholder="Masukkan tujuan pembelajaran"
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg"
-                  value={formData.tujuan_pembelajaran}
-                  onChange={(e) => setFormData({ ...formData, tujuan_pembelajaran: e.target.value })}
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tujuan pembelajaran *</label>
+                <input 
+                  className="w-full text-sm p-2 border border-gray-200 rounded-lg" 
+                  placeholder="Masukkan Tujuan Pembelajaran"
+                  value={formData.tujuan_pembelajaran} 
+                  onChange={(e) => setFormData({...formData, tujuan_pembelajaran: e.target.value})} 
+                  required 
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Aspek Penilaian
-                </label>
-                <textarea
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Aspek Penilaian * (Pisahkan dengan koma)</label>
+                <textarea 
                   rows="3"
-                  required
+                  className="w-full text-sm p-2 border border-gray-200 rounded-lg" 
                   placeholder="Contoh: Isi Materi, Penyampaian, Kerja Sama"
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg"
-                  value={formData.aspek_penilaian}
-                  onChange={(e) => setFormData({ ...formData, aspek_penilaian: e.target.value })}
+                  value={formData.aspek_penilaian} 
+                  onChange={(e) => setFormData({...formData, aspek_penilaian: e.target.value})} 
+                  required 
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Skala Penilaian
-                </label>
-                <select
-                  className="w-full text-sm p-2 border border-gray-200 rounded-lg"
-                  value={formData.skala_nilai}
-                  onChange={(e) => setFormData({ ...formData, skala_nilai: e.target.value })}
-                >
-                  <option value="1-4">1-4</option>
-                  <option value="1-10">1-10</option>
-                  <option value="1-100">1-100</option>
-                </select>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Skala Nilai *</label>
+                <div className="flex gap-2">
+                  {["1-4", "1-10", "1-100"].map(s => (
+                    <button 
+                      key={s} 
+                      type="button" 
+                      onClick={() => setFormData({...formData, skala_nilai: s})}
+                      className={`px-3 py-1.5 rounded-full text-sm border ${formData.skala_nilai === s ? "bg-[#006747] text-white" : "bg-gray-100"}`}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">TP / KD (Opsional)</label>
+                <input 
+                  className="w-full text-sm p-2 border border-gray-200 rounded-lg" 
+                  placeholder="Contoh: 3.1 Memahami ketentuan..."
+                  value={formData.tp_kd} 
+                  onChange={(e) => setFormData({...formData, tp_kd: e.target.value})} 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Deskripsi Tugas (Opsional)</label>
+                <textarea 
+                  rows="3"
+                  className="w-full text-sm p-2 border border-gray-200 rounded-lg" 
+                  placeholder="Contoh: Siswa diminta untuk..."
+                  value={formData.deskripsi_tugas} 
+                  onChange={(e) => setFormData({...formData, deskripsi_tugas: e.target.value})} 
+                />
               </div>
 
               <button
@@ -246,8 +261,10 @@ export default function RubricGeneratorPage() {
               </table>
             </div>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-400 text-xs border border-dashed rounded-lg m-6">
-              Hasil rubric akan tampil di sini.
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
+              <span className="text-4xl">📚 </span>
+              <p className="font-medium">Hasil Rubric akan tampil di sini</p>
+              <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate Rubric</p>
             </div>
           )}
         </div>
