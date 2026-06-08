@@ -9,7 +9,7 @@ import {
   ActivityIndicator, Alert, TextInput, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import { downloadAsync, documentDirectory } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useAuth, API_URL } from '../lib/auth';
 import { C, S } from '../lib/theme';
@@ -17,8 +17,8 @@ import FeedbackRating from '../components/FeedbackRating';
 
 async function downloadWithToken(url, token, filename) {
   try {
-    const localUri = FileSystem.documentDirectory + filename;
-    const result = await FileSystem.downloadAsync(url, localUri, {
+    const localUri = documentDirectory + filename;
+    const result = await downloadAsync(url, localUri, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (result.status !== 200) { Alert.alert('Gagal', 'Server menolak permintaan download.'); return; }

@@ -268,13 +268,15 @@ export default function MyDocsScreen({ navigation }) {
       const combined = results.flat();
 
       console.log('=== UNITPLAN RESULT ===');
+      const unitplanDocs = combined.filter(d => d.__type === 'unitplan');
+      console.log('Total unitplan:', unitplanDocs.length);
       console.log(
-        combined
-          .filter(d => d.__type === 'unitplan')
-          .map(d => ({
-            id: d.id,
-            judul_unit: d.judul_unit,
-          }))
+        unitplanDocs.map(d => ({
+          id: d.id,
+          judul_unit: d.judul_unit,
+          created_at: d.created_at,
+          request_id: d.request_id,
+        }))
       );
 
       combined.sort((a, b) => {
