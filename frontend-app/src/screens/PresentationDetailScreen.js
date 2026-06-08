@@ -23,7 +23,7 @@ import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
 import { downloadPresentationPPT } from '../lib/api';
 
-const AUDIENS_OPTIONS = ['Siswa MI', 'Siswa MTs', 'Siswa MA', 'Guru', 'Orang Tua', 'Umum'];
+const AUDIENS_OPTIONS = ['Siswa MTs', 'Siswa MA', 'Guru', 'Orang Tua', 'Umum'];
 
 // ---------------------------------------------------------------------------
 // Slide Card Component

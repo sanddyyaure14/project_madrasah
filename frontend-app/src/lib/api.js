@@ -93,7 +93,7 @@ export async function generateWritingFeedback(params) {
  * Get all writing feedback history.
  */
 export async function getAllWritingFeedback() {
-  return request('GET', '/feedback');
+  return request('GET', '/writing-feedback');
 }
 
 /**
@@ -101,7 +101,7 @@ export async function getAllWritingFeedback() {
  * @param {string} id
  */
 export async function getWritingFeedbackById(id) {
-  return request('GET', `/feedback/${id}`);
+  return request('GET', `/writing-feedback/${id}`);
 }
 
 /**
@@ -110,7 +110,7 @@ export async function getWritingFeedbackById(id) {
  * @param {{ skor_total: number, aspek: array, ringkasan: string }} payload
  */
 export async function updateWritingFeedback(id, payload) {
-  return request('PUT', `/feedback/edit/${id}`, payload);
+  return request('PUT', `/writing-feedback/edit/${id}`, payload);
 }
 
 /**
@@ -118,7 +118,7 @@ export async function updateWritingFeedback(id, payload) {
  * @param {string} id
  */
 export async function deleteWritingFeedback(id) {
-  return request('DELETE', `/feedback/delete/${id}`);
+  return request('DELETE', `/writing-feedback/delete/${id}`);
 }
 
 /**
@@ -126,7 +126,7 @@ export async function deleteWritingFeedback(id) {
  * @param {string} id
  */
 export async function getWritingShareText(id) {
-  return request('GET', `/feedback/share/${id}`);
+  return request('GET', `/writing-feedback/share/${id}`);
 }
 
 // =========================================================================
@@ -138,7 +138,7 @@ export async function getWritingShareText(id) {
  * @param {object} params
  * @param {string} params.mata_pelajaran   — nama mata pelajaran (wajib)
  * @param {string} params.kurikulum        — "Merdeka Belajar" | "Kurikulum 2013"
- * @param {string} params.jenjang          — "MI" | "MTs" | "MA"
+ * @param {string} params.jenjang          — "MTs" | "MA"
  * @param {string} params.tingkat_kelas    — misal "VII", "X"
  * @param {string} params.semester         — "Ganjil" | "Genap"
  * @param {string} params.tahun_ajaran     — misal "2024/2025"

@@ -14,7 +14,7 @@ import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
 import { useNotifications } from '../lib/notifications';
 
-const JENJANG_OPTIONS = ['MI', 'MTs', 'MA'];
+const JENJANG_OPTIONS = ['MTs', 'MA'];
 const KURIKULUM_OPTIONS = [
   { label: 'Merdeka Belajar', value: 'Merdeka' },
   { label: 'Kurikulum 2013', value: 'K13' },

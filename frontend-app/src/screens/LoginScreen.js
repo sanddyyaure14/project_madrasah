@@ -164,8 +164,8 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   scroll: { flexGrow: 1, padding: 24, paddingTop: 60 },
   header: { marginBottom: 24 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28 },
-  logoImage: { width: 52, height: 52 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 28 },
+  logoImage: { width: 100, height: 100, borderRadius: 18, backgroundColor: '#fff' },
   logoText: { fontSize: 20, fontWeight: '700', color: C.ink },
   logoSub: { fontSize: 11, color: C.muted },
   arabicGreet: { fontSize: 26, color: C.gold, marginBottom: 4, textAlign: 'left' },

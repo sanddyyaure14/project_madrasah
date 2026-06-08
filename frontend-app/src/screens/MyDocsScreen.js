@@ -29,7 +29,7 @@ const TABS = [
 
 // ─── Endpoint map ────────────────────────────────────────────────────────────
 const FETCH_URL = {
-  feedback: '/feedback',
+  feedback: '/writing-feedback',
   worksheet: '/worksheet/worksheets',
   mc: '/assessment',
   rubric: '/rubrics',
@@ -45,7 +45,7 @@ const DELETE_URL = (type, id) => {
     case 'rubric': return `/rubrics/${id}`;
     case 'syllabus': return `/syllabus/${id}`;
     case 'academic': return `/academic-content/${id}`;
-    case 'feedback': return `/feedback/delete/${id}`;
+    case 'feedback': return `/writing-feedback/delete/${id}`;
     case 'presentation': return `/presentation/${id}`;
     default: return null;
   }
