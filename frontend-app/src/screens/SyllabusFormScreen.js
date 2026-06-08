@@ -22,8 +22,8 @@ const MAPEL_OPTIONS = [
   'Fiqih', 'Akidah Akhlak', "Al-Qur'an Hadis", 'Bahasa Arab', 'SKI',
   'Matematika', 'IPA Terpadu', 'Bahasa Indonesia', 'Bahasa Inggris', 'IPS Terpadu',
 ];
-const JENJANG_OPTIONS = ['MI', 'MTs', 'MA'];
-const KELAS_OPTIONS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+const JENJANG_OPTIONS = ['MTs', 'MA'];
+const KELAS_OPTIONS = ['VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 const KURIKULUM_OPTIONS = ['Merdeka Belajar', 'Kurikulum 2013'];
 const SEMESTER_OPTIONS = ['Ganjil', 'Genap'];
 

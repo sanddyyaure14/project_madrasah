@@ -24,7 +24,7 @@ const MAPEL_OPTIONS = [
   'Bahasa Indonesia', 'PKn', 'IPS', 'Bahasa Inggris',
 ];
 
-const JENJANG_OPTIONS = ['MI', 'MTs', 'MA'];
+const JENJANG_OPTIONS = ['MTs', 'MA'];
 
 const KURIKULUM_OPTIONS = [
   { label: 'Merdeka Belajar', value: 'Merdeka' },

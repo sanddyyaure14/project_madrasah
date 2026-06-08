@@ -23,7 +23,7 @@ import { useAuth } from '../lib/auth';
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const AUDIENS_OPTIONS = ['Siswa MI', 'Siswa MTs', 'Siswa MA', 'Guru', 'Orang Tua', 'Umum'];
+const AUDIENS_OPTIONS = ['Siswa MTs', 'Siswa MA', 'Guru', 'Orang Tua', 'Umum'];
 
 // ---------------------------------------------------------------------------
 // Reusable components

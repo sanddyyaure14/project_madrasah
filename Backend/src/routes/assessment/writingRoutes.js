@@ -78,19 +78,19 @@ router.post('/generate/writing-feedback',
 // =========================================================================
 
 // 2. READ ALL (Diletakkan paling atas agar tidak bentrok dengan parameter :id)
-router.get('/feedback', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getAllFeedback);
+router.get('/writing-feedback', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getAllFeedback);
 
 // Rute Share Text WA 
-router.get('/feedback/share/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), getFeedbackShareText);
+router.get('/writing-feedback/share/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), getFeedbackShareText);
 
-// 3. READ BY ID (Alur 2 - Langkah 4: Tampilkan Output / Ambil data dari library)
-router.get('/feedback/:id', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getFeedbackById);
+// 3. READ BY ID
+router.get('/writing-feedback/:id', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getFeedbackById);
 
-// 4. UPDATE (Alur 2 - Langkah 4: Edit jika perlu & Simpan kembali ke library)
-router.put('/feedback/edit/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), updateFeedback);
+// 4. UPDATE
+router.put('/writing-feedback/edit/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), updateFeedback);
 
 // 5. DELETE
-router.delete('/feedback/delete/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), deleteFeedback);
+router.delete('/writing-feedback/delete/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), deleteFeedback);
 
 // ── Rating / Feedback untuk hasil generate writing ───────────────────────────
 const db = require('../../config/db');

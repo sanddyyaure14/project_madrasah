@@ -20,7 +20,7 @@ const MAPEL = [
   'SKI', 'Matematika', 'IPA Terpadu', 'Bahasa Indonesia',
 ];
 
-const JENJANG = ['MI', 'MTs', 'MA'];
+const JENJANG = ['MTs', 'MA'];
 const KURIKULUM = ['Merdeka', 'K13'];
 
 function TipRow({ ok, text }) {
