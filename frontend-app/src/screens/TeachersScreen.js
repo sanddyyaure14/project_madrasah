@@ -30,7 +30,7 @@ const MAPEL_OPTIONS = [
   'Bahasa Arab', 'SKI', 'Matematika', 'IPA Terpadu',
   'Bahasa Indonesia', 'PKn', 'IPS', 'Bahasa Inggris',
 ];
-const JENJANG_OPTIONS = ['MI', 'MTs', 'MA'];
+const JENJANG_OPTIONS = ['MTs', 'MA'];
 const KURIKULUM_OPTIONS = [
   { label: 'Merdeka Belajar', value: 'Merdeka' },
   { label: 'Kurikulum 2013', value: 'K13' },

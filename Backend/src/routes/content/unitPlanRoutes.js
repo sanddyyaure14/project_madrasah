@@ -20,3 +20,6 @@ router.put("/:id", verifyToken, authorizeRoles('guru', 'kepala_sekolah'), update
 router.delete("/:id", verifyToken, authorizeRoles('guru', 'kepala_sekolah', 'admin'), deleteUnitPlan);
 
 module.exports = router;
+
+
+module.exports = router;

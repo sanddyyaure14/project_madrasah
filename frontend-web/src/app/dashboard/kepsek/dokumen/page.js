@@ -3067,7 +3067,7 @@ export default function MyDocsPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-6 pb-16 space-y-5">
 
-        <Link href="/dashboard/guru" className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-emerald-700 transition">
+        <Link href="/dashboard/kepsek" className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-emerald-700 transition">
           ← Kembali ke Dashboard
         </Link>
 
@@ -3134,7 +3134,7 @@ export default function MyDocsPage() {
               {search ? `Tidak ada dokumen yang cocok dengan "${search}"` : activeTab !== "all" ? `Belum ada dokumen jenis ${TABS.find(t => t.key === activeTab)?.label}.` : "Mulai buat dokumen pertamamu menggunakan fitur AI."}
             </p>
             {!search && (
-              <Link href="/dashboard/guru" className="mt-2 inline-flex items-center gap-2 bg-[#006747] text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-emerald-800 transition">
+              <Link href="/dashboard/kepsek" className="mt-2 inline-flex items-center gap-2 bg-[#006747] text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-emerald-800 transition">
                 Buat Dokumen Baru
               </Link>
             )}

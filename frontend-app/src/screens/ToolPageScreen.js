@@ -4,10 +4,39 @@ import {
   TextInput, ActivityIndicator, Alert, Switch, Clipboard, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { downloadAsync, documentDirectory } from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { findTool } from '../lib/tools';
 import { useAuth, API_URL } from '../lib/auth';
 import { useNotifications } from '../lib/notifications';
 import { C, S } from '../lib/theme';
+
+// ─── Download file dengan token (untuk PDF/Excel) ──────────────────────────
+async function downloadWithToken(url, token, filename) {
+  try {
+    const localUri = documentDirectory + filename;
+    const result = await downloadAsync(url, localUri, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (result.status !== 200) {
+      Alert.alert('Gagal', 'Server menolak permintaan download.');
+      return;
+    }
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
+      await Sharing.shareAsync(result.uri, {
+        mimeType: filename.endsWith('.pdf')
+          ? 'application/pdf'
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        dialogTitle: `Buka ${filename}`,
+      });
+    } else {
+      Alert.alert('Selesai', `File tersimpan di: ${result.uri}`);
+    }
+  } catch (e) {
+    Alert.alert('Error', 'Gagal download file: ' + e.message);
+  }
+}
 
 const ICON_MAP = {
   'clipboard-list': 'clipboard',
@@ -564,20 +593,179 @@ function SyllabusForm() {
   );
 }
 
-function UnitPlanForm() {
-  const [mapel, setMapel] = useState(MAPEL[0]);
-  const [kelas, setKelas] = useState(KELAS[0]);
-  const [kurikulum, setKurikulum] = useState(KURIKULUM[0]);
-  const [topik, setTopik] = useState('');
-  const { loading, result, generate } = useTool('unit-plan');
+function UnitPlanForm({ navigation }) {
+  const { token } = useAuth();
+  const [judulUnit, setJudulUnit] = useState('');
+  const [mataPelajaran, setMataPelajaran] = useState(MAPEL[0]);
+  const [tingkatKelas, setTingkatKelas] = useState(KELAS[0]);
+  const [tujuanPembelajaran, setTujuanPembelajaran] = useState('');
+  const [jumlahPertemuan, setJumlahPertemuan] = useState('2');
+  const [durasiPerJp, setDurasiPerJp] = useState('40');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleGenerate() {
+    if (!judulUnit.trim()) {
+      Alert.alert('Input Kurang', 'Judul Unit/Materi wajib diisi.');
+      return;
+    }
+    const pertemuan = parseInt(jumlahPertemuan);
+    const durasi = parseInt(durasiPerJp);
+    if (isNaN(pertemuan) || pertemuan < 1 || pertemuan > 20) {
+      Alert.alert('Input Tidak Valid', 'Jumlah pertemuan antara 1–20.');
+      return;
+    }
+    if (isNaN(durasi) || durasi < 30 || durasi > 120) {
+      Alert.alert('Input Tidak Valid', 'Durasi per JP antara 30–120 menit.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/unit-plan/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          judul_unit: judulUnit.trim(),
+          mata_pelajaran: mataPelajaran,
+          tingkat_kelas: tingkatKelas,
+          tujuan_pembelajaran: tujuanPembelajaran.trim() || null,
+          jumlah_pertemuan: pertemuan,
+          durasi_per_jp: durasi,
+        }),
+      });
+      const data = await res.json();
+      
+      console.log('[UnitPlan] Generate response:', {
+        success: data.success,
+        id: data.data?.id,
+        request_id: data.request_id,
+        created_at: data.data?.created_at,
+        has_unit_plan_json: !!data.data?.unit_plan_json,
+        full_response: data,
+      });
+      
+      if (!data.success) {
+        setError(data.message ?? 'Gagal generate Unit Plan.');
+        return;
+      }
+
+      // ── Navigasi ke halaman detail setelah generate berhasil ──
+      try {
+        console.log('[UnitPlan] Navigating to UnitPlanDetail...');
+        
+        // Simplified navigation - langsung ke MyDocs
+        Alert.alert(
+          'Berhasil! 🎉',
+          'RPP berhasil dibuat dan tersimpan.',
+          [
+            {
+              text: 'Lihat di Dokumen',
+              onPress: () => navigation.navigate('MyDocs'),
+            },
+            { text: 'OK', onPress: () => navigation.goBack() },
+          ]
+        );
+      } catch (navError) {
+        console.error('[UnitPlan] Navigation error:', navError);
+        Alert.alert(
+          'Berhasil Generate!',
+          'RPP berhasil dibuat. Silakan cek di halaman Dokumen.',
+          [
+            {
+              text: 'Lihat Dokumen',
+              onPress: () => navigation.navigate('MyDocs'),
+            },
+            { text: 'OK' },
+          ]
+        );
+      }
+    } catch (e) {
+      console.error('UnitPlan generate error:', e);
+      setError('Tidak dapat terhubung ke server. Pastikan backend berjalan.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <>
-      <Field label="Mata Pelajaran"><SelectF options={MAPEL} value={mapel} onSelect={setMapel} /></Field>
-      <Field label="Kelas"><SelectF options={KELAS} value={kelas} onSelect={setKelas} /></Field>
-      <Field label="Kurikulum"><SelectF options={KURIKULUM} value={kurikulum} onSelect={setKurikulum} /></Field>
-      <Field label="Topik / Sub-bab"><TextF value={topik} onChangeText={setTopik} placeholder="cth. Thaharah" /></Field>
-      <GenerateBtn loading={loading} onPress={() => generate({ mapel, kelas, kurikulum, topik })} />
-      <ResultBox text={result} onCopy={() => Alert.alert('Tersalin!')} />
+      <Field label="Judul Unit / Materi *">
+        <TextF
+          value={judulUnit}
+          onChangeText={setJudulUnit}
+          placeholder="cth. Thaharah dan Bersuci"
+        />
+      </Field>
+      <Field label="Mata Pelajaran *">
+        <SelectF options={MAPEL} value={mataPelajaran} onSelect={setMataPelajaran} />
+      </Field>
+      <Field label="Kelas *">
+        <SelectF options={KELAS} value={tingkatKelas} onSelect={setTingkatKelas} />
+      </Field>
+      <Field label="Tujuan Pembelajaran">
+        <TextF
+          value={tujuanPembelajaran}
+          onChangeText={setTujuanPembelajaran}
+          placeholder="cth. Peserta didik mampu memahami ketentuan thaharah"
+          multiline
+        />
+      </Field>
+      <View style={mcS.row}>
+        <View style={{ flex: 1 }}>
+          <Field label="Jumlah Pertemuan *">
+            <TextInput
+              style={styles.input}
+              value={jumlahPertemuan}
+              onChangeText={setJumlahPertemuan}
+              keyboardType="numeric"
+              placeholder="2"
+              placeholderTextColor={C.mutedLight}
+            />
+          </Field>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Field label="Durasi per JP (menit) *">
+            <TextInput
+              style={styles.input}
+              value={durasiPerJp}
+              onChangeText={setDurasiPerJp}
+              keyboardType="numeric"
+              placeholder="40"
+              placeholderTextColor={C.mutedLight}
+            />
+          </Field>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.generateBtn, loading && { opacity: 0.7 }]}
+        onPress={handleGenerate}
+        disabled={loading}
+      >
+        {loading ? (
+          <>
+            <ActivityIndicator color="#fff" size="small" />
+            <Text style={styles.generateBtnText}>Sedang generate RPP...</Text>
+          </>
+        ) : (
+          <>
+            <Ionicons name="sparkles" size={18} color="#fff" />
+            <Text style={styles.generateBtnText}>Generate RPP</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      {error ? (
+        <View style={mcS.errorBox}>
+          <Ionicons name="alert-circle" size={16} color="#dc2626" />
+          <Text style={mcS.errorText}>{error}</Text>
+        </View>
+      ) : null}
     </>
   );
 }

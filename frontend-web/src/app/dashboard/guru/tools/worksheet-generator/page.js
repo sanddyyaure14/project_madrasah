@@ -40,7 +40,7 @@ export default function WorksheetGeneratorPage() {
       const token = sessionStorage.getItem("accessToken");
       if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login ulang.");
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
       const response = await fetch(`${apiUrl}/api/worksheet/generate-worksheet`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
@@ -68,7 +68,7 @@ export default function WorksheetGeneratorPage() {
   const handleCetakPDF = async () => {
     if (!worksheetId) return;
     const token = sessionStorage.getItem("accessToken");
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
     try {
       const res = await fetch(`${apiUrl}/api/worksheet/worksheets/${worksheetId}/cetak-pdf`, {
         headers: { "Authorization": `Bearer ${token}` },

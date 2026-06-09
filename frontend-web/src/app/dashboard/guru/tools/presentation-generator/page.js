@@ -5,7 +5,7 @@ import Link from "next/link";
 import RatingFeedback from "@/components/RatingFeedback";
 
 const AUDIENS_OPTIONS = ["Siswa MI", "Siswa MTs", "Siswa MA", "Guru", "Orang Tua", "Umum"];
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function PresentationGeneratorPage() {
   const [topik, setTopik] = useState("");

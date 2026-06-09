@@ -28,21 +28,57 @@ export default function GuruLayout({ children }) {
   };
 
   const menuAsesmen = [
-    { label: "Multiple Choice",    href: "/dashboard/guru/tools/multiple-choice",    icon: "📝" },
-    { label: "Rubric Generator",   href: "/dashboard/guru/tools/rubric-generator",   icon: "📚" },
-    { label: "Writing Feedback",   href: "/dashboard/guru/tools/writing-feedback",   icon: "✍️" },
-    { label: "Worksheet Generator",href: "/dashboard/guru/tools/worksheet-generator",icon: "📄" },
+    {
+      label: "Multiple Choice",
+      href: "/dashboard/guru/tools/multiple-choice",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+    },
+    {
+      label: "Rubric Generator",
+      href: "/dashboard/guru/tools/rubric-generator",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M3 14h18M10 3v18M6 3v18" /></svg>
+    },
+    {
+      label: "Writing Feedback",
+      href: "/dashboard/guru/tools/writing-feedback",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+    },
+    {
+      label: "Worksheet Generator",
+      href: "/dashboard/guru/tools/worksheet-generator",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+    },
   ];
 
   const menuKonten = [
-    { label: "Presentation Generator", href: "/dashboard/guru/tools/presentation-generator", icon: "🖥️" },
-    { label: "Syllabus Generator",     href: "/dashboard/guru/tools/syllabus-generator",     icon: "📋" },
-    { label: "Unit Plan / RPP",        href: "/dashboard/guru/tools/unit-plan",               icon: "📖" },
-    { label: "Academic Content",       href: "/dashboard/guru/tools/academic-content",        icon: "🎓" },
+    {
+      label: "Presentation Generator",
+      href: "/dashboard/guru/tools/presentation-generator",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
+    },
+    {
+      label: "Syllabus Generator",
+      href: "/dashboard/guru/tools/syllabus-generator",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+    },
+    {
+      label: "Unit Plan / RPP",
+      href: "/dashboard/guru/tools/unit-plan",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+    },
+    {
+      label: "Academic Content",
+      href: "/dashboard/guru/tools/academic-content",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+    },
   ];
 
   const menuSaya = [
-    { label: "Dokumen Saya", href: "/dashboard/guru/dokumen", icon: "📂" },
+    {
+      label: "Dokumen Saya",
+      href: "/dashboard/guru/dokumen",
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
+    },
   ];
 
   const isActive = (href) => pathname === href;
@@ -87,7 +123,8 @@ export default function GuruLayout({ children }) {
             {/* Dashboard root */}
             <div>
               <Link href="/dashboard/guru" className={navLinkClass("/dashboard/guru")}>
-                <span className="text-base w-5 text-center">⊞</span> Dashboard
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                Dashboard
               </Link>
             </div>
 
@@ -99,7 +136,7 @@ export default function GuruLayout({ children }) {
               <div className="space-y-0.5">
                 {menuAsesmen.map((item) => (
                   <Link key={item.href} href={item.href} className={navLinkClass(item.href)}>
-                    <span className="text-base w-5 text-center">{item.icon}</span>
+                    <span className="w-4 h-4 shrink-0 flex items-center justify-center">{item.icon}</span>
                     {item.label}
                   </Link>
                 ))}
@@ -114,7 +151,7 @@ export default function GuruLayout({ children }) {
               <div className="space-y-0.5">
                 {menuKonten.map((item) => (
                   <Link key={item.href} href={item.href} className={navLinkClass(item.href)}>
-                    <span className="text-base w-5 text-center">{item.icon}</span>
+                    <span className="w-4 h-4 shrink-0 flex items-center justify-center">{item.icon}</span>
                     {item.label}
                   </Link>
                 ))}
@@ -129,7 +166,7 @@ export default function GuruLayout({ children }) {
               <div className="space-y-0.5">
                 {menuSaya.map((item) => (
                   <Link key={item.href} href={item.href} className={navLinkClass(item.href)}>
-                    <span className="text-base w-5 text-center">{item.icon}</span>
+                    <span className="w-4 h-4 shrink-0 flex items-center justify-center">{item.icon}</span>
                     {item.label}
                   </Link>
                 ))}

@@ -1,9 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth';
 import { C } from '../lib/theme';
+
+// Custom header title dengan logo
+function HeaderLogo() {
+  return (
+    <View style={headerStyles.row}>
+      <Image
+        source={require('../../assets/images/logo.png')}
+        style={headerStyles.logo}
+        resizeMode="contain"
+      />
+      <Text style={headerStyles.title}>MadrasahAI</Text>
+    </View>
+  );
+}
+
+const headerStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logo: { width: 36, height: 36, borderRadius: 8 },
+  title: { fontSize: 17, fontWeight: '700', color: C.ink },
+});
 
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -28,6 +49,7 @@ import RubricDetailScreen from '../screens/RubricDetailScreen';
 import KepsekGenerateStatsScreen from '../screens/KepsekGenerateStatsScreen';
 import KepsekFeedbackStatsScreen from '../screens/KepsekFeedbackStatsScreen';
 import KepsekActivityScreen from '../screens/KepsekActivityScreen';
+import SplashScreen from '../screens/SplashScreen';
 import SyllabusFormScreen from '../screens/SyllabusFormScreen';
 import SyllabusPreviewScreen from '../screens/SyllabusPreviewScreen';
 import AcademicContentFormScreen from '../screens/AcademicContentFormScreen';
@@ -42,6 +64,8 @@ import PresentationDetailScreen from '../screens/PresentationDetailScreen';
 import GenerateStatsScreen from '../screens/GenerateStatsScreen';
 import UsageStatsScreen from '../screens/UsageStatsScreen';
 import FeedbackStatsScreen from '../screens/FeedbackStatsScreen';
+import UnitPlanDetailScreen from '../screens/UnitPlanDetailScreen';
+import UnitPlanEditScreen from '../screens/UnitPlanEditScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -142,6 +166,8 @@ function DocsStack() {
       <Stack.Screen name="AcademicContentDetail" component={AcademicContentDetailScreen} options={{ title: 'Detail Konten Akademik' }} />
       <Stack.Screen name="AcademicContentEdit" component={AcademicContentEditScreen} options={{ title: 'Edit Konten Akademik' }} />
       <Stack.Screen name="PresentationDetail" component={PresentationDetailScreen} options={{ title: 'Detail Presentasi' }} />
+      <Stack.Screen name="UnitPlanDetail" component={UnitPlanDetailScreen} options={{ title: 'Detail RPP' }} />
+      <Stack.Screen name="UnitPlanEdit" component={UnitPlanEditScreen} options={{ title: 'Edit RPP' }} />
     </Stack.Navigator>
   );
 }
@@ -203,7 +229,7 @@ function DashboardStack() {
         headerTintColor: C.primary,
       }}
     >
-      <Stack.Screen name="DashboardHome" component={DashboardHomeScreen} options={{ title: 'MadrasahAI' }} />
+      <Stack.Screen name="DashboardHome" component={DashboardHomeScreen} options={{ headerTitle: () => <HeaderLogo /> }} />
       <Stack.Screen
         name="ToolPage"
         component={ToolPageScreen}
@@ -251,6 +277,12 @@ function AuthStack() {
 
 export default function RootNavigation() {
   const { user } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
+
+  if (!splashDone) {
+    return <SplashScreen onDone={() => setSplashDone(true)} />;
+  }
+
   if (!user) return <AuthStack />;
   return user.role === 'superadmin' ? <SuperAdminTabs /> : <GuruTabs />;
 }

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 const AUDIENS_OPTIONS = ["Siswa MI", "Siswa MTs", "Siswa MA", "Guru", "Orang Tua", "Umum"];
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function PresentationGeneratorKepsekPage() {
   const [topik, setTopik] = useState("");

@@ -57,15 +57,39 @@ const UnitPlanModel = {
             const result = await client.query(query, values);
 
             // Potong Kuota Guru (+1 Pemakaian)
-            const quotaQuery = `
-                UPDATE usage_quotas 
-                SET used_this_month = used_this_month + 1 
-                WHERE user_id = $1;
+            if (userId) {
+                const quotaQuery = `
+                    UPDATE usage_quotas 
+                    SET used_this_month = used_this_month + 1 
+                    WHERE user_id = $1;
+                `;
+                await client.query(quotaQuery, [userId]);
+            }
+
+            // Ambil created_at dari generation_requests
+            const timestampQuery = `
+                SELECT created_at, completed_at 
+                FROM generation_requests 
+                WHERE id = $1;
             `;
-            await client.query(quotaQuery, [userId]);
+            const timestampResult = await client.query(timestampQuery, [request_id]);
 
             await client.query('COMMIT');
-            return result.rows[0];
+            
+            // Merge unit plan dengan timestamps
+            const unitPlan = result.rows[0];
+            
+            // Parse unit_plan_json jika berupa string
+            if (typeof unitPlan.unit_plan_json === 'string') {
+                unitPlan.unit_plan_json = JSON.parse(unitPlan.unit_plan_json);
+            }
+            
+            if (timestampResult.rows[0]) {
+                unitPlan.created_at = timestampResult.rows[0].created_at;
+                unitPlan.completed_at = timestampResult.rows[0].completed_at;
+            }
+            
+            return unitPlan;
         } catch (error) {
             await client.query('ROLLBACK');
             throw error;
@@ -103,26 +127,65 @@ const UnitPlanModel = {
 
     getAllUnitPlans: async (userId) => {
         const query = `
-            SELECT up.* 
+            SELECT 
+                up.id,
+                up.request_id,
+                up.judul_unit,
+                up.mata_pelajaran,
+                up.tingkat_kelas,
+                up.tujuan_pembelajaran,
+                up.jumlah_pertemuan,
+                up.durasi_per_jp,
+                up.unit_plan_json,
+                gr.created_at,
+                gr.completed_at
             FROM unit_plans up
             JOIN generation_requests gr ON up.request_id = gr.id
             WHERE gr.user_id = $1
-            ORDER BY up.id DESC;
+            ORDER BY gr.created_at DESC;
         `;
         const result = await pool.query(query, [userId]);
-        return result.rows;
+        
+        // Parse unit_plan_json jika berupa string
+        return result.rows.map(row => ({
+            ...row,
+            unit_plan_json: typeof row.unit_plan_json === 'string' 
+                ? JSON.parse(row.unit_plan_json) 
+                : row.unit_plan_json
+        }));
     },
 
     // Ambil data unit plan berdasarkan ID (GET BY ID)
     getUnitPlanById: async (id, userId) => {
         const query = `
-            SELECT up.* 
+            SELECT 
+                up.id,
+                up.request_id,
+                up.judul_unit,
+                up.mata_pelajaran,
+                up.tingkat_kelas,
+                up.tujuan_pembelajaran,
+                up.jumlah_pertemuan,
+                up.durasi_per_jp,
+                up.unit_plan_json,
+                gr.created_at,
+                gr.completed_at
             FROM unit_plans up
             JOIN generation_requests gr ON up.request_id = gr.id
             WHERE up.id = $1 AND gr.user_id = $2;
         `;
         const result = await pool.query(query, [id, userId]);
-        return result.rows[0];
+        
+        if (!result.rows[0]) return null;
+        
+        const row = result.rows[0];
+        // Parse unit_plan_json jika berupa string
+        return {
+            ...row,
+            unit_plan_json: typeof row.unit_plan_json === 'string' 
+                ? JSON.parse(row.unit_plan_json) 
+                : row.unit_plan_json
+        };
     },
 
     // Update unit plan berdasarkan ID (PUT)
@@ -131,6 +194,13 @@ const UnitPlanModel = {
             judul_unit, mata_pelajaran, tingkat_kelas,
             tujuan_pembelajaran, jumlah_pertemuan, durasi_per_jp, unit_plan_json
         } = data;
+
+        console.log('[Model.updateUnitPlan] Updating with data:', {
+            id,
+            userId,
+            has_unit_plan_json: !!unit_plan_json,
+            unit_plan_json_type: typeof unit_plan_json,
+        });
 
         const query = `
             UPDATE unit_plans up
@@ -141,12 +211,23 @@ const UnitPlanModel = {
                 tujuan_pembelajaran = COALESCE($6, up.tujuan_pembelajaran),
                 jumlah_pertemuan = COALESCE($7, up.jumlah_pertemuan),
                 durasi_per_jp = COALESCE($8, up.durasi_per_jp),
-                unit_plan_json = COALESCE($9, up.unit_plan_json)
+                unit_plan_json = COALESCE($9::jsonb, up.unit_plan_json)
             FROM generation_requests gr
             WHERE up.request_id = gr.id
               AND up.id = $1
               AND gr.user_id = $2
-            RETURNING up.*;
+            RETURNING 
+                up.id,
+                up.request_id,
+                up.judul_unit,
+                up.mata_pelajaran,
+                up.tingkat_kelas,
+                up.tujuan_pembelajaran,
+                up.jumlah_pertemuan,
+                up.durasi_per_jp,
+                up.unit_plan_json,
+                gr.created_at,
+                gr.completed_at;
         `;
 
         const values = [
@@ -162,7 +243,22 @@ const UnitPlanModel = {
         ];
 
         const result = await pool.query(query, values);
-        return result.rows[0] || null;
+        
+        if (!result.rows[0]) {
+            console.log('[Model.updateUnitPlan] No rows returned!');
+            return null;
+        }
+        
+        const row = result.rows[0];
+        console.log('[Model.updateUnitPlan] Update successful, returning data');
+        
+        // Parse unit_plan_json jika berupa string
+        return {
+            ...row,
+            unit_plan_json: typeof row.unit_plan_json === 'string' 
+                ? JSON.parse(row.unit_plan_json) 
+                : row.unit_plan_json
+        };
     },
 
     // Hapus unit plan berdasarkan ID (DELETE)

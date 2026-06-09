@@ -16,7 +16,7 @@ const MAPEL_SUGGESTIONS = [
   "Fiqih", "Akidah Akhlak", "Al-Qur'an Hadis", "Bahasa Arab",
   "SKI", "Matematika", "IPA Terpadu", "Bahasa Indonesia",
 ];
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 // ── Komponen render tiap tipe ──────────────────────────────────────────────
 
@@ -257,7 +257,8 @@ export default function AcademicContentPage() {
   const [activeJenis, setActiveJenis] = useState(null); // tipe saat generate dilakukan
   const [contentId, setContentId] = useState(null);
   const [error, setError] = useState("");
-  const [downloading, setDownloading] = useState(false);
+  const [downloading, setDownloading]     = useState(false);
+  const [downloadingDocx, setDownloadingDocx] = useState(false);
 
   const handleGenerate = async (e) => {
     e.preventDefault();
@@ -313,6 +314,24 @@ export default function AcademicContentPage() {
       URL.revokeObjectURL(url);
     } catch (err) { alert("Gagal unduh PDF: " + err.message); }
     finally { setDownloading(false); }
+  }
+
+  async function handleDownloadDocx() {
+    if (!contentId) return;
+    setDownloadingDocx(true);
+    try {
+      const token = sessionStorage.getItem("accessToken");
+      const res = await fetch(`${API_URL}/api/academic-content/download/${contentId}/docx`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Gagal mengunduh DOCX");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `konten_${contentId}.docx`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) { alert("Gagal unduh DOCX: " + err.message); }
+    finally { setDownloadingDocx(false); }
   }
 
   function handleReset() { setResult(null); setContentId(null); setError(""); }
@@ -447,6 +466,12 @@ export default function AcademicContentPage() {
                     <button type="button" onClick={handleDownloadPDF} disabled={downloading}
                       className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-1.5 rounded-lg transition disabled:opacity-60">
                       {downloading ? "Mengunduh..." : "⬇️ Unduh PDF"}
+                    </button>
+                  )}
+                  {contentId && (
+                    <button type="button" onClick={handleDownloadDocx} disabled={downloadingDocx}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 px-3 py-1.5 rounded-lg transition disabled:opacity-60">
+                      {downloadingDocx ? "Mengunduh..." : "📄 Unduh DOCX"}
                     </button>
                   )}
                   <button type="button" onClick={handleReset}

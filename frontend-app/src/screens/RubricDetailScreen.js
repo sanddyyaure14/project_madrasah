@@ -9,11 +9,33 @@ import {
   ActivityIndicator, Alert, TextInput, Modal, Linking, Clipboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { downloadAsync, documentDirectory } from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useAuth, API_URL } from '../lib/auth';
 import { C, S } from '../lib/theme';
 import FeedbackRating from '../components/FeedbackRating';
 import { useNotifications } from '../lib/notifications';
 
+async function downloadWithToken(url, token, filename) {
+  try {
+    const localUri = documentDirectory + filename;
+    const result = await downloadAsync(url, localUri, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (result.status !== 200) { Alert.alert('Gagal', 'Server menolak permintaan download.'); return; }
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
+      await Sharing.shareAsync(result.uri, {
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        dialogTitle: `Buka ${filename}`,
+      });
+    } else {
+      Alert.alert('Selesai', `File tersimpan di: ${result.uri}`);
+    }
+  } catch (e) {
+    Alert.alert('Error', 'Gagal download: ' + e.message);
+  }
+}
 // ─── Buka file di browser (mirip pola WorksheetDetailScreen) ────────────────
 async function openFileInBrowser(url, token) {
   const urlWithToken = `${url}?token=${token}`;

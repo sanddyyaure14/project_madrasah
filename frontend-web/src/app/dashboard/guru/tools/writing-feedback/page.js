@@ -121,7 +121,7 @@ export default function WritingFeedbackPage() {
       const token = sessionStorage.getItem("accessToken");
       if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login ulang.");
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
       const formData = new FormData();
       formData.append("tulisan_siswa", tulisan.trim());
       formData.append("jenis_tulisan", jenis);
