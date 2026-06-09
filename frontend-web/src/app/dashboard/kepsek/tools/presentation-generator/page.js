@@ -2,21 +2,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import RatingFeedback from "@/components/RatingFeedback";
 
 const AUDIENS_OPTIONS = ["Siswa MI", "Siswa MTs", "Siswa MA", "Guru", "Orang Tua", "Umum"];
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
-export default function PresentationGeneratorKepsekPage() {
+export default function KepsekPresentationGeneratorPage() {
   const [topik, setTopik] = useState("");
   const [jumlahSlide, setJumlahSlide] = useState(8);
   const [tujuan, setTujuan] = useState("");
-  const [audiens, setAudiens] = useState("Guru"); // Default disesuaikan untuk Kepsek
+  const [audiens, setAudiens] = useState("Siswa MTs");
   const [includeCatatan, setIncludeCatatan] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [presentationId, setPresentationId] = useState(null);
   const [error, setError] = useState("");
-  const [dlPPT, setDlPPT] = useState(false);
 
   const handleGenerate = async (e) => {
     e.preventDefault();
@@ -48,13 +48,15 @@ export default function PresentationGeneratorKepsekPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "Gagal generate presentasi.");
       setResult(json.data?.slides_json || json.data);
-      setPresentationId(json.data?.id || null);
+      setPresentationId(json.data?.request_id || json.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  const [dlPPT, setDlPPT] = useState(false);
 
   async function handleDownloadPPT() {
     if (!presentationId) return;
@@ -69,7 +71,7 @@ export default function PresentationGeneratorKepsekPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `presentation_kepsek_${presentationId}.pptx`;
+      a.download = `presentation_${presentationId}.pptx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -87,35 +89,36 @@ export default function PresentationGeneratorKepsekPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-5 pb-12">
-      {/* KEPSEK: Kembali ke dashboard kepsek */}
       <Link href="/dashboard/kepsek" className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-emerald-700">
-        ← Kembali ke Dashboard Kepala Sekolah
+        ← Kembali ke Dashboard
       </Link>
 
       {/* HERO */}
       <div className="flex items-start gap-4">
         <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center text-2xl shrink-0">🖥️</div>
         <div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Konten Akademik & Manajemen</p>
-          <h2 className="text-xl font-bold text-gray-900">Presentation Generator (Kepala Sekolah)</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Generate outline dan konten presentasi slide instan untuk rapat, materi guru, atau sosialisasi.</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Konten Akademik</p>
+          <h2 className="text-xl font-bold text-gray-900">Presentation Generator</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Generate outline dan konten presentasi slide siap pakai.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ===== FORM ===== */}
-        <form onSubmit={handleGenerate} className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5 h-fit">
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+          <div className="flex-1 overflow-y-auto">
+            <form onSubmit={handleGenerate} className="p-6 space-y-5">
 
           {/* Topik */}
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-2">
-              Topik Presentasi / Rapat <span className="text-red-500">*</span>
+              Topik Presentasi <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={topik}
               onChange={(e) => { setTopik(e.target.value); if (error) setError(""); }}
-              placeholder="cth. Peningkatan Mutu RPP dan Modul Ajar Madrasah"
+              placeholder="cth. Akhlak Mulia dalam Kehidupan Sehari-hari"
               className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50"
             />
           </div>
@@ -129,7 +132,7 @@ export default function PresentationGeneratorKepsekPage() {
               rows={2}
               value={tujuan}
               onChange={(e) => setTujuan(e.target.value)}
-              placeholder="cth. Membimbing guru agar selaras dengan kurikulum merdeka"
+              placeholder="cth. Siswa memahami pentingnya akhlak mulia"
               className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 resize-none bg-gray-50"
             />
           </div>
@@ -174,7 +177,7 @@ export default function PresentationGeneratorKepsekPage() {
               className="w-4 h-4 accent-[#006747] cursor-pointer"
             />
             <label htmlFor="catatan" className="text-sm font-medium text-gray-700 cursor-pointer">
-              Sertakan catatan rapat / presenter
+              Sertakan catatan presenter
             </label>
           </div>
 
@@ -190,26 +193,29 @@ export default function PresentationGeneratorKepsekPage() {
             {loading ? (
               <>
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Menyusun Materi Slide via Groq AI...
+                Menyusun Presentasi via Groq AI...
               </>
-            ) : <>🖥️ Generate Presentasi Kepsek</>}
+            ) : <>🖥️ Generate Presentasi</>}
           </button>
-        </form>
+            </form>
+          </div>
+        </div>
 
         {/* ===== PREVIEW ===== */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="lg:col-span-7 flex flex-col gap-4">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {result ? (
-            <div className="h-full flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0">
               {/* Toolbar */}
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
                 <p className="text-xs font-semibold text-gray-600">
-                  Pratinjau Presentasi Kepsek — {Array.isArray(result) ? result.length : result?.slides_json?.length || 0} slide
+                  Pratinjau Presentasi — {Array.isArray(result) ? result.length : result?.slides_json?.length || 0} slide
                 </p>
                 <div className="flex gap-2">
                   {presentationId && (
                     <button type="button" onClick={handleDownloadPPT} disabled={dlPPT}
                       className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-1.5 rounded-lg transition disabled:opacity-60">
-                      {dlPPT ? "Mengunduh..." : "⬇️ Unduh PPTX"}
+                      {dlPPT ? "Mengunduh..." : "⬇️ Unduh PPT"}
                     </button>
                   )}
                   <button type="button" onClick={handleReset}
@@ -243,7 +249,7 @@ export default function PresentationGeneratorKepsekPage() {
                       )}
                       {slide.catatan && (
                         <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                          <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide mb-1">Catatan Rapat / Penyampaian</p>
+                          <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide mb-1">Catatan Presenter</p>
                           <p className="text-gray-600 leading-relaxed">{slide.catatan}</p>
                         </div>
                       )}
@@ -253,12 +259,18 @@ export default function PresentationGeneratorKepsekPage() {
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-72 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
               <span className="text-4xl">🖥️</span>
               <p className="font-medium">Pratinjau slide presentasi akan tampil di sini</p>
               <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate</p>
             </div>
           )}
+        </div>
+
+        {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
+        {result && presentationId && (
+          <RatingFeedback requestId={presentationId} featureLabel="presentasi" endpoint="presentation" />
+        )}
         </div>
       </div>
     </div>

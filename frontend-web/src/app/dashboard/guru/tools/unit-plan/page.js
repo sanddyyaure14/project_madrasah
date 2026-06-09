@@ -379,7 +379,7 @@ export default function UnitPlanPage() {
 
         {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
         {result && unitPlanId && (
-          <RatingFeedback requestId={unitPlanId} featureLabel="modul ajar / RPP" />
+          <RatingFeedback requestId={unitPlanId} featureLabel="modul ajar / RPP" endpoint="unit-plan" />
         )}
         </div>
       </div>

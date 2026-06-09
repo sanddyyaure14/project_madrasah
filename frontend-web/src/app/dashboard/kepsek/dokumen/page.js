@@ -3,7 +3,9 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 // ─── FeedbackBadge — tampil di modal detail jika user pernah memberi rating ──
-function FeedbackBadge({ requestId }) {
+// docType: "feedback" = writing feedback → pakai endpoint /api/feedback/writing/:requestId
+//          lainnya    → pakai endpoint generik /api/feedback/:requestId
+function FeedbackBadge({ requestId, docType }) {
   const [fb, setFb]           = useState(null);
   const [editing, setEditing] = useState(false);
   const [rating, setRating]   = useState(0);
@@ -13,11 +15,19 @@ function FeedbackBadge({ requestId }) {
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState("");
 
+  const isWriting = docType === "feedback";
+  const getUrl = isWriting
+    ? `${getApiBase()}/api/feedback/writing/${requestId}`
+    : `${getApiBase()}/api/feedback/${requestId}`;
+  const postUrl = isWriting
+    ? `${getApiBase()}/api/feedback/writing/${requestId}`
+    : `${getApiBase()}/api/feedback`;
+
   useEffect(() => {
     if (!requestId) return;
     const token = typeof window !== "undefined" ? sessionStorage.getItem("accessToken") : null;
     if (!token) return;
-    fetch(`${getApiBase()}/api/feedback/${requestId}`, {
+    fetch(getUrl, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
@@ -30,17 +40,20 @@ function FeedbackBadge({ requestId }) {
         }
       })
       .catch(() => {});
-  }, [requestId]);
+  }, [requestId, getUrl]);
 
   const handleSave = async () => {
     if (!rating) { setError("Pilih rating bintang dulu."); return; }
     setSaving(true); setError("");
     try {
       const token = sessionStorage.getItem("accessToken");
-      const res = await fetch(`${getApiBase()}/api/feedback`, {
+      const body = isWriting
+        ? { rating, komentar: komentar.trim() || null, is_helpful: isHelpful }
+        : { request_id: requestId, rating, komentar: komentar.trim() || null, is_helpful: isHelpful };
+      const res = await fetch(postUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ request_id: requestId, rating, komentar: komentar.trim() || null, is_helpful: isHelpful }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "Gagal menyimpan.");
@@ -157,7 +170,7 @@ const TABS = [
 ];
 
 const FETCH_URL = {
-  feedback:     "/feedback",
+  feedback:     "/writing-feedback",
   worksheet:    "/worksheet/worksheets",
   mc:           "/assessment",
   rubric:       "/rubrics",
@@ -174,7 +187,7 @@ const DELETE_URL = (type, id) => {
     case "rubric":       return `/rubrics/${id}`;
     case "syllabus":     return `/syllabus/${id}`;
     case "academic":     return `/academic-content/${id}`;
-    case "feedback":     return `/feedback/delete/${id}`;
+    case "feedback":     return `/writing-feedback/delete/${id}`;
     case "presentation": return `/presentation/${id}`;
     case "unit_plan":    return `/unit-plan/${id}`;
     default:             return null;
@@ -189,7 +202,7 @@ const DETAIL_URL = (type, id) => {
     case "rubric":       return `/rubrics/${id}`;
     case "syllabus":     return `/syllabus/${id}`;
     case "academic":     return `/academic-content/${id}`;
-    case "feedback":     return `/feedback/${id}`;
+    case "feedback":     return `/writing-feedback/${id}`;
     case "presentation": return `/presentation/${id}`;
     case "unit_plan":    return `/unit-plan/${id}`;
     default:             return null;
@@ -204,7 +217,7 @@ const UPDATE_URL = (type, id) => {
     case "rubric":       return `/rubrics/${id}`;
     case "syllabus":     return `/syllabus/${id}`;
     case "academic":     return `/academic-content/${id}`;
-    case "feedback":     return `/feedback/edit/${id}`;
+    case "feedback":     return `/writing-feedback/edit/${id}`;
     case "presentation": return `/presentation/${id}`;
     case "unit_plan":    return `/unit-plan/${id}`;
     default:             return null;
@@ -774,7 +787,7 @@ function EditRubricForm({ doc, onSave, onCancel }) {
     try {
       const body = {
         jenis_tugas: jenisTugas,
-        aspek_penilaian: rubricJson.aspek?.length || 0,
+        aspek_penilaian: (rubricJson.aspek || []).map(a => a.nama || a.nama_aspek || a.name || ""),
         skala_nilai: skalaNilai,
         tujuan_pembelajaran: tujuanPembelajaran,
         rubric_json: rubricJson
@@ -2977,7 +2990,7 @@ function DetailDrawer({ doc, onClose, onDelete, onSaved }) {
               {type === "syllabus"     && <SyllabusDetail     doc={fullDoc} onDelete={onDelete} onEdit={() => setMode("edit")} />}
               {type === "academic"     && <AcademicDetail     doc={fullDoc} onDelete={onDelete} onEdit={() => setMode("edit")} />}
               {/* Tampilkan feedback/rating jika user pernah memberi rating untuk dokumen ini */}
-              {fullDoc.request_id && <FeedbackBadge requestId={fullDoc.request_id} />}
+              {fullDoc.request_id && <FeedbackBadge requestId={fullDoc.request_id} docType={type} />}
             </>
           )}
         </div>

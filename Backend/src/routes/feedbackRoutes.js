@@ -3,186 +3,138 @@ const router = express.Router();
 const { verifyToken, authorizeRoles } = require('../middlewares/authMiddleware');
 const { submitFeedback, getFeedbackForRequest } = require('../controllers/feedbackController');
 const db = require('../config/db');
+const { v4: uuidv4 } = require('uuid');
 
-// POST /api/feedback
-// Simpan atau update rating + komentar untuk satu hasil generate
-router.post(
-    '/feedback',
-    verifyToken,
-    authorizeRoles('guru', 'kepala_sekolah'),
-    submitFeedback
-);
+// Helper — upsert feedback dan return data
+async function upsertFeedback(requestId, userId, rating, komentar, is_helpful) {
+    const existing = await db.query(
+        'SELECT id FROM user_feedback WHERE request_id = $1 AND user_id = $2',
+        [requestId, userId]
+    );
+    if (existing.rows.length > 0) {
+        const { rows } = await db.query(
+            'UPDATE user_feedback SET rating=$1, komentar=$2, is_helpful=$3 WHERE request_id=$4 AND user_id=$5 RETURNING *',
+            [rating, komentar || null, is_helpful ?? null, requestId, userId]
+        );
+        return rows[0];
+    }
+    const { rows } = await db.query(
+        'INSERT INTO user_feedback (id, request_id, user_id, rating, komentar, is_helpful) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+        [uuidv4(), requestId, userId, rating, komentar || null, is_helpful ?? null]
+    );
+    return rows[0];
+}
 
-// GET /api/feedback/:requestId
-// Ambil feedback user untuk satu dokumen tertentu
-router.get(
-    '/feedback/:requestId',
-    verifyToken,
-    authorizeRoles('guru', 'kepala_sekolah'),
-    getFeedbackForRequest
-);
+// Helper — ambil feedback
+async function getFeedback(requestId, userId) {
+    const { rows } = await db.query(
+        'SELECT * FROM user_feedback WHERE request_id = $1 AND user_id = $2 LIMIT 1',
+        [requestId, userId]
+    );
+    return rows[0] ?? null;
+}
 
-// ══════════════════════════════════════════════════════════════════════════════
-// FEEDBACK ROUTES FOR UNIT PLAN & PRESENTATION
-// ══════════════════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────────────
+// ENDPOINT GENERIK (fallback, pakai validasi ownership)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/feedback', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), submitFeedback);
+router.get('/feedback/:requestId', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), getFeedbackForRequest);
 
-// POST /api/feedback/unit-plan/:requestId
+// ─────────────────────────────────────────────────────────────────────────────
+// UNIT PLAN
+// ─────────────────────────────────────────────────────────────────────────────
 router.post('/feedback/unit-plan/:requestId', verifyToken, async (req, res) => {
-    const { requestId } = req.params;
     const { rating, komentar, is_helpful } = req.body;
-    const userId = req.user.id;
-
-    console.log('[FeedbackRoute] POST unit-plan feedback:', { requestId, userId, rating, komentar, is_helpful });
-
+    if (!rating || rating < 1 || rating > 5)
+        return res.status(400).json({ success: false, message: 'Rating harus antara 1 sampai 5.' });
     try {
-        // Validate request_id exists in generation_requests
-        const validateQuery = `
-            SELECT id FROM generation_requests 
-            WHERE id = $1 AND user_id = $2 AND status = 'completed'
-        `;
-        const validateResult = await db.query(validateQuery, [requestId, userId]);
-        
-        if (validateResult.rows.length === 0) {
-            console.log('[FeedbackRoute] Request not found or not completed');
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Dokumen tidak ditemukan atau belum selesai diproses' 
-            });
-        }
-
-        // Check if feedback already exists
-        const checkQuery = `SELECT id FROM user_feedback WHERE request_id = $1 AND user_id = $2`;
-        const checkResult = await db.query(checkQuery, [requestId, userId]);
-        
-        let result;
-        if (checkResult.rows.length > 0) {
-            // Update existing feedback
-            console.log('[FeedbackRoute] Updating existing feedback');
-            const updateQuery = `
-                UPDATE user_feedback 
-                SET rating = $1, komentar = $2, is_helpful = $3, created_at = NOW()
-                WHERE request_id = $4 AND user_id = $5
-                RETURNING *;
-            `;
-            result = await db.query(updateQuery, [rating, komentar, is_helpful, requestId, userId]);
-        } else {
-            // Insert new feedback (biarkan database generate ID dengan default)
-            console.log('[FeedbackRoute] Inserting new feedback');
-            const insertQuery = `
-                INSERT INTO user_feedback (request_id, user_id, rating, komentar, is_helpful, created_at)
-                VALUES ($1, $2, $3, $4, $5, NOW())
-                RETURNING *;
-            `;
-            result = await db.query(insertQuery, [requestId, userId, rating, komentar, is_helpful]);
-        }
-        
-        console.log('[FeedbackRoute] Feedback saved successfully:', result.rows[0]);
-        res.json({ success: true, message: 'Terima kasih atas penilaian Anda!', data: result.rows[0] });
+        const data = await upsertFeedback(req.params.requestId, req.user.id, rating, komentar, is_helpful);
+        res.json({ success: true, message: 'Terima kasih atas penilaian Anda!', data });
     } catch (err) {
-        console.error('[FeedbackRoute] Error saving unit-plan feedback:', err);
-        console.error('[FeedbackRoute] Error details:', {
-            message: err.message,
-            code: err.code,
-            detail: err.detail,
-            constraint: err.constraint
-        });
-        res.status(500).json({ success: false, message: 'Gagal menyimpan feedback: ' + err.message });
+        console.error('[FeedbackRoute] unit-plan:', err.message);
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 
-// GET /api/feedback/unit-plan/:requestId
 router.get('/feedback/unit-plan/:requestId', verifyToken, async (req, res) => {
     try {
-        const { rows } = await db.query(
-            'SELECT * FROM user_feedback WHERE request_id = $1 LIMIT 1',
-            [req.params.requestId]
-        );
-        if (rows[0]) {
-            res.json({ success: true, data: rows[0] });
-        } else {
-            res.json({ success: false, data: null });
-        }
+        const data = await getFeedback(req.params.requestId, req.user.id);
+        res.json({ success: true, data });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
 });
 
-// POST /api/feedback/presentation/:requestId
+// ─────────────────────────────────────────────────────────────────────────────
+// PRESENTATION
+// ─────────────────────────────────────────────────────────────────────────────
 router.post('/feedback/presentation/:requestId', verifyToken, async (req, res) => {
-    const { requestId } = req.params;
     const { rating, komentar, is_helpful } = req.body;
-    const userId = req.user.id;
-
-    console.log('[FeedbackRoute] POST presentation feedback:', { requestId, userId, rating, komentar, is_helpful });
-
+    if (!rating || rating < 1 || rating > 5)
+        return res.status(400).json({ success: false, message: 'Rating harus antara 1 sampai 5.' });
     try {
-        // Validate request_id exists in generation_requests
-        const validateQuery = `
-            SELECT id FROM generation_requests 
-            WHERE id = $1 AND user_id = $2 AND status = 'completed'
-        `;
-        const validateResult = await db.query(validateQuery, [requestId, userId]);
-        
-        if (validateResult.rows.length === 0) {
-            console.log('[FeedbackRoute] Request not found or not completed');
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Dokumen tidak ditemukan atau belum selesai diproses' 
-            });
-        }
-
-        // Check if feedback already exists
-        const checkQuery = `SELECT id FROM user_feedback WHERE request_id = $1 AND user_id = $2`;
-        const checkResult = await db.query(checkQuery, [requestId, userId]);
-        
-        let result;
-        if (checkResult.rows.length > 0) {
-            // Update existing feedback
-            console.log('[FeedbackRoute] Updating existing feedback');
-            const updateQuery = `
-                UPDATE user_feedback 
-                SET rating = $1, komentar = $2, is_helpful = $3, created_at = NOW()
-                WHERE request_id = $4 AND user_id = $5
-                RETURNING *;
-            `;
-            result = await db.query(updateQuery, [rating, komentar, is_helpful, requestId, userId]);
-        } else {
-            // Insert new feedback (biarkan database generate ID dengan default)
-            console.log('[FeedbackRoute] Inserting new feedback');
-            const insertQuery = `
-                INSERT INTO user_feedback (request_id, user_id, rating, komentar, is_helpful, created_at)
-                VALUES ($1, $2, $3, $4, $5, NOW())
-                RETURNING *;
-            `;
-            result = await db.query(insertQuery, [requestId, userId, rating, komentar, is_helpful]);
-        }
-        
-        console.log('[FeedbackRoute] Feedback saved successfully:', result.rows[0]);
-        res.json({ success: true, message: 'Terima kasih atas penilaian Anda!', data: result.rows[0] });
+        const data = await upsertFeedback(req.params.requestId, req.user.id, rating, komentar, is_helpful);
+        res.json({ success: true, message: 'Terima kasih atas penilaian Anda!', data });
     } catch (err) {
-        console.error('[FeedbackRoute] Error saving presentation feedback:', err);
-        console.error('[FeedbackRoute] Error details:', {
-            message: err.message,
-            code: err.code,
-            detail: err.detail,
-            constraint: err.constraint
-        });
-        res.status(500).json({ success: false, message: 'Gagal menyimpan feedback: ' + err.message });
+        console.error('[FeedbackRoute] presentation:', err.message);
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 
-// GET /api/feedback/presentation/:requestId
 router.get('/feedback/presentation/:requestId', verifyToken, async (req, res) => {
     try {
-        const { rows } = await db.query(
-            'SELECT * FROM user_feedback WHERE request_id = $1 LIMIT 1',
-            [req.params.requestId]
-        );
-        if (rows[0]) {
-            res.json({ success: true, data: rows[0] });
-        } else {
-            res.json({ success: false, data: null });
-        }
+        const data = await getFeedback(req.params.requestId, req.user.id);
+        res.json({ success: true, data });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SYLLABUS
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/feedback/syllabus/:requestId', verifyToken, async (req, res) => {
+    const { rating, komentar, is_helpful } = req.body;
+    if (!rating || rating < 1 || rating > 5)
+        return res.status(400).json({ success: false, message: 'Rating harus antara 1 sampai 5.' });
+    try {
+        const data = await upsertFeedback(req.params.requestId, req.user.id, rating, komentar, is_helpful);
+        res.json({ success: true, message: 'Terima kasih atas penilaian Anda!', data });
+    } catch (err) {
+        console.error('[FeedbackRoute] syllabus:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+router.get('/feedback/syllabus/:requestId', verifyToken, async (req, res) => {
+    try {
+        const data = await getFeedback(req.params.requestId, req.user.id);
+        res.json({ success: true, data });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACADEMIC CONTENT
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/feedback/academic/:requestId', verifyToken, async (req, res) => {
+    const { rating, komentar, is_helpful } = req.body;
+    if (!rating || rating < 1 || rating > 5)
+        return res.status(400).json({ success: false, message: 'Rating harus antara 1 sampai 5.' });
+    try {
+        const data = await upsertFeedback(req.params.requestId, req.user.id, rating, komentar, is_helpful);
+        res.json({ success: true, message: 'Terima kasih atas penilaian Anda!', data });
+    } catch (err) {
+        console.error('[FeedbackRoute] academic:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+router.get('/feedback/academic/:requestId', verifyToken, async (req, res) => {
+    try {
+        const data = await getFeedback(req.params.requestId, req.user.id);
+        res.json({ success: true, data });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }

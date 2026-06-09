@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
-import FeedbackForm from "@/components/FeedbackForm";
+import { useState } from "react";
+import Link from "next/link";
+import RatingFeedback from "@/components/RatingFeedback";
 
 const JENIS_KONTEN_OPTIONS = [
   { label: "Rangkuman Materi", value: "ringkasan", icon: "📋", desc: "Poin-poin terstruktur" },
@@ -9,12 +10,15 @@ const JENIS_KONTEN_OPTIONS = [
   { label: "Contoh Soal & Jawaban", value: "contoh_soal", icon: "✏️", desc: "Soal + pembahasan" },
   { label: "Glosarium", value: "kamus", icon: "📖", desc: "Daftar istilah" },
 ];
+
 const KELAS_OPTIONS = ["VII", "VIII", "IX", "X", "XI", "XII"];
 const MAPEL_SUGGESTIONS = [
   "Fiqih", "Akidah Akhlak", "Al-Qur'an Hadis", "Bahasa Arab",
   "SKI", "Matematika", "IPA Terpadu", "Bahasa Indonesia",
 ];
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+
+// ── Komponen render tiap tipe ──────────────────────────────────────────────
 
 function RenderRingkasan({ data }) {
   return (
@@ -23,13 +27,16 @@ function RenderRingkasan({ data }) {
         <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-1">Ringkasan Keseluruhan</p>
         <p className="text-gray-700 leading-relaxed">{data.ringkasan}</p>
       </div>
+
       {data.poin_penting?.length > 0 && (
         <div className="space-y-3">
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Poin-Poin Penting</p>
           {data.poin_penting.map((poin, i) => (
             <div key={i} className="border border-gray-200 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-[#006747] text-white text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                <span className="w-6 h-6 rounded-full bg-[#006747] text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                  {i + 1}
+                </span>
                 <h4 className="font-bold text-gray-900 text-sm">{poin.subjudul}</h4>
               </div>
               <p className="text-gray-600 leading-relaxed pl-8">{poin.isi}</p>
@@ -37,6 +44,7 @@ function RenderRingkasan({ data }) {
           ))}
         </div>
       )}
+
       {data.kesimpulan && (
         <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
           <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest mb-1">Kesimpulan</p>
@@ -56,12 +64,14 @@ function RenderPenjelasan({ data }) {
           <p className="text-gray-700 leading-relaxed">{data.ringkasan}</p>
         </div>
       )}
+
       {data.pendahuluan && (
         <div>
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Pendahuluan</p>
           <p className="text-gray-700 leading-relaxed">{data.pendahuluan}</p>
         </div>
       )}
+
       {data.konten && (
         <div>
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Penjelasan Lengkap</p>
@@ -72,6 +82,7 @@ function RenderPenjelasan({ data }) {
           </div>
         </div>
       )}
+
       {data.contoh_penerapan && (
         <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
           <p className="text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-1">Contoh Penerapan</p>
@@ -85,7 +96,10 @@ function RenderPenjelasan({ data }) {
 function RenderContohSoal({ data }) {
   const [showJawaban, setShowJawaban] = useState({});
   const soalList = data.soal || [];
-  const toggleJawaban = (i) => setShowJawaban(prev => ({ ...prev, [i]: !prev[i] }));
+
+  function toggleJawaban(i) {
+    setShowJawaban(prev => ({ ...prev, [i]: !prev[i] }));
+  }
 
   return (
     <div className="space-y-5 text-sm">
@@ -95,36 +109,60 @@ function RenderContohSoal({ data }) {
           <p className="text-gray-700 leading-relaxed">{data.ringkasan}</p>
         </div>
       )}
-      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{soalList.length} Soal</p>
+
+      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+        {soalList.length} Soal
+      </p>
+
       {soalList.map((soal, i) => (
         <div key={i} className="border border-gray-200 rounded-xl overflow-hidden">
+          {/* Nomor + Pertanyaan */}
           <div className="p-4">
             <div className="flex items-start gap-3">
-              <span className="w-7 h-7 rounded-full bg-[#006747] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{soal.nomor || i + 1}</span>
+              <span className="w-7 h-7 rounded-full bg-[#006747] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                {soal.nomor || i + 1}
+              </span>
               <p className="text-gray-900 font-medium leading-relaxed">{soal.pertanyaan}</p>
             </div>
-            {soal.pilihan && typeof soal.pilihan === "object" && (
+
+            {/* Pilihan Ganda */}
+            {soal.pilihan && typeof soal.pilihan === 'object' && (
               <div className="mt-3 ml-10 space-y-2">
                 {Object.entries(soal.pilihan).map(([key, val]) => (
                   <div key={key}
-                    className={`flex items-start gap-2 px-3 py-2 rounded-lg text-sm ${showJawaban[i] && soal.jawaban === key ? "bg-emerald-100 border border-emerald-300 text-emerald-800 font-semibold" : "bg-gray-50 border border-gray-200 text-gray-700"}`}>
+                    className={`flex items-start gap-2 px-3 py-2 rounded-lg text-sm ${
+                      showJawaban[i] && soal.jawaban === key
+                        ? "bg-emerald-100 border border-emerald-300 text-emerald-800 font-semibold"
+                        : "bg-gray-50 border border-gray-200 text-gray-700"
+                    }`}>
                     <span className="font-bold shrink-0">{key}.</span>
                     <span>{val}</span>
-                    {showJawaban[i] && soal.jawaban === key && <span className="ml-auto shrink-0 text-emerald-600">✓</span>}
+                    {showJawaban[i] && soal.jawaban === key && (
+                      <span className="ml-auto shrink-0 text-emerald-600">✓</span>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
+
+          {/* Toggle Jawaban */}
           <div className="border-t border-gray-100">
-            <button type="button" onClick={() => toggleJawaban(i)}
+            <button
+              type="button"
+              onClick={() => toggleJawaban(i)}
               className="w-full text-xs font-semibold text-[#006747] hover:bg-emerald-50 px-4 py-2.5 text-left transition flex items-center justify-between">
               <span>{showJawaban[i] ? "▲ Sembunyikan Jawaban" : "▼ Lihat Jawaban & Pembahasan"}</span>
-              {!showJawaban[i] && soal.jawaban && <span className="text-gray-400 font-normal">Jawaban: {soal.jawaban}</span>}
+              {!showJawaban[i] && soal.jawaban && (
+                <span className="text-gray-400 font-normal">Jawaban: {soal.jawaban}</span>
+              )}
             </button>
+
             {showJawaban[i] && (
               <div className="px-4 pb-4 space-y-2">
-                <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">✓ Jawaban Benar: {soal.jawaban}</div>
+                <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                  <span>✓ Jawaban Benar: {soal.jawaban}</span>
+                </div>
                 {soal.pembahasan && (
                   <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
                     <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-1">Pembahasan</p>
@@ -146,6 +184,7 @@ function RenderKamus({ data }) {
     item.kata?.toLowerCase().includes(search.toLowerCase()) ||
     item.definisi?.toLowerCase().includes(search.toLowerCase())
   );
+
   return (
     <div className="space-y-4 text-sm">
       {data.ringkasan && (
@@ -154,40 +193,59 @@ function RenderKamus({ data }) {
           <p className="text-gray-700 leading-relaxed">{data.ringkasan}</p>
         </div>
       )}
+
+      {/* Search */}
       <div className="relative">
         <span className="absolute left-3 top-2.5 text-gray-400 text-sm">🔍</span>
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
           placeholder="Cari istilah..."
-          className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400 bg-gray-50" />
+          className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-400 bg-gray-50"
+        />
       </div>
-      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{istilahList.length} Istilah</p>
+
+      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+        {istilahList.length} Istilah
+      </p>
+
       {istilahList.map((item, i) => (
         <div key={i} className="border border-gray-200 rounded-xl p-4 hover:border-purple-200 transition">
           <div className="flex items-start gap-3">
-            <span className="text-xs font-bold text-purple-600 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded shrink-0 mt-0.5">{item.kata}</span>
+            <span className="text-xs font-bold text-purple-600 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded shrink-0 mt-0.5">
+              {item.kata}
+            </span>
             <div className="flex-1">
               <p className="text-gray-800 leading-relaxed">{item.definisi}</p>
               {item.contoh && item.contoh.trim() && (
-                <p className="text-gray-500 italic text-xs mt-1.5 border-l-2 border-purple-200 pl-2">Contoh: {item.contoh}</p>
+                <p className="text-gray-500 italic text-xs mt-1.5 border-l-2 border-purple-200 pl-2">
+                  Contoh: {item.contoh}
+                </p>
               )}
             </div>
           </div>
         </div>
       ))}
+
       {istilahList.length === 0 && (
-        <div className="text-center text-gray-400 text-xs py-6">Tidak ada istilah yang cocok dengan &quot;{search}&quot;</div>
+        <div className="text-center text-gray-400 text-xs py-6">
+          Tidak ada istilah yang cocok dengan &quot;{search}&quot;
+        </div>
       )}
     </div>
   );
 }
 
+// ── Komponen preview label per tipe ──────────────────────────────────────
 const JENIS_META = {
-  ringkasan:   { label: "Rangkuman Materi",     color: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: "📋" },
-  penjelasan:  { label: "Penjelasan Konsep",     color: "bg-blue-100 text-blue-800 border-blue-200",         icon: "💡" },
-  contoh_soal: { label: "Contoh Soal & Jawaban", color: "bg-amber-100 text-amber-800 border-amber-200",      icon: "✏️" },
-  kamus:       { label: "Glosarium Istilah",     color: "bg-purple-100 text-purple-800 border-purple-200",   icon: "📖" },
+  ringkasan:   { label: "Rangkuman Materi", color: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: "📋" },
+  penjelasan:  { label: "Penjelasan Konsep", color: "bg-blue-100 text-blue-800 border-blue-200", icon: "💡" },
+  contoh_soal: { label: "Contoh Soal & Jawaban", color: "bg-amber-100 text-amber-800 border-amber-200", icon: "✏️" },
+  kamus:       { label: "Glosarium Istilah", color: "bg-purple-100 text-purple-800 border-purple-200", icon: "📖" },
 };
 
+// ── Main Page ──────────────────────────────────────────────────────────────
 export default function KepsekAcademicContentPage() {
   const [topik, setTopik] = useState("");
   const [mapel, setMapel] = useState("");
@@ -196,37 +254,48 @@ export default function KepsekAcademicContentPage() {
   const [panjang, setPanjang] = useState("sedang");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [activeJenis, setActiveJenis] = useState(null);
+  const [activeJenis, setActiveJenis] = useState(null); // tipe saat generate dilakukan
   const [contentId, setContentId] = useState(null);
   const [error, setError] = useState("");
-  const [downloading, setDownloading] = useState(false);
-  const [dlDocx, setDlDocx] = useState(false);
-  const [savingPDF, setSavingPDF] = useState(false);
-  const previewRef = useRef(null);
+  const [downloading, setDownloading]     = useState(false);
+  const [downloadingDocx, setDownloadingDocx] = useState(false);
 
   const handleGenerate = async (e) => {
     e.preventDefault();
     if (!topik.trim()) { setError("Topik wajib diisi."); return; }
-    setError(""); setLoading(true); setResult(null); setContentId(null);
-    setActiveJenis(jenisKonten);
+    setError("");
+    setLoading(true);
+    setResult(null);
+    setContentId(null);
+    setActiveJenis(jenisKonten); // simpan tipe yang dipilih
+
     try {
       const token = sessionStorage.getItem("accessToken");
       if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login ulang.");
+
       const response = await fetch(`${API_URL}/api/academic-content/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          jenis_konten: jenisKonten, topik: topik.trim(),
-          mapel: mapel.trim() || "Umum", kelas, panjang,
-          bahasa: "Indonesia", gaya_bahasa: "Akademik dan Informatif",
+          jenis_konten: jenisKonten,
+          topik: topik.trim(),
+          mapel: mapel.trim() || "Umum",
+          kelas,
+          panjang,
+          bahasa: "Indonesia",
+          gaya_bahasa: "Akademik dan Informatif",
         }),
       });
+
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "Gagal generate konten.");
       setResult(json.data?.content_json || json.data);
-      setContentId(json.data?.id || null);
-    } catch (err) { setError(err.message); }
-    finally { setLoading(false); }
+      setContentId(json.data?.request_id || json.request_id || null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   async function handleDownloadPDF() {
@@ -249,7 +318,7 @@ export default function KepsekAcademicContentPage() {
 
   async function handleDownloadDocx() {
     if (!contentId) return;
-    setDlDocx(true);
+    setDownloadingDocx(true);
     try {
       const token = sessionStorage.getItem("accessToken");
       const res = await fetch(`${API_URL}/api/academic-content/download/${contentId}/docx`, {
@@ -262,108 +331,45 @@ export default function KepsekAcademicContentPage() {
       a.href = url; a.download = `konten_${contentId}.docx`; a.click();
       URL.revokeObjectURL(url);
     } catch (err) { alert("Gagal unduh DOCX: " + err.message); }
-    finally { setDlDocx(false); }
+    finally { setDownloadingDocx(false); }
   }
 
   function handleReset() { setResult(null); setContentId(null); setError(""); }
-
-  function handleSavePDF() {
-    if (!result) return;
-    setSavingPDF(true);
-    const meta = JENIS_META[activeJenis] || JENIS_META.penjelasan;
-
-    // Render konten sesuai jenis
-    let contentHtml = "";
-    if (activeJenis === "ringkasan") {
-      const poin = (result.poin_penting || []).map((p, i) =>
-        `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:8px">
-          <strong>${i+1}. ${p.subjudul}</strong>
-          <p style="color:#4b5563;margin:4px 0 0">${p.isi}</p>
-        </div>`).join("");
-      contentHtml = `
-        <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:12px;margin-bottom:12px">
-          <strong style="font-size:10px;color:#065f46">RINGKASAN</strong>
-          <p>${result.ringkasan}</p>
-        </div>
-        ${poin}
-        ${result.kesimpulan ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-top:12px"><strong style="font-size:10px;color:#92400e">KESIMPULAN</strong><p>${result.kesimpulan}</p></div>` : ""}`;
-    } else if (activeJenis === "penjelasan") {
-      contentHtml = `
-        ${result.pendahuluan ? `<p><strong>Pendahuluan:</strong> ${result.pendahuluan}</p>` : ""}
-        ${result.konten ? `<div>${result.konten.split(/\n/).filter(p=>p.trim()).map(p=>`<p>${p}</p>`).join("")}</div>` : ""}
-        ${result.contoh_penerapan ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-top:12px"><strong>Contoh:</strong> ${result.contoh_penerapan}</div>` : ""}`;
-    } else if (activeJenis === "contoh_soal") {
-      contentHtml = (result.soal || []).map((s, i) =>
-        `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:8px">
-          <strong>${s.nomor || i+1}. ${s.pertanyaan}</strong>
-          ${s.pilihan ? Object.entries(s.pilihan).map(([k,v])=>`<p style="margin:4px 0"><strong>${k}.</strong> ${v}${s.jawaban===k?' ✓':''}</p>`).join("") : ""}
-          ${s.pembahasan ? `<div style="background:#ecfdf5;border-radius:6px;padding:8px;margin-top:8px;font-size:11px">Pembahasan: ${s.pembahasan}</div>` : ""}
-        </div>`).join("");
-    } else if (activeJenis === "kamus") {
-      contentHtml = (result.istilah || []).map(item =>
-        `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:6px">
-          <span style="background:#f3e8ff;color:#6d28d9;font-weight:bold;padding:2px 8px;border-radius:4px;font-size:11px">${item.kata}</span>
-          <p style="margin:6px 0 0;color:#374151">${item.definisi}</p>
-          ${item.contoh ? `<p style="color:#9ca3af;font-style:italic;font-size:11px;margin-top:4px">Contoh: ${item.contoh}</p>` : ""}
-        </div>`).join("");
-    }
-
-    const kwList = (result.kata_kunci||[]).map(k=>`<span style="display:inline-block;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:12px;padding:2px 10px;font-size:11px;margin:2px">${k}</span>`).join("");
-
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
-    <title>${meta.label} — ${topik}</title>
-    <style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;font-size:12px;color:#1f2937;margin:0}h2{font-size:15px;margin:0 0 4px}p{margin:4px 0;line-height:1.6}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>
-    </head><body>
-    <div style="border-bottom:2px solid #1f2937;padding-bottom:12px;margin-bottom:16px;text-align:center">
-      <p style="font-size:10px;color:#6b7280;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">${meta.label} · MadrasahAI</p>
-      <h2>${result.judul || topik}</h2>
-      <p style="font-size:10px;color:#9ca3af">Mapel: ${mapel||"Umum"} · Kelas: ${kelas} · ${new Date().toLocaleDateString("id-ID")}</p>
-    </div>
-    ${contentHtml}
-    ${kwList ? `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #e5e7eb"><p style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Kata Kunci</p>${kwList}</div>` : ""}
-    </body></html>`;
-
-    const w = window.open("","_blank","width=900,height=700");
-    w.document.write(html);
-    w.document.close();
-    w.onload = () => { w.focus(); w.print(); setSavingPDF(false); };
-    setTimeout(() => setSavingPDF(false), 3000);
-  }
 
   const meta = JENIS_META[activeJenis] || JENIS_META.penjelasan;
 
   return (
     <div className="max-w-6xl mx-auto space-y-5 pb-12">
+      <Link href="/dashboard/kepsek" className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-emerald-700">
+        ← Kembali ke Dashboard
+      </Link>
 
       {/* HERO */}
       <div className="flex items-start gap-4">
         <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center text-2xl shrink-0">🎓</div>
         <div>
-          <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Konten Akademik</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Konten Akademik</p>
           <h2 className="text-xl font-bold text-gray-900">Academic Content</h2>
           <p className="text-xs text-gray-500 mt-0.5">Konten akademik custom — rangkuman, penjelasan materi, contoh soal, glosarium.</p>
         </div>
       </div>
 
-      {/* Info Banner */}
-      <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-        <span className="text-lg shrink-0">🏫</span>
-        <p className="text-xs text-amber-800 font-medium">
-          Sebagai Kepala Madrasah, Anda dapat membuat konten akademik sebagai bahan referensi dan monitoring kurikulum.
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* FORM */}
-        <form onSubmit={handleGenerate} className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5 h-[650px] overflow-y-auto custom-scrollbar">
+        {/* ===== FORM ===== */}
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+          <div className="flex-1 overflow-y-auto">
+            <form onSubmit={handleGenerate} className="p-6 space-y-5">
 
           {/* Topik */}
           <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Topik <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">
+              Topik <span className="text-red-500">*</span>
+            </label>
             <input type="text" value={topik}
               onChange={(e) => { setTopik(e.target.value); if (error) setError(""); }}
               placeholder="cth. Thaharah dalam Islam"
-              className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50" />
+              className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50"
+            />
           </div>
 
           {/* Mata Pelajaran */}
@@ -371,7 +377,8 @@ export default function KepsekAcademicContentPage() {
             <label className="block text-sm font-semibold text-gray-800 mb-2">Mata Pelajaran</label>
             <input type="text" value={mapel} onChange={(e) => setMapel(e.target.value)}
               placeholder="cth. Fiqih"
-              className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50" />
+              className="w-full text-sm p-3 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 bg-gray-50"
+            />
             <div className="flex flex-wrap gap-1.5 mt-2">
               {MAPEL_SUGGESTIONS.map((s) => (
                 <button key={s} type="button" onClick={() => setMapel(s)}
@@ -384,7 +391,7 @@ export default function KepsekAcademicContentPage() {
 
           {/* Kelas */}
           <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Kelas <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">Kelas</label>
             <div className="flex flex-wrap gap-2">
               {KELAS_OPTIONS.map((opt) => (
                 <button key={opt} type="button" onClick={() => setKelas(opt)}
@@ -434,34 +441,37 @@ export default function KepsekAcademicContentPage() {
 
           <button type="submit" disabled={loading}
             className="w-full flex items-center justify-center gap-2 bg-[#006747] hover:bg-emerald-800 text-white font-bold py-4 rounded-xl text-sm transition disabled:opacity-70">
-            {loading
-              ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Menyusun via Groq AI...</>
-              : <>✦ Generate {JENIS_KONTEN_OPTIONS.find(o => o.value === jenisKonten)?.label}</>}
+            {loading ? (
+              <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Menyusun via Groq AI...</>
+            ) : <>✦ Generate {JENIS_KONTEN_OPTIONS.find(o => o.value === jenisKonten)?.label}</>}
           </button>
-        </form>
+            </form>
+          </div>
+        </div>
 
-        {/* RIGHT PANEL */}
-        <div className="lg:col-span-7 flex flex-col gap-6">
-          {/* PREVIEW */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[650px]">
+        {/* ===== PREVIEW ===== */}
+        <div className="lg:col-span-7 flex flex-col gap-4">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {result ? (
-            <div className="h-full flex flex-col">
+            <div className="h-full flex flex-col min-h-0">
               {/* Toolbar */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50 shrink-0">
                 <div className="flex items-center gap-2">
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${meta.color}`}>
                     {meta.icon} {meta.label}
                   </span>
                 </div>
-                <div className="flex gap-2 flex-wrap">
-                  <button type="button" onClick={handleSavePDF} disabled={savingPDF}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-1.5 rounded-lg transition disabled:opacity-60">
-                    {savingPDF ? <><span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin inline-block mr-1"/>Menyiapkan...</> : "🖨️ Simpan PDF"}
-                  </button>
+                <div className="flex gap-2">
                   {contentId && (
-                    <button type="button" onClick={handleDownloadDocx} disabled={dlDocx}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg transition disabled:opacity-60">
-                      {dlDocx ? "Mengunduh..." : "⬇️ Unduh DOCX"}
+                    <button type="button" onClick={handleDownloadPDF} disabled={downloading}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-1.5 rounded-lg transition disabled:opacity-60">
+                      {downloading ? "Mengunduh..." : "⬇️ Unduh PDF"}
+                    </button>
+                  )}
+                  {contentId && (
+                    <button type="button" onClick={handleDownloadDocx} disabled={downloadingDocx}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 px-3 py-1.5 rounded-lg transition disabled:opacity-60">
+                      {downloadingDocx ? "Mengunduh..." : "📄 Unduh DOCX"}
                     </button>
                   )}
                   <button type="button" onClick={handleReset}
@@ -473,14 +483,18 @@ export default function KepsekAcademicContentPage() {
 
               {/* Content */}
               <div className="overflow-y-auto flex-1 p-6">
+                {/* Judul */}
                 <div className="text-center border-b pb-4 mb-5">
                   <h3 className="font-bold text-base text-gray-900 leading-snug">{result.judul}</h3>
                 </div>
+
+                {/* Render berdasarkan tipe */}
                 {activeJenis === "ringkasan"   && <RenderRingkasan data={result} />}
                 {activeJenis === "penjelasan"  && <RenderPenjelasan data={result} />}
                 {activeJenis === "contoh_soal" && <RenderContohSoal data={result} />}
                 {activeJenis === "kamus"       && <RenderKamus data={result} />}
 
+                {/* Kata Kunci — selalu tampil */}
                 {result.kata_kunci?.length > 0 && (
                   <div className="mt-5 pt-4 border-t border-gray-100">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Kata Kunci</p>
@@ -492,6 +506,7 @@ export default function KepsekAcademicContentPage() {
                   </div>
                 )}
 
+                {/* Referensi — selalu tampil */}
                 {result.referensi?.length > 0 && (
                   <div className="mt-4 bg-gray-50 rounded-xl p-4 border border-gray-200">
                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Referensi</p>
@@ -505,7 +520,7 @@ export default function KepsekAcademicContentPage() {
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-72 flex flex-col items-center justify-center text-gray-400 text-xs gap-3 p-8">
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs gap-3 p-8">
               <span className="text-5xl">{JENIS_KONTEN_OPTIONS.find(o => o.value === jenisKonten)?.icon || "🎓"}</span>
               <p className="font-medium text-gray-500">
                 {JENIS_KONTEN_OPTIONS.find(o => o.value === jenisKonten)?.label} akan tampil di sini
@@ -513,14 +528,12 @@ export default function KepsekAcademicContentPage() {
               <p className="text-gray-300 text-center">Isi form di sebelah kiri lalu klik Generate</p>
             </div>
           )}
-          </div>
+        </div>
 
-          {/* FEEDBACK */}
-          {result && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-6 py-5">
-              <FeedbackForm />
-            </div>
-          )}
+        {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
+        {result && contentId && (
+          <RatingFeedback requestId={contentId} featureLabel="konten akademik" endpoint="academic" />
+        )}
         </div>
       </div>
     </div>

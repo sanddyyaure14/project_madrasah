@@ -269,7 +269,7 @@ export default function PresentationGeneratorPage() {
 
         {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
         {result && presentationId && (
-          <RatingFeedback requestId={presentationId} featureLabel="presentasi" />
+          <RatingFeedback requestId={presentationId} featureLabel="presentasi" endpoint="presentation" />
         )}
         </div>
       </div>

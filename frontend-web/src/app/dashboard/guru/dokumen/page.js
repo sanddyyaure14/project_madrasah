@@ -790,7 +790,7 @@ function EditRubricForm({ doc, onSave, onCancel }) {
     try {
       const body = {
         jenis_tugas: jenisTugas,
-        aspek_penilaian: rubricJson.aspek?.length || 0,
+        aspek_penilaian: (rubricJson.aspek || []).map(a => a.nama || a.nama_aspek || a.name || ""),
         skala_nilai: skalaNilai,
         tujuan_pembelajaran: tujuanPembelajaran,
         rubric_json: rubricJson

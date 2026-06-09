@@ -64,7 +64,7 @@ export default function MultipleChoicePage() {
       }
 
       setQuestions(result.data.questions || []);
-      setMcId(result.request_id || null);
+      setMcId(result.request_id || result.data?.request_id || null);
       setMcDocId(result.mc_id || null);
     } catch (err) {
       setError(err.message);
@@ -273,7 +273,7 @@ export default function MultipleChoicePage() {
 
         {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
         {questions.length > 0 && mcId && (
-          <RatingFeedback requestId={mcId} featureLabel="soal pilihan ganda" />
+          <RatingFeedback requestId={mcId} featureLabel="soal pilihan ganda" endpoint="mc" />
         )}
         </div>
       </div>

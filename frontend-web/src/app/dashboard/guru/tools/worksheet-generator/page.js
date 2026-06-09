@@ -314,7 +314,7 @@ export default function WorksheetGeneratorPage() {
 
         {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
         {lks && worksheetId && (
-          <RatingFeedback requestId={worksheetId} featureLabel="worksheet" />
+          <RatingFeedback requestId={worksheetId} featureLabel="worksheet" endpoint="worksheet" />
         )}
         </div>
       </div>

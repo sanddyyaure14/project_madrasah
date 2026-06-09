@@ -318,7 +318,7 @@ export default function SyllabusGeneratorPage() {
 
           {/* Rating & Feedback — di bawah panel preview, muncul setelah generate */}
           {result && syllabusId && (
-            <RatingFeedback requestId={syllabusId} featureLabel="silabus" />
+          <RatingFeedback requestId={syllabusId} featureLabel="silabus" endpoint="syllabus" />
           )}
         </div>
       </div>

@@ -532,7 +532,7 @@ export default function AcademicContentPage() {
 
         {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
         {result && contentId && (
-          <RatingFeedback requestId={contentId} featureLabel="konten akademik" />
+          <RatingFeedback requestId={contentId} featureLabel="konten akademik" endpoint="academic" />
         )}
         </div>
       </div>

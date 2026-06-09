@@ -271,7 +271,7 @@ export default function RubricGeneratorPage() {
 
         {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
         {rubric && rubricId && (
-          <RatingFeedback requestId={rubricId} featureLabel="rubrik penilaian" />
+          <RatingFeedback requestId={rubricId} featureLabel="rubrik penilaian" endpoint="rubric" />
         )}
         </div>
       </div>

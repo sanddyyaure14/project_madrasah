@@ -32,19 +32,19 @@ router.post('/feedback/mc/:requestId', verifyToken, async (req, res) => {
 
         if (existing.rows.length > 0) {
             // Update feedback yang sudah ada
-            await db.query(
-                'UPDATE user_feedback SET rating = $1, komentar = $2, is_helpful = $3 WHERE request_id = $4 AND user_id = $5',
+            const updated = await db.query(
+                'UPDATE user_feedback SET rating = $1, komentar = $2, is_helpful = $3 WHERE request_id = $4 AND user_id = $5 RETURNING *',
                 [rating, komentar || null, is_helpful ?? null, requestId, req.user.id]
             );
-            return res.json({ success: true, message: 'Feedback berhasil diperbarui.' });
+            return res.json({ success: true, message: 'Feedback berhasil diperbarui.', data: updated.rows[0] });
         }
 
         // Insert feedback baru
-        await db.query(
-            'INSERT INTO user_feedback (id, request_id, user_id, rating, komentar, is_helpful) VALUES ($1, $2, $3, $4, $5, $6)',
+        const inserted = await db.query(
+            'INSERT INTO user_feedback (id, request_id, user_id, rating, komentar, is_helpful) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [uuidv4(), requestId, req.user.id, rating, komentar || null, is_helpful ?? null]
         );
-        return res.json({ success: true, message: 'Terima kasih atas feedback-mu!' });
+        return res.json({ success: true, message: 'Terima kasih atas feedback-mu!', data: inserted.rows[0] });
     } catch (e) {
         console.error('Error simpan feedback MC:', e);
         return res.status(500).json({ success: false, message: e.message });

@@ -112,11 +112,11 @@ router.post('/feedback/writing/:requestId', verifyToken, async (req, res) => {
         );
 
         if (existing.rows.length > 0) {
-            await db.query(
-                'UPDATE user_feedback SET rating = $1, komentar = $2, is_helpful = $3 WHERE request_id = $4 AND user_id = $5',
+            const updated = await db.query(
+                'UPDATE user_feedback SET rating = $1, komentar = $2, is_helpful = $3 WHERE request_id = $4 AND user_id = $5 RETURNING *',
                 [rating, komentar || null, is_helpful ?? null, requestId, req.user.id]
             );
-            return res.json({ success: true, message: 'Feedback berhasil diperbarui.' });
+            return res.json({ success: true, message: 'Feedback berhasil diperbarui.', data: updated.rows[0] });
         }
 
         await db.query(

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import RatingFeedback from "@/components/RatingFeedback";
 
 const KELAS_OPTIONS = ["VII", "VIII", "IX", "X", "XI", "XII"];
 const MAPEL_SUGGESTIONS = [
@@ -11,7 +12,7 @@ const MAPEL_SUGGESTIONS = [
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
-export default function UnitPlanKepsekPage() {
+export default function KepsekUnitPlanPage() {
   const [judulUnit, setJudulUnit] = useState("");
   const [mataPelajaran, setMataPelajaran] = useState("");
   const [kelas, setKelas] = useState("VII");
@@ -22,7 +23,6 @@ export default function UnitPlanKepsekPage() {
   const [result, setResult] = useState(null);
   const [unitPlanId, setUnitPlanId] = useState(null);
   const [error, setError] = useState("");
-  const [dlDocx, setDlDocx] = useState(false);
 
   const handleGenerate = async (e) => {
     e.preventDefault();
@@ -56,13 +56,15 @@ export default function UnitPlanKepsekPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "Gagal generate Unit Plan.");
       setResult(json.data?.unit_plan_json || json.data);
-      setUnitPlanId(json.data?.id || null);
+      setUnitPlanId(json.data?.request_id || json.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  const [dlDocx, setDlDocx] = useState(false);
 
   async function handleDownloadDocx() {
     if (!unitPlanId) return;
@@ -77,7 +79,7 @@ export default function UnitPlanKepsekPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `unit_plan_kepsek_${unitPlanId}.docx`;
+      a.download = `unit_plan_${unitPlanId}.docx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -98,24 +100,25 @@ export default function UnitPlanKepsekPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-5 pb-12">
-      {/* KEPALA SEKOLAH: Navigasi kembali ke dashboard kepsek */}
       <Link href="/dashboard/kepsek" className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-emerald-700">
-        ← Kembali ke Dashboard Kepala Sekolah
+        ← Kembali ke Dashboard
       </Link>
 
       {/* HERO */}
       <div className="flex items-start gap-4">
         <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center text-2xl shrink-0">📖</div>
         <div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Manajemen Akademik</p>
-          <h2 className="text-xl font-bold text-gray-900">Penyusunan & Pemantauan Unit Plan (RPP)</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Pembuatan percontohan rencana pembelajaran unit (RPP/Modul Ajar) instan untuk madrasah.</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Modul Ajar</p>
+          <h2 className="text-xl font-bold text-gray-900">Unit Plan / RPP</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Rencana pembelajaran unit (RPP/Modul Ajar) lengkap siap pakai.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ===== FORM ===== */}
-        <form onSubmit={handleGenerate} className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5 h-fit">
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+          <div className="flex-1 overflow-y-auto">
+            <form onSubmit={handleGenerate} className="p-6 space-y-5">
 
           {/* Judul Unit */}
           <div>
@@ -215,19 +218,22 @@ export default function UnitPlanKepsekPage() {
             {loading ? (
               <>
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Menyusun RPP Percontohan via Groq AI...
+                Menyusun Modul Ajar via Groq AI...
               </>
             ) : <>📖 Generate Modul Ajar / RPP</>}
           </button>
-        </form>
+            </form>
+          </div>
+        </div>
 
         {/* ===== PREVIEW ===== */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="lg:col-span-7 flex flex-col gap-4">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {result ? (
-            <div className="h-full flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0">
               {/* Toolbar */}
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
-                <p className="text-xs font-semibold text-gray-600">Pratinjau Modul Ajar (Mode Kepala Sekolah)</p>
+                <p className="text-xs font-semibold text-gray-600">Pratinjau Modul Ajar / RPP</p>
                 <div className="flex gap-2">
                   {unitPlanId && (
                     <button type="button" onClick={handleDownloadDocx} disabled={dlDocx}
@@ -363,12 +369,18 @@ export default function UnitPlanKepsekPage() {
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-72 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
               <span className="text-4xl">📖</span>
               <p className="font-medium">Pratinjau Modul Ajar akan tampil di sini</p>
-              <p className="text-gray-300">Isi formulir di sebelah kiri untuk menghasilkan draf RPP percontohan</p>
+              <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate</p>
             </div>
           )}
+        </div>
+
+        {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
+        {result && unitPlanId && (
+          <RatingFeedback requestId={unitPlanId} featureLabel="modul ajar / RPP" endpoint="unit-plan" />
+        )}
         </div>
       </div>
     </div>
