@@ -2,9 +2,35 @@
 // API Service Layer — MadrasahAI
 // Base URL otomatis terdeteksi via expo-constants (ganti WiFi = otomatis)
 // =========================================================================
+import Constants from 'expo-constants';
+import { Platform, NativeModules, Linking } from 'react-native';
 
-const BASE_URL = 'http://192.168.137.80:3000/api';
+function getApiBaseUrl() {
+  // Ambil IP laptop dari hostUri
+  let host = Constants.expoConfig?.hostUri?.split(':')[0];
+  
+  if (!host && Constants.experienceUrl) {
+    host = Constants.experienceUrl.replace('exp://', '').split(':')[0];
+  }
 
+  if (!host && NativeModules.SourceCode?.scriptURL) {
+    host = NativeModules.SourceCode.scriptURL.split('://')[1]?.split(':')[0];
+  }
+
+  console.log('Detected Host:', host, '| expUrl:', Constants.experienceUrl);
+
+  if (host && host !== '127.0.0.1' && host !== 'localhost') {
+    return `http://${host}:3000/api`;
+  }
+  
+  // Fallback
+  if (Platform.OS === 'android') return 'http://10.0.2.2:3000/api';
+  return 'http://localhost:3000/api';
+}
+
+export const API_URL = getApiBaseUrl();
+
+const BASE_URL = API_URL;
 // ---------------------------------------------------------------------------
 // Auth helper — untuk sekarang token disimpan di-memory via AuthContext.
 // Jika nanti pakai AsyncStorage, ganti getToken() di sini.
@@ -56,7 +82,6 @@ async function request(method, path, body = null, isFormData = false) {
 export function openDownloadUrl(path) {
   const url = `${BASE_URL}${path}`;
   // Buka di browser bawaan HP — user bisa download dari sana
-  const { Linking } = require('react-native');
   return Linking.openURL(
     // Tambahkan token sebagai query param karena header tidak bisa dikirim dari Linking
     `${url}?token=${encodeURIComponent(_token || '')}`
@@ -93,7 +118,7 @@ export async function generateWritingFeedback(params) {
  * Get all writing feedback history.
  */
 export async function getAllWritingFeedback() {
-  return request('GET', '/writing-feedback');
+  return request('GET', '/feedback');
 }
 
 /**
@@ -101,7 +126,7 @@ export async function getAllWritingFeedback() {
  * @param {string} id
  */
 export async function getWritingFeedbackById(id) {
-  return request('GET', `/writing-feedback/${id}`);
+  return request('GET', `/feedback/${id}`);
 }
 
 /**
@@ -110,7 +135,7 @@ export async function getWritingFeedbackById(id) {
  * @param {{ skor_total: number, aspek: array, ringkasan: string }} payload
  */
 export async function updateWritingFeedback(id, payload) {
-  return request('PUT', `/writing-feedback/edit/${id}`, payload);
+  return request('PUT', `/feedback/edit/${id}`, payload);
 }
 
 /**
@@ -118,7 +143,7 @@ export async function updateWritingFeedback(id, payload) {
  * @param {string} id
  */
 export async function deleteWritingFeedback(id) {
-  return request('DELETE', `/writing-feedback/delete/${id}`);
+  return request('DELETE', `/feedback/delete/${id}`);
 }
 
 /**
@@ -126,7 +151,7 @@ export async function deleteWritingFeedback(id) {
  * @param {string} id
  */
 export async function getWritingShareText(id) {
-  return request('GET', `/writing-feedback/share/${id}`);
+  return request('GET', `/feedback/share/${id}`);
 }
 
 // =========================================================================
@@ -138,7 +163,7 @@ export async function getWritingShareText(id) {
  * @param {object} params
  * @param {string} params.mata_pelajaran   — nama mata pelajaran (wajib)
  * @param {string} params.kurikulum        — "Merdeka Belajar" | "Kurikulum 2013"
- * @param {string} params.jenjang          — "MTs" | "MA"
+ * @param {string} params.jenjang          — "MI" | "MTs" | "MA"
  * @param {string} params.tingkat_kelas    — misal "VII", "X"
  * @param {string} params.semester         — "Ganjil" | "Genap"
  * @param {string} params.tahun_ajaran     — misal "2024/2025"

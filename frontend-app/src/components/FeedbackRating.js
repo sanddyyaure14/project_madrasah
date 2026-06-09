@@ -35,7 +35,12 @@ export default function FeedbackRating({ requestId, endpoint }) {
 
   async function fetchExisting() {
     try {
-      const res  = await fetch(`${API_URL}/feedback/${endpoint}/${requestId}`, {
+      let url = `${API_URL}/feedback/${requestId}`;
+      if (endpoint === 'unit-plan' || endpoint === 'presentation') {
+        url = `${API_URL}/feedback/${endpoint}/${requestId}`;
+      }
+      
+      const res  = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
@@ -56,10 +61,21 @@ export default function FeedbackRating({ requestId, endpoint }) {
     }
     setSaving(true);
     try {
-      const res  = await fetch(`${API_URL}/feedback/${endpoint}/${requestId}`, {
+      let url = `${API_URL}/feedback`;
+      let reqBody = { rating, komentar: komentar.trim() || null, is_helpful: isHelpful };
+
+      // Backend hanya punya spesifik route untuk unit-plan dan presentation
+      if (endpoint === 'unit-plan' || endpoint === 'presentation') {
+        url = `${API_URL}/feedback/${endpoint}/${requestId}`;
+      } else {
+        // Route general mewajibkan request_id di body
+        reqBody.request_id = requestId;
+      }
+
+      const res  = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ rating, komentar: komentar.trim() || null, is_helpful: isHelpful }),
+        body: JSON.stringify(reqBody),
       });
       const json = await res.json();
       if (json.success) {
