@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
+import FeedbackRating from '../components/FeedbackRating';
 
 const MAPEL_OPTIONS = ['Fiqih', 'Akidah Akhlak', "Al-Qur'an Hadis", 'Bahasa Arab', 'SKI', 'Matematika', 'IPA Terpadu', 'Bahasa Indonesia', 'Bahasa Inggris', 'IPS Terpadu'];
 const KELAS_OPTIONS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
@@ -269,6 +270,13 @@ export default function SyllabusDetailScreen({ route, navigation }) {
               <Text style={styles.exportBtnText}>Export DOCX</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Rating & Feedback AI */}
+          <Text style={[styles.sectionGroupTitle, { marginTop: 16 }]}>Nilai Hasil Generate</Text>
+          <FeedbackRating
+            requestId={data?.request_id}
+            endpoint="syllabus"
+          />
         </View>
       </ScrollView>
 

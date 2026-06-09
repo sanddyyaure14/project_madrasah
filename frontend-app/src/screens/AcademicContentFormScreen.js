@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { generateAcademicContent } from '../lib/api';
 import { useAuth, API_URL } from '../lib/auth';
+import FeedbackRating from '../components/FeedbackRating';
 
 // ─────────────────────────────────────────────
 // Constants
@@ -155,7 +156,7 @@ function renderKontenByJenis(data, contentJson) {
       )}
       {kataKunci.length > 0 && (
         <View style={styles.infoBox}>
-          <Text style={styles.infoLabel}>🏷️ Kata Kunci</Text>
+          <Text style={styles.infoLabel}>Kata Kunci</Text>
           <View style={styles.tagRow}>
             {kataKunci.map((k, i) => (
               <View key={i} style={styles.tag}><Text style={styles.tagText}>{k}</Text></View>
@@ -165,7 +166,7 @@ function renderKontenByJenis(data, contentJson) {
       )}
       {referensi.length > 0 && (
         <View style={styles.infoBox}>
-          <Text style={styles.infoLabel}>📚 Referensi</Text>
+          <Text style={styles.infoLabel}>Referensi</Text>
           {referensi.map((r, i) => (
             <View key={i} style={styles.kiItem}>
               <View style={styles.kiBadge}><Text style={styles.kiBadgeText}>{i + 1}</Text></View>
@@ -250,6 +251,13 @@ function ResultPanel({ data, contentId, token, navigation, onReset }) {
           <Text style={styles.btnSaveText}>Simpan</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Rating & Feedback AI */}
+      <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Nilai Hasil Generate</Text>
+      <FeedbackRating
+        requestId={data?.request_id}
+        endpoint="academic"
+      />
 
       <TouchableOpacity style={styles.btnReset} onPress={onReset}>
         <Ionicons name="refresh" size={15} color={C.muted} />
@@ -352,17 +360,17 @@ export default function AcademicContentFormScreen({ navigation }) {
               style={[styles.inputSingle, error && !topik.trim() ? styles.inputError : null]}
               value={topik}
               onChangeText={t => { setTopik(t); if (error) setError(''); }}
-              placeholder="cth. Fotosintesis, Shalat Dhuha, Bilangan Bulat"
+              placeholder="cth. Fotosintesis, Shalat Dhuha"
               placeholderTextColor={C.mutedLight}
             />
           </Field>
-          <Field label="Mata Pelajaran" optional>
+          <Field label="Mata Pelajaran">
             <ChipGroup options={MAPEL_OPTIONS} selected={mapel} onSelect={setMapel} toggleable />
           </Field>
-          <Field label="Kelas" optional>
+          <Field label="Kelas">
             <ChipGroup options={KELAS_OPTIONS} selected={kelas} onSelect={setKelas} toggleable />
           </Field>
-          <Field label="Panjang Konten" optional>
+          <Field label="Panjang Konten">
             <ChipGroup options={PANJANG_OPTIONS} selected={panjang} onSelect={setPanjang} />
           </Field>
 
@@ -451,6 +459,7 @@ const styles = StyleSheet.create({
   kiBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   kiBadgeText: { fontSize: 11, fontWeight: '700', color: C.primary },
   sectionLabel: { fontSize: 11, fontWeight: '800', color: C.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: C.ink },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { backgroundColor: C.card, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: C.border },
   tagText: { fontSize: 12, color: C.ink, fontWeight: '500' },

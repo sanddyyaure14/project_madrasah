@@ -1,8 +1,5 @@
 /**
  * SyllabusFormScreen.js
- * Syllabus Generator — Form + AI Result inline (pola WorksheetScreen)
- * Setelah generate: form hilang, ResultPanel muncul
- * Aksi hasil: Copy | PDF | DOCX | Simpan ke Dokumen | Buat Silabus Baru
  */
 
 import React, { useState, useRef } from 'react';
@@ -14,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { generateSyllabus } from '../lib/api';
 import { useAuth, API_URL } from '../lib/auth';
+import FeedbackRating from '../components/FeedbackRating';
 
 // ─────────────────────────────────────────────
 // Constants
@@ -204,6 +202,13 @@ function ResultPanel({ data, syllabusId, token, navigation, onReset }) {
           <Text style={styles.btnSaveText}>Simpan</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Rating & Feedback AI */}
+      <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Nilai Hasil Generate</Text>
+      <FeedbackRating
+        requestId={data?.request_id}
+        endpoint="syllabus"
+      />
 
       <TouchableOpacity style={styles.btnReset} onPress={onReset}>
         <Ionicons name="refresh" size={15} color={C.muted} />
@@ -410,6 +415,7 @@ const styles = StyleSheet.create({
   kiBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   kiBadgeText: { fontSize: 11, fontWeight: '700', color: C.primary },
   sectionLabel: { fontSize: 11, fontWeight: '800', color: C.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: C.ink },
 
   // Week card
   aktCard: { backgroundColor: C.bg, borderRadius: 14, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
