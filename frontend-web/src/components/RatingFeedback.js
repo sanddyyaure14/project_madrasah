@@ -9,10 +9,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
  * Ditampilkan di bawah hasil generate di setiap halaman tools guru.
  *
  * Props:
- *   - requestId  : string  — ID dari hasil generate (wajib)
- *   - featureLabel: string — Nama fitur untuk label tampilan (opsional)
+ *   - requestId   : string  — ID dari hasil generate (wajib)
+ *   - featureLabel: string  — Nama fitur untuk label tampilan (opsional)
+ *   - endpoint    : string  — Sub-path endpoint feedback, misal "writing", "worksheet",
+ *                             "unit-plan", "presentation". Jika tidak diisi, gunakan
+ *                             endpoint generik /api/feedback (dengan body request_id).
  */
-export default function RatingFeedback({ requestId, featureLabel = "hasil generate" }) {
+export default function RatingFeedback({ requestId, featureLabel = "hasil generate", endpoint = "" }) {
     const [rating, setRating]       = useState(0);
     const [hovered, setHovered]     = useState(0);
     const [komentar, setKomentar]   = useState("");
@@ -35,7 +38,12 @@ export default function RatingFeedback({ requestId, featureLabel = "hasil genera
         const token = sessionStorage.getItem("accessToken");
         if (!token) return;
 
-        fetch(`${API_URL}/api/feedback/${requestId}`, {
+        // Gunakan endpoint spesifik jika ada, fallback ke endpoint generik
+        const getUrl = endpoint
+            ? `${API_URL}/api/feedback/${endpoint}/${requestId}`
+            : `${API_URL}/api/feedback/${requestId}`;
+
+        fetch(getUrl, {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then((res) => res.json())
@@ -50,7 +58,7 @@ export default function RatingFeedback({ requestId, featureLabel = "hasil genera
                 }
             })
             .catch(() => {}); // silent fail — tidak perlu error jika gagal cek
-    }, [requestId]);
+    }, [requestId, endpoint]);
 
     const handleSubmit = async () => {
         if (rating === 0) {
@@ -64,19 +72,37 @@ export default function RatingFeedback({ requestId, featureLabel = "hasil genera
             const token = sessionStorage.getItem("accessToken");
             if (!token) throw new Error("Sesi tidak ditemukan. Silakan login ulang.");
 
-            const res = await fetch(`${API_URL}/api/feedback`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    request_id: requestId,
-                    rating,
-                    komentar:   komentar.trim() || null,
-                    is_helpful: isHelpful,
-                }),
-            });
+            let res;
+            if (endpoint) {
+                // Endpoint spesifik per fitur: POST /api/feedback/{endpoint}/{requestId}
+                res = await fetch(`${API_URL}/api/feedback/${endpoint}/${requestId}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        rating,
+                        komentar:   komentar.trim() || null,
+                        is_helpful: isHelpful,
+                    }),
+                });
+            } else {
+                // Endpoint generik: POST /api/feedback
+                res = await fetch(`${API_URL}/api/feedback`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        request_id: requestId,
+                        rating,
+                        komentar:   komentar.trim() || null,
+                        is_helpful: isHelpful,
+                    }),
+                });
+            }
 
             const json = await res.json();
             if (!res.ok) throw new Error(json.message || "Gagal menyimpan feedback.");

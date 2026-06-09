@@ -101,7 +101,7 @@ export default function WritingFeedbackPage() {
   const [bahasa, setBahasa] = useState('Indonesia');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [writingId, setWritingId] = useState(null);
+  const [requestId, setRequestId] = useState(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -115,7 +115,7 @@ export default function WritingFeedbackPage() {
     setError('');
     setLoading(true);
     setResult(null);
-    setWritingId(null);
+    setRequestId(null);
 
     try {
       const token = sessionStorage.getItem("accessToken");
@@ -139,7 +139,7 @@ export default function WritingFeedbackPage() {
       const resData = await response.json();
       if (!response.ok) throw new Error(resData.message || "Gagal memproses feedback.");
       setResult(resData.data);
-      setWritingId(resData.data?.request_id || null);
+      setRequestId(resData.data?.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -156,7 +156,7 @@ export default function WritingFeedbackPage() {
 
   function handleReset() {
     setResult(null);
-    setWritingId(null);
+    setRequestId(null);
     setError('');
     setTulisan('');
     setNamaSiswa('');
@@ -367,8 +367,12 @@ export default function WritingFeedbackPage() {
         </div>
 
         {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
-        {result && writingId && (
-          <RatingFeedback requestId={writingId} featureLabel="writing feedback" />
+        {result && requestId && (
+          <RatingFeedback
+            requestId={requestId}
+            featureLabel="writing feedback"
+            endpoint="writing"
+          />
         )}
         </div>
       </div>
