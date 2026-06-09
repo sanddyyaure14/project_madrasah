@@ -22,8 +22,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
 import { downloadPresentationPPT } from '../lib/api';
+import FeedbackRating from '../components/FeedbackRating';
 
-const AUDIENS_OPTIONS = ['Siswa MI', 'Siswa MTs', 'Siswa MA', 'Guru', 'Orang Tua', 'Umum'];
+const AUDIENS_OPTIONS = ['Siswa MTs', 'Siswa MA', 'Guru', 'Orang Tua', 'Umum'];
 
 // ---------------------------------------------------------------------------
 // Slide Card Component
@@ -328,6 +329,17 @@ export default function PresentationDetailScreen({ route, navigation }) {
               </>
             )}
           </TouchableOpacity>
+
+          {/* Feedback Rating */}
+          {data && data.request_id && (
+            <View style={{ marginTop: 24 }}>
+              <FeedbackRating 
+                requestId={data.request_id}
+                endpoint="presentation"
+                featureLabel="Slide Presentasi" 
+              />
+            </View>
+          )}
         </ScrollView>
       </View>
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import RatingFeedback from "@/components/RatingFeedback";
 
 const KELAS_OPTIONS = ["VII", "VIII", "IX", "X", "XI", "XII"];
 const MAPEL_SUGGESTIONS = [
@@ -9,7 +10,7 @@ const MAPEL_SUGGESTIONS = [
   "SKI", "Matematika", "IPA Terpadu", "Bahasa Indonesia",
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function UnitPlanPage() {
   const [judulUnit, setJudulUnit] = useState("");
@@ -55,7 +56,7 @@ export default function UnitPlanPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "Gagal generate Unit Plan.");
       setResult(json.data?.unit_plan_json || json.data);
-      setUnitPlanId(json.data?.id || null);
+      setUnitPlanId(json.data?.request_id || json.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -113,9 +114,11 @@ export default function UnitPlanPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ===== FORM ===== */}
-        <form onSubmit={handleGenerate} className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5 h-fit">
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+          <div className="flex-1 overflow-y-auto">
+            <form onSubmit={handleGenerate} className="p-6 space-y-5">
 
           {/* Judul Unit */}
           <div>
@@ -219,12 +222,15 @@ export default function UnitPlanPage() {
               </>
             ) : <>📖 Generate Modul Ajar / RPP</>}
           </button>
-        </form>
+            </form>
+          </div>
+        </div>
 
         {/* ===== PREVIEW ===== */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="lg:col-span-7 flex flex-col gap-4">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {result ? (
-            <div className="h-full flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0">
               {/* Toolbar */}
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
                 <p className="text-xs font-semibold text-gray-600">Pratinjau Modul Ajar / RPP</p>
@@ -363,12 +369,18 @@ export default function UnitPlanPage() {
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-72 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
               <span className="text-4xl">📖</span>
               <p className="font-medium">Pratinjau Modul Ajar akan tampil di sini</p>
               <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate</p>
             </div>
           )}
+        </div>
+
+        {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
+        {result && unitPlanId && (
+          <RatingFeedback requestId={unitPlanId} featureLabel="modul ajar / RPP" />
+        )}
         </div>
       </div>
     </div>

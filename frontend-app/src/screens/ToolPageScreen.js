@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, ActivityIndicator, Alert, Switch, Clipboard,
+  TextInput, ActivityIndicator, Alert, Switch, Clipboard, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import { downloadAsync, documentDirectory } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { findTool } from '../lib/tools';
 import { useAuth, API_URL } from '../lib/auth';
+import { useNotifications } from '../lib/notifications';
 import { C, S } from '../lib/theme';
 
 // ─── Download file dengan token (untuk PDF/Excel) ──────────────────────────
 async function downloadWithToken(url, token, filename) {
   try {
-    const localUri = FileSystem.documentDirectory + filename;
-    const result = await FileSystem.downloadAsync(url, localUri, {
+    const localUri = documentDirectory + filename;
+    const result = await downloadAsync(url, localUri, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (result.status !== 200) {
@@ -49,9 +50,14 @@ const ICON_MAP = {
 };
 
 function Field({ label, children }) {
+  // Pisahkan tanda * agar bisa diberi warna merah seperti WorksheetScreen
+  const hasRequired = label.endsWith('*') || label.includes(' *');
+  const cleanLabel = label.replace(/ \*$/, '').replace(/\*$/, '');
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={styles.fieldLabel}>
+        {cleanLabel}{hasRequired && <Text style={{ color: C.danger }}> *</Text>}
+      </Text>
       {children}
     </View>
   );
@@ -300,8 +306,9 @@ PEMBAGIAN THAHARAH:
 
 // --- Tool Forms ---
 
-function MultipleChoiceForm() {
+function MultipleChoiceForm({ navigation }) {
   const { token } = useAuth();
+  const { addNotification } = useNotifications();
   const [mapel, setMapel] = useState(MAPEL[0]);
   const [kelas, setKelas] = useState(KELAS[0]);
   const [topik, setTopik] = useState('');
@@ -310,18 +317,14 @@ function MultipleChoiceForm() {
   const [kd, setKd] = useState('');
   const [includeKunci, setIncludeKunci] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [questions, setQuestions] = useState([]);
-  const [mcId, setMcId] = useState(null);
   const [error, setError] = useState('');
-  const [showPdfModal, setShowPdfModal] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const KESULITAN = ['mudah', 'sedang', 'sulit'];
 
   async function handleGenerate() {
     if (!topik.trim()) { Alert.alert('Input Kurang', 'Topik/Materi wajib diisi.'); return; }
     const jml = parseInt(jumlah);
     if (isNaN(jml) || jml < 1 || jml > 50) { Alert.alert('Input Tidak Valid', 'Jumlah soal antara 1–50.'); return; }
-    setLoading(true); setQuestions([]); setError(''); setMcId(null);
+    setLoading(true); setError('');
     try {
       const res = await fetch(`${API_URL}/generate-mc`, {
         method: 'POST',
@@ -334,31 +337,33 @@ function MultipleChoiceForm() {
       });
       const data = await res.json();
       if (!data.success) { setError(data.message ?? 'Gagal generate soal.'); return; }
-      setQuestions(data.data?.questions ?? []);
-      setMcId(data.mc_id ?? null); // simpan ID untuk download PDF
+
+      // ── Notifikasi generate berhasil ──
+      addNotification({
+        title: 'Soal PG Berhasil Dibuat 📝',
+        message: `${jml} soal ${mapel} Kelas ${kelas} — "${topik.trim()}" berhasil digenerate.`,
+        type: 'success',
+        icon: 'help-circle',
+      });
+
+      // ── Navigasi ke halaman detail setelah generate berhasil ──
+      navigation.navigate('MCDetail', {
+        id: data.mc_id,
+        data: {
+          id: data.mc_id,
+          request_id: data.request_id,
+          mata_pelajaran: mapel,
+          tingkat_kelas: kelas,
+          topik: topik.trim(),
+          jumlah_soal: jml,
+          tingkat_kesulitan: kesulitan,
+          include_kunci: includeKunci,
+          questions_json: data.data?.questions ?? [],
+        },
+      });
     } catch (e) {
       setError('Tidak dapat terhubung ke server. Pastikan backend berjalan.');
     } finally { setLoading(false); }
-  }
-
-  function copyAll() {
-    const text = questions.map(q => {
-      const pilihan = Object.entries(q.pilihan ?? {}).map(([k, v]) => `   ${k}. ${v}`).join('\n');
-      const kunci = q.kunci ? `\nJawaban: ${q.kunci}` : '';
-      const bahas = q.pembahasan ? `\nPembahasan: ${q.pembahasan}` : '';
-      return `${q.no}. ${q.soal}\n${pilihan}${kunci}${bahas}`;
-    }).join('\n\n');
-    Clipboard.setString(text);
-    Alert.alert('Tersalin!', 'Semua soal berhasil disalin.');
-  }
-
-  async function handleDownloadPDF(withKunci) {
-    if (!mcId) { Alert.alert('Error', 'ID soal tidak ditemukan.'); return; }
-    setDownloading(true);
-    setShowPdfModal(false);
-    const filename = `Soal_${topik.replace(/\s+/g, '_')}_${withKunci ? 'dengan_kunci' : 'tanpa_kunci'}.pdf`;
-    await downloadWithToken(`${API_URL}/assessment/print/${mcId}`, token, filename);
-    setDownloading(false);
   }
 
   return (
@@ -419,105 +424,19 @@ function MultipleChoiceForm() {
           <Text style={mcS.errorText}>{error}</Text>
         </View>
       ) : null}
-
-      {/* Output */}
-      {questions.length > 0 && (
-        <View style={mcS.resultWrap}>
-          <View style={mcS.resultHeader}>
-            <View>
-              <Text style={mcS.resultTitle}>📋 Hasil Soal</Text>
-              <Text style={mcS.resultSub}>{questions.length} soal · {mapel} Kelas {kelas}</Text>
-            </View>
-          </View>
-
-          {/* Action buttons: Copy | Cetak PDF | Simpan */}
-          <View style={mcS.actionRow}>
-            <TouchableOpacity style={mcS.actionBtn} onPress={copyAll}>
-              <Ionicons name="copy-outline" size={16} color={C.primary} />
-              <Text style={mcS.actionBtnText}>Copy</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={mcS.actionBtn}
-              onPress={() => setShowPdfModal(true)}
-              disabled={downloading}
-            >
-              {downloading
-                ? <ActivityIndicator size="small" color={C.primary} />
-                : <Ionicons name="print-outline" size={16} color={C.primary} />
-              }
-              <Text style={mcS.actionBtnText}>Cetak PDF</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[mcS.actionBtn, mcS.actionBtnSave]}
-              onPress={() => Alert.alert('Tersimpan! ✅', 'Soal sudah otomatis tersimpan ke Dokumen Saya saat generate.')}
-            >
-              <Ionicons name="bookmark" size={16} color="#fff" />
-              <Text style={[mcS.actionBtnText, { color: '#fff' }]}>Simpan</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Modal pilihan PDF */}
-          {showPdfModal && (
-            <View style={mcS.pdfModal}>
-              <Text style={mcS.pdfModalTitle}>📥 Pilih versi PDF:</Text>
-              <TouchableOpacity style={[mcS.pdfBtn, { backgroundColor: C.primary }]} onPress={() => handleDownloadPDF(true)}>
-                <Ionicons name="key" size={16} color="#fff" />
-                <Text style={mcS.pdfBtnText}>Dengan Kunci Jawaban</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[mcS.pdfBtn, { backgroundColor: C.gold }]} onPress={() => handleDownloadPDF(false)}>
-                <Ionicons name="document-outline" size={16} color={C.goldFg} />
-                <Text style={[mcS.pdfBtnText, { color: C.goldFg }]}>Tanpa Kunci Jawaban</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowPdfModal(false)}>
-                <Text style={mcS.pdfCancelText}>Batal</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {questions.map((q, idx) => (
-            <View key={idx} style={mcS.qCard}>
-              <View style={mcS.qHeader}>
-                <View style={mcS.noBadge}><Text style={mcS.noText}>{q.no}</Text></View>
-                <Text style={mcS.soalText}>{q.soal}</Text>
-              </View>
-              <View style={mcS.pilihanList}>
-                {Object.entries(q.pilihan ?? {}).map(([key, val]) => {
-                  const isKunci = includeKunci && q.kunci === key;
-                  return (
-                    <View key={key} style={[mcS.pilihanRow, isKunci && mcS.pilihanKunci]}>
-                      <View style={[mcS.pilihanKey, isKunci && mcS.pilihanKeyActive]}>
-                        <Text style={[mcS.pilihanKeyText, isKunci && { color: '#fff' }]}>{key}</Text>
-                      </View>
-                      <Text style={[mcS.pilihanVal, isKunci && { color: C.primary, fontWeight: '600' }]}>{val}</Text>
-                      {isKunci && <Ionicons name="checkmark-circle" size={16} color={C.primary} />}
-                    </View>
-                  );
-                })}
-              </View>
-              {includeKunci && q.pembahasan ? (
-                <View style={mcS.pembahasanBox}>
-                  <Text style={mcS.pembahasanLabel}>💡 Pembahasan</Text>
-                  <Text style={mcS.pembahasanText}>{q.pembahasan}</Text>
-                </View>
-              ) : null}
-            </View>
-          ))}
-        </View>
-      )}
     </>
   );
 }
 
-function RubricForm() {
+function RubricForm({ navigation }) {
   const { token } = useAuth();
+  const { addNotification } = useNotifications();
   const [tugas, setTugas] = useState('');
   const [aspek, setAspek] = useState('');
   const [skala, setSkala] = useState('1-4');
   const [tpKd, setTpKd] = useState('');
   const [deskripsi, setDeskripsi] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [rubricId, setRubricId] = useState(null);
-  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
 
   const SKALA = ['1-4', '1-10', '1-100'];
@@ -528,7 +447,7 @@ function RubricForm() {
     const aspekArray = aspek.split(',').map(a => a.trim()).filter(Boolean);
     if (aspekArray.length === 0) { Alert.alert('Input Tidak Valid', 'Pisahkan aspek dengan koma.'); return; }
 
-    setLoading(true); setResult(null); setError(''); setRubricId(null);
+    setLoading(true); setError('');
     try {
       const res = await fetch(`${API_URL}/generate`, {
         method: 'POST',
@@ -543,21 +462,31 @@ function RubricForm() {
       });
       const data = await res.json();
       if (!data.success) { setError(data.message ?? 'Gagal generate rubrik.'); return; }
-      let rj = data.data?.rubric;
-      if (typeof rj === 'string') rj = JSON.parse(rj);
-      setResult({ rubricId: data.data?.rubic_id, rubric: rj, tp: data.data?.tujuan_pembelajaran });
-      setRubricId(data.data?.rubic_id ?? null);
+
+      // ── Notifikasi generate berhasil ──
+      addNotification({
+        title: 'Rubrik Berhasil Dibuat 📊',
+        message: `Rubrik penilaian "${tugas.trim()}" dengan ${aspekArray.length} aspek (skala ${skala}) berhasil digenerate.`,
+        type: 'success',
+        icon: 'bar-chart',
+      });
+
+      // ── Navigasi ke halaman detail setelah generate berhasil ──
+      navigation.navigate('RubricDetail', {
+        id: data.data?.rubic_id,
+        data: {
+          id: data.data?.rubic_id,
+          request_id: data.data?.request_id,
+          jenis_tugas: tugas.trim(),
+          aspek_penilaian: aspekArray,
+          skala_nilai: skala,
+          tujuan_pembelajaran: data.data?.tujuan_pembelajaran || tpKd.trim() || null,
+          rubric_json: data.data?.rubric ?? {},
+        },
+      });
     } catch {
       setError('Tidak dapat terhubung ke server. Pastikan backend berjalan.');
     } finally { setLoading(false); }
-  }
-
-  async function handleExportExcel() {
-    if (!rubricId) { Alert.alert('Error', 'ID rubrik tidak ditemukan.'); return; }
-    setExporting(true);
-    const filename = `Rubrik_${tugas.replace(/\s+/g, '_')}.xlsx`;
-    await downloadWithToken(`${API_URL}/rubrics/${rubricId}/export-excel`, token, filename);
-    setExporting(false);
   }
 
   return (
@@ -565,7 +494,7 @@ function RubricForm() {
       <Field label="Jenis Tugas / Aktivitas *">
         <TextF value={tugas} onChangeText={setTugas} placeholder="cth. Presentasi kelompok, Proyek, Esai" />
       </Field>
-      <Field label="Aspek Penilaian * (pisahkan dengan koma)">
+      <Field label="Aspek Penilaian (pisahkan dengan koma) *">
         <TextF value={aspek} onChangeText={setAspek} placeholder="cth. Isi, Penyampaian, Kerja Sama" multiline />
       </Field>
       <Field label="Skala Nilai *">
@@ -586,82 +515,11 @@ function RubricForm() {
       </TouchableOpacity>
 
       {error ? (
-        <View style={rubricS.errorBox}>
+        <View style={mcS.errorBox}>
           <Ionicons name="alert-circle" size={16} color="#dc2626" />
-          <Text style={rubricS.errorText}>{error}</Text>
+          <Text style={mcS.errorText}>{error}</Text>
         </View>
       ) : null}
-
-      {result && (
-        <View style={rubricS.resultWrap}>
-          <View style={rubricS.resultHeader}>
-            <View>
-              <Text style={rubricS.resultTitle}>📊 Rubrik Berhasil Dibuat</Text>
-              <Text style={rubricS.resultSub}>{result.rubric?.judul ?? tugas}</Text>
-            </View>
-          </View>
-
-          {/* Action buttons: Copy | Export Excel | Simpan */}
-          <View style={mcS.actionRow}>
-            <TouchableOpacity style={mcS.actionBtn} onPress={() => {
-              const text = (result.rubric?.aspek ?? []).map(a =>
-                `${a.nama} (${a.bobot}%)\n` +
-                (a.level ?? []).map(l => `  ${l.nama} (${l.skor}): ${l.deskripsi}`).join('\n')
-              ).join('\n\n');
-              Clipboard.setString(text);
-              Alert.alert('Tersalin!', 'Rubrik berhasil disalin.');
-            }}>
-              <Ionicons name="copy-outline" size={16} color={C.primary} />
-              <Text style={mcS.actionBtnText}>Copy</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={mcS.actionBtn}
-              onPress={handleExportExcel}
-              disabled={exporting || !rubricId}
-            >
-              {exporting
-                ? <ActivityIndicator size="small" color={C.primary} />
-                : <Ionicons name="download-outline" size={16} color={C.primary} />
-              }
-              <Text style={mcS.actionBtnText}>Export Excel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[mcS.actionBtn, mcS.actionBtnSave]}
-              onPress={() => Alert.alert('Tersimpan! ✅', 'Rubrik sudah otomatis tersimpan ke Dokumen Saya saat generate.')}
-            >
-              <Ionicons name="bookmark" size={16} color="#fff" />
-              <Text style={[mcS.actionBtnText, { color: '#fff' }]}>Simpan</Text>
-            </TouchableOpacity>
-          </View>
-          {result.tp ? (
-            <View style={rubricS.tpBox}>
-              <Text style={rubricS.tpLabel}>🎯 Tujuan Pembelajaran</Text>
-              <Text style={rubricS.tpText}>{result.tp}</Text>
-            </View>
-          ) : null}
-          {(result.rubric?.aspek ?? []).map((a, idx) => (
-            <View key={idx} style={rubricS.aspekCard}>
-              <View style={rubricS.aspekHeader}>
-                <Text style={rubricS.aspekNama}>{a.nama}</Text>
-                <View style={rubricS.bobotBadge}>
-                  <Text style={rubricS.bobotText}>{a.bobot}%</Text>
-                </View>
-              </View>
-              {(a.level ?? []).map((lv, li) => (
-                <View key={li} style={rubricS.levelRow}>
-                  <View style={rubricS.levelHeader}>
-                    <Text style={rubricS.levelNama}>{lv.nama}</Text>
-                    <View style={rubricS.skorBadge}>
-                      <Text style={rubricS.skorText}>{lv.skor}</Text>
-                    </View>
-                  </View>
-                  <Text style={rubricS.levelDesc}>{lv.deskripsi}</Text>
-                </View>
-              ))}
-            </View>
-          ))}
-        </View>
-      )}
     </>
   );
 }
@@ -735,20 +593,179 @@ function SyllabusForm() {
   );
 }
 
-function UnitPlanForm() {
-  const [mapel, setMapel] = useState(MAPEL[0]);
-  const [kelas, setKelas] = useState(KELAS[0]);
-  const [kurikulum, setKurikulum] = useState(KURIKULUM[0]);
-  const [topik, setTopik] = useState('');
-  const { loading, result, generate } = useTool('unit-plan');
+function UnitPlanForm({ navigation }) {
+  const { token } = useAuth();
+  const [judulUnit, setJudulUnit] = useState('');
+  const [mataPelajaran, setMataPelajaran] = useState(MAPEL[0]);
+  const [tingkatKelas, setTingkatKelas] = useState(KELAS[0]);
+  const [tujuanPembelajaran, setTujuanPembelajaran] = useState('');
+  const [jumlahPertemuan, setJumlahPertemuan] = useState('2');
+  const [durasiPerJp, setDurasiPerJp] = useState('40');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleGenerate() {
+    if (!judulUnit.trim()) {
+      Alert.alert('Input Kurang', 'Judul Unit/Materi wajib diisi.');
+      return;
+    }
+    const pertemuan = parseInt(jumlahPertemuan);
+    const durasi = parseInt(durasiPerJp);
+    if (isNaN(pertemuan) || pertemuan < 1 || pertemuan > 20) {
+      Alert.alert('Input Tidak Valid', 'Jumlah pertemuan antara 1–20.');
+      return;
+    }
+    if (isNaN(durasi) || durasi < 30 || durasi > 120) {
+      Alert.alert('Input Tidak Valid', 'Durasi per JP antara 30–120 menit.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/unit-plan/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          judul_unit: judulUnit.trim(),
+          mata_pelajaran: mataPelajaran,
+          tingkat_kelas: tingkatKelas,
+          tujuan_pembelajaran: tujuanPembelajaran.trim() || null,
+          jumlah_pertemuan: pertemuan,
+          durasi_per_jp: durasi,
+        }),
+      });
+      const data = await res.json();
+      
+      console.log('[UnitPlan] Generate response:', {
+        success: data.success,
+        id: data.data?.id,
+        request_id: data.request_id,
+        created_at: data.data?.created_at,
+        has_unit_plan_json: !!data.data?.unit_plan_json,
+        full_response: data,
+      });
+      
+      if (!data.success) {
+        setError(data.message ?? 'Gagal generate Unit Plan.');
+        return;
+      }
+
+      // ── Navigasi ke halaman detail setelah generate berhasil ──
+      try {
+        console.log('[UnitPlan] Navigating to UnitPlanDetail...');
+        
+        // Simplified navigation - langsung ke MyDocs
+        Alert.alert(
+          'Berhasil! 🎉',
+          'RPP berhasil dibuat dan tersimpan.',
+          [
+            {
+              text: 'Lihat di Dokumen',
+              onPress: () => navigation.navigate('MyDocs'),
+            },
+            { text: 'OK', onPress: () => navigation.goBack() },
+          ]
+        );
+      } catch (navError) {
+        console.error('[UnitPlan] Navigation error:', navError);
+        Alert.alert(
+          'Berhasil Generate!',
+          'RPP berhasil dibuat. Silakan cek di halaman Dokumen.',
+          [
+            {
+              text: 'Lihat Dokumen',
+              onPress: () => navigation.navigate('MyDocs'),
+            },
+            { text: 'OK' },
+          ]
+        );
+      }
+    } catch (e) {
+      console.error('UnitPlan generate error:', e);
+      setError('Tidak dapat terhubung ke server. Pastikan backend berjalan.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <>
-      <Field label="Mata Pelajaran"><SelectF options={MAPEL} value={mapel} onSelect={setMapel} /></Field>
-      <Field label="Kelas"><SelectF options={KELAS} value={kelas} onSelect={setKelas} /></Field>
-      <Field label="Kurikulum"><SelectF options={KURIKULUM} value={kurikulum} onSelect={setKurikulum} /></Field>
-      <Field label="Topik / Sub-bab"><TextF value={topik} onChangeText={setTopik} placeholder="cth. Thaharah" /></Field>
-      <GenerateBtn loading={loading} onPress={() => generate({ mapel, kelas, kurikulum, topik })} />
-      <ResultBox text={result} onCopy={() => Alert.alert('Tersalin!')} />
+      <Field label="Judul Unit / Materi *">
+        <TextF
+          value={judulUnit}
+          onChangeText={setJudulUnit}
+          placeholder="cth. Thaharah dan Bersuci"
+        />
+      </Field>
+      <Field label="Mata Pelajaran *">
+        <SelectF options={MAPEL} value={mataPelajaran} onSelect={setMataPelajaran} />
+      </Field>
+      <Field label="Kelas *">
+        <SelectF options={KELAS} value={tingkatKelas} onSelect={setTingkatKelas} />
+      </Field>
+      <Field label="Tujuan Pembelajaran">
+        <TextF
+          value={tujuanPembelajaran}
+          onChangeText={setTujuanPembelajaran}
+          placeholder="cth. Peserta didik mampu memahami ketentuan thaharah"
+          multiline
+        />
+      </Field>
+      <View style={mcS.row}>
+        <View style={{ flex: 1 }}>
+          <Field label="Jumlah Pertemuan *">
+            <TextInput
+              style={styles.input}
+              value={jumlahPertemuan}
+              onChangeText={setJumlahPertemuan}
+              keyboardType="numeric"
+              placeholder="2"
+              placeholderTextColor={C.mutedLight}
+            />
+          </Field>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Field label="Durasi per JP (menit) *">
+            <TextInput
+              style={styles.input}
+              value={durasiPerJp}
+              onChangeText={setDurasiPerJp}
+              keyboardType="numeric"
+              placeholder="40"
+              placeholderTextColor={C.mutedLight}
+            />
+          </Field>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.generateBtn, loading && { opacity: 0.7 }]}
+        onPress={handleGenerate}
+        disabled={loading}
+      >
+        {loading ? (
+          <>
+            <ActivityIndicator color="#fff" size="small" />
+            <Text style={styles.generateBtnText}>Sedang generate RPP...</Text>
+          </>
+        ) : (
+          <>
+            <Ionicons name="sparkles" size={18} color="#fff" />
+            <Text style={styles.generateBtnText}>Generate RPP</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      {error ? (
+        <View style={mcS.errorBox}>
+          <Ionicons name="alert-circle" size={16} color="#dc2626" />
+          <Text style={mcS.errorText}>{error}</Text>
+        </View>
+      ) : null}
     </>
   );
 }
@@ -812,7 +829,7 @@ export default function ToolPageScreen({ route, navigation }) {
 
       {/* Form card */}
       <View style={[styles.formCard, S.shadow]}>
-        <ToolForm />
+        <ToolForm navigation={navigation} />
       </View>
     </ScrollView>
   );

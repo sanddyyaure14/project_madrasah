@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import RatingFeedback from "@/components/RatingFeedback";
 
 const JENIS_KONTEN_OPTIONS = [
   { label: "Rangkuman Materi", value: "ringkasan", icon: "📋", desc: "Poin-poin terstruktur" },
@@ -15,7 +16,7 @@ const MAPEL_SUGGESTIONS = [
   "Fiqih", "Akidah Akhlak", "Al-Qur'an Hadis", "Bahasa Arab",
   "SKI", "Matematika", "IPA Terpadu", "Bahasa Indonesia",
 ];
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 // ── Komponen render tiap tipe ──────────────────────────────────────────────
 
@@ -229,7 +230,7 @@ function RenderKamus({ data }) {
 
       {istilahList.length === 0 && (
         <div className="text-center text-gray-400 text-xs py-6">
-          Tidak ada istilah yang cocok dengan "{search}"
+          Tidak ada istilah yang cocok dengan &quot;{search}&quot;
         </div>
       )}
     </div>
@@ -256,7 +257,8 @@ export default function AcademicContentPage() {
   const [activeJenis, setActiveJenis] = useState(null); // tipe saat generate dilakukan
   const [contentId, setContentId] = useState(null);
   const [error, setError] = useState("");
-  const [downloading, setDownloading] = useState(false);
+  const [downloading, setDownloading]     = useState(false);
+  const [downloadingDocx, setDownloadingDocx] = useState(false);
 
   const handleGenerate = async (e) => {
     e.preventDefault();
@@ -288,7 +290,7 @@ export default function AcademicContentPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "Gagal generate konten.");
       setResult(json.data?.content_json || json.data);
-      setContentId(json.data?.id || null);
+      setContentId(json.data?.request_id || json.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -314,6 +316,24 @@ export default function AcademicContentPage() {
     finally { setDownloading(false); }
   }
 
+  async function handleDownloadDocx() {
+    if (!contentId) return;
+    setDownloadingDocx(true);
+    try {
+      const token = sessionStorage.getItem("accessToken");
+      const res = await fetch(`${API_URL}/api/academic-content/download/${contentId}/docx`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Gagal mengunduh DOCX");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `konten_${contentId}.docx`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) { alert("Gagal unduh DOCX: " + err.message); }
+    finally { setDownloadingDocx(false); }
+  }
+
   function handleReset() { setResult(null); setContentId(null); setError(""); }
 
   const meta = JENIS_META[activeJenis] || JENIS_META.penjelasan;
@@ -334,9 +354,11 @@ export default function AcademicContentPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ===== FORM ===== */}
-        <form onSubmit={handleGenerate} className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5 h-fit">
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+          <div className="flex-1 overflow-y-auto">
+            <form onSubmit={handleGenerate} className="p-6 space-y-5">
 
           {/* Topik */}
           <div>
@@ -423,14 +445,17 @@ export default function AcademicContentPage() {
               <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Menyusun via Groq AI...</>
             ) : <>✦ Generate {JENIS_KONTEN_OPTIONS.find(o => o.value === jenisKonten)?.label}</>}
           </button>
-        </form>
+            </form>
+          </div>
+        </div>
 
         {/* ===== PREVIEW ===== */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="lg:col-span-7 flex flex-col gap-4">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {result ? (
-            <div className="h-full flex flex-col">
+            <div className="h-full flex flex-col min-h-0">
               {/* Toolbar */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50 shrink-0">
                 <div className="flex items-center gap-2">
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${meta.color}`}>
                     {meta.icon} {meta.label}
@@ -441,6 +466,12 @@ export default function AcademicContentPage() {
                     <button type="button" onClick={handleDownloadPDF} disabled={downloading}
                       className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-1.5 rounded-lg transition disabled:opacity-60">
                       {downloading ? "Mengunduh..." : "⬇️ Unduh PDF"}
+                    </button>
+                  )}
+                  {contentId && (
+                    <button type="button" onClick={handleDownloadDocx} disabled={downloadingDocx}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 px-3 py-1.5 rounded-lg transition disabled:opacity-60">
+                      {downloadingDocx ? "Mengunduh..." : "📄 Unduh DOCX"}
                     </button>
                   )}
                   <button type="button" onClick={handleReset}
@@ -489,7 +520,7 @@ export default function AcademicContentPage() {
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-72 flex flex-col items-center justify-center text-gray-400 text-xs gap-3 p-8">
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs gap-3 p-8">
               <span className="text-5xl">{JENIS_KONTEN_OPTIONS.find(o => o.value === jenisKonten)?.icon || "🎓"}</span>
               <p className="font-medium text-gray-500">
                 {JENIS_KONTEN_OPTIONS.find(o => o.value === jenisKonten)?.label} akan tampil di sini
@@ -497,6 +528,12 @@ export default function AcademicContentPage() {
               <p className="text-gray-300 text-center">Isi form di sebelah kiri lalu klik Generate</p>
             </div>
           )}
+        </div>
+
+        {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
+        {result && contentId && (
+          <RatingFeedback requestId={contentId} featureLabel="konten akademik" />
+        )}
         </div>
       </div>
     </div>

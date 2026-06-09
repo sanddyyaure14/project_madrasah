@@ -3,6 +3,8 @@
  * In-app notification system — no database, no native modules required
  * Stored in-memory during app session (resets on app restart)
  *
+ * Notifikasi di-scope per userId agar akun yang berbeda tidak tercampur.
+ *
  * Notification types:
  *   success  — hijau
  *   info     — biru/primary
@@ -10,35 +12,64 @@
  *   error    — merah
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { useAuth } from './auth';
 
 const MAX_NOTIFICATIONS = 50;
 
 const NotificationContext = createContext(null);
 
+// Notif default per user baru (hanya ditampilkan sekali)
+function makeWelcomeNotif() {
+  return {
+    id: 'welcome-' + Math.random().toString(36).slice(2),
+    title: 'Selamat datang di MadrasahAI 👋',
+    message: 'Mulai generate soal, LKS, silabus, dan konten akademik dengan AI.',
+    type: 'info',
+    icon: 'sparkles',
+    read: false,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 // ─────────────────────────────────────────────
 // Provider
 // ─────────────────────────────────────────────
 export function NotificationProvider({ children }) {
-  const [notifications, setNotifications] = useState([
-    // Notifikasi selamat datang default
-    {
-      id: 'welcome-1',
-      title: 'Selamat datang di MadrasahAI 👋',
-      message: 'Mulai generate soal, LKS, silabus, dan konten akademik dengan AI.',
-      type: 'info',
-      icon: 'sparkles',
-      read: false,
-      createdAt: new Date().toISOString(),
-    },
-  ]);
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
 
+  // Map: userId → notif[]
+  // Setiap user punya list-nya sendiri, disimpan selama session aktif
+  const [store, setStore] = useState({});
+
+  // Ambil notif milik user aktif
+  const notifications = store[userId] ?? [];
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  /**
-   * Tambah notifikasi baru
-   */
+  // Saat userId berubah (login/logout/ganti akun), pastikan user baru
+  // mendapat notif selamat datang jika belum pernah ada notif
+  useEffect(() => {
+    if (!userId) return;
+    setStore(prev => {
+      if (prev[userId]) return prev; // sudah ada data → tidak overwrite
+      return { ...prev, [userId]: [makeWelcomeNotif()] };
+    });
+  }, [userId]);
+
+  // Helper setter untuk user aktif saja
+  const setNotifs = useCallback((updater) => {
+    setStore(prev => ({
+      ...prev,
+      [userId]: typeof updater === 'function'
+        ? updater(prev[userId] ?? [])
+        : updater,
+    }));
+  }, [userId]);
+
+  /** Tambah notifikasi baru — hanya masuk ke akun yang sedang login */
   const addNotification = useCallback(({ title, message, type = 'info', icon }) => {
+    if (!userId) return;
     const newNotif = {
       id: Date.now().toString() + Math.random().toString(36).slice(2),
       title,
@@ -48,29 +79,28 @@ export function NotificationProvider({ children }) {
       read: false,
       createdAt: new Date().toISOString(),
     };
-
-    setNotifications(prev => [newNotif, ...prev].slice(0, MAX_NOTIFICATIONS));
-  }, []);
+    setNotifs(prev => [newNotif, ...prev].slice(0, MAX_NOTIFICATIONS));
+  }, [userId, setNotifs]);
 
   /** Tandai satu notifikasi sebagai sudah dibaca */
   const markAsRead = useCallback((id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  }, []);
+    setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  }, [setNotifs]);
 
   /** Tandai semua sebagai sudah dibaca */
   const markAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  }, []);
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+  }, [setNotifs]);
 
   /** Hapus satu notifikasi */
   const deleteNotification = useCallback((id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  }, []);
+    setNotifs(prev => prev.filter(n => n.id !== id));
+  }, [setNotifs]);
 
-  /** Hapus semua notifikasi */
+  /** Hapus semua notifikasi milik user aktif */
   const clearAll = useCallback(() => {
-    setNotifications([]);
-  }, []);
+    setNotifs([]);
+  }, [setNotifs]);
 
   return (
     <NotificationContext.Provider value={{
@@ -89,6 +119,39 @@ export function NotificationProvider({ children }) {
 
 export function useNotifications() {
   return useContext(NotificationContext);
+}
+
+// ─────────────────────────────────────────────
+// Hook: Pending Approvals (kepsek)
+// Poll jumlah guru pending dari backend setiap 30 detik
+// ─────────────────────────────────────────────
+export function usePendingApprovals({ token, apiUrl, enabled = true }) {
+  const [pendingCount, setPendingCount] = useState(0);
+  const intervalRef = useRef(null);
+
+  const fetchCount = useCallback(async () => {
+    if (!token || !enabled) return;
+    try {
+      const res = await fetch(`${apiUrl}/kepsek/pending-teachers`, {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPendingCount((data.data ?? []).length);
+      }
+    } catch {
+      // Silently fail — badge bukan fitur kritikal
+    }
+  }, [token, apiUrl, enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    fetchCount();
+    intervalRef.current = setInterval(fetchCount, 30000); // poll tiap 30 detik
+    return () => clearInterval(intervalRef.current);
+  }, [fetchCount, enabled]);
+
+  return { pendingCount, refetch: fetchCount };
 }
 
 // ─────────────────────────────────────────────

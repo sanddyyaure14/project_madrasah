@@ -24,17 +24,28 @@ const kepsekRoutes = require('./routes/dashboard/kepsek/kepsekRoutes');
 // Guru Routes (Profile, Dashboard, Dokumen Saya)
 const guruRoutes = require('./routes/dashboard/guru/guruRoutes');
 
+// Feedback Routes (Rating + Komentar hasil generate)
+const feedbackRoutes = require('./routes/feedbackRoutes');
+
 // Error Handlers
 const contentErrorHandler = require('./middlewares/content/contentErrorHandler');
+
+// Scheduler: auto-reset kuota bulanan
+require('./scheduler');
 
 // INISIALISASI APP & PORT
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+app.use(cors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors());
 
 // --- ROUTES ---
 
@@ -46,6 +57,9 @@ app.use('/api', kepsekRoutes);
 
 // Guru Route (Profile, Dashboard, Dokumen Saya — dilindungi verifyToken + authorizeRoles)
 app.use('/api', guruRoutes);
+
+// Feedback Route (Rating + Komentar — dilindungi verifyToken)
+app.use('/api', feedbackRoutes);
 
 // Assessment (dilindungi verifyToken + authorizeRoles di dalam routenya)
 app.use('/api', mcRoutes);

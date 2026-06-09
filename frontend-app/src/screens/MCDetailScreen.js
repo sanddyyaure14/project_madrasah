@@ -10,18 +10,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, TextInput, Modal,
+  ActivityIndicator, Alert, TextInput, Modal, Linking, Clipboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import { downloadAsync, documentDirectory } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useAuth, API_URL } from '../lib/auth';
 import { C, S } from '../lib/theme';
+import FeedbackRating from '../components/FeedbackRating';
+import { useNotifications } from '../lib/notifications';
 
 async function downloadWithToken(url, token, filename) {
   try {
-    const localUri = FileSystem.documentDirectory + filename;
-    const result = await FileSystem.downloadAsync(url, localUri, {
+    const localUri = documentDirectory + filename;
+    const result = await downloadAsync(url, localUri, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (result.status !== 200) { Alert.alert('Gagal', 'Server menolak permintaan download.'); return; }
@@ -36,6 +38,21 @@ async function downloadWithToken(url, token, filename) {
     }
   } catch (e) {
     Alert.alert('Error', 'Gagal download: ' + e.message);
+  }
+}
+
+// ─── Buka PDF di browser (mirip pola WorksheetDetailScreen) ─────────────────
+async function openPDFInBrowser(url, token) {
+  const urlWithToken = `${url}&token=${token}`;
+  const supported = await Linking.canOpenURL(urlWithToken);
+  if (supported) {
+    await Linking.openURL(urlWithToken);
+  } else {
+    Clipboard.setString(url);
+    Alert.alert(
+      'Tidak bisa buka browser',
+      'URL PDF sudah disalin ke clipboard. Buka di browser dan tambahkan header Authorization Bearer.',
+    );
   }
 }
 
@@ -66,16 +83,21 @@ function EditModal({ visible, question, onClose, onSave }) {
   const [kunci, setKunci] = useState('');
   const [pembahasan, setPembahasan] = useState('');
 
+  // Populate ulang setiap kali modal dibuka (visible=true) dengan data question terbaru
   useEffect(() => {
-    if (question) {
+    if (visible && question) {
       setSoal(question.soal ?? '');
-      setPilihan({ ...question.pilihan });
+      // Pastikan pilihan selalu objek valid
+      const pilihanData = question.pilihan && typeof question.pilihan === 'object'
+        ? { ...question.pilihan }
+        : {};
+      setPilihan(pilihanData);
       setKunci(question.kunci ?? '');
       setPembahasan(question.pembahasan ?? '');
     }
-  }, [question]);
+  }, [visible, question]);
 
-  if (!question) return null;
+  if (!visible || !question) return null;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -88,7 +110,7 @@ function EditModal({ visible, question, onClose, onSave }) {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 8 }} showsVerticalScrollIndicator={false}>
             {/* Teks soal */}
             <Text style={em.label}>Teks Soal</Text>
             <TextInput
@@ -114,8 +136,8 @@ function EditModal({ visible, question, onClose, onSave }) {
               </View>
             ))}
 
-            {/* Kunci */}
-            {kunci !== undefined && kunci !== '' && (
+            {/* Kunci — tampilkan hanya jika soal memang punya kunci */}
+            {question.kunci !== undefined && Object.keys(pilihan).length > 0 && (
               <>
                 <Text style={em.label}>Kunci Jawaban</Text>
                 <View style={em.kunciRow}>
@@ -132,8 +154,8 @@ function EditModal({ visible, question, onClose, onSave }) {
               </>
             )}
 
-            {/* Pembahasan */}
-            {pembahasan !== undefined && (
+            {/* Pembahasan — tampilkan hanya jika soal memang punya pembahasan */}
+            {question.pembahasan !== undefined && (
               <>
                 <Text style={em.label}>Pembahasan</Text>
                 <TextInput
@@ -166,7 +188,7 @@ const em = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: C.card, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 20, maxHeight: '92%',
+    padding: 20, height: '92%', flex: 1,
   },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   title: { fontSize: 17, fontWeight: '700', color: C.ink },
@@ -249,19 +271,25 @@ const dm = StyleSheet.create({
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function MCDetailScreen({ route, navigation }) {
-  const { id } = route.params;
+  const { id, data: initialData } = route.params;
   const { token } = useAuth();
+  const { addNotification } = useNotifications();
 
-  const [assessment, setAssessment] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [assessment, setAssessment] = useState(initialData ?? null);
+  const [questions, setQuestions] = useState(initialData?.questions_json ?? []);
+  const [loading, setLoading] = useState(!initialData); // jika ada data awal, skip loading
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [editQuestion, setEditQuestion] = useState(null);
   const [showDownload, setShowDownload] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  useEffect(() => { fetchDetail(); }, [id]);
+  useEffect(() => {
+    // Jika tidak ada data awal, fetch dari server
+    if (!initialData) {
+      fetchDetail();
+    }
+  }, [id]);
 
   async function fetchDetail() {
     setLoading(true);
@@ -297,13 +325,33 @@ export default function MCDetailScreen({ route, navigation }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ questions }),
       });
+
+      // Cek apakah response JSON atau bukan
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        Alert.alert('Gagal', `Server error (${res.status}). Pastikan backend berjalan.`);
+        return;
+      }
+
       const data = await res.json();
       if (data.success) {
-        Alert.alert('Tersimpan', 'Perubahan soal berhasil disimpan.');
+        Alert.alert('Tersimpan ✅', 'Perubahan soal berhasil disimpan.');
+        addNotification({
+          title: 'Soal PG Diperbarui 📝',
+          message: `Perubahan pada soal ${assessment?.mata_pelajaran} — "${assessment?.topik}" berhasil disimpan.`,
+          type: 'success',
+          icon: 'checkmark-circle',
+        });
         setHasChanges(false);
-      } else Alert.alert('Gagal', data.message);
-    } catch { Alert.alert('Error', 'Tidak dapat terhubung ke server.'); }
-    finally { setSaving(false); }
+        setAssessment(prev => ({ ...prev, jumlah_soal: questions.length }));
+      } else {
+        Alert.alert('Gagal', data.message || 'Gagal menyimpan perubahan.');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Tidak dapat terhubung ke server.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleDelete() {
@@ -326,11 +374,14 @@ export default function MCDetailScreen({ route, navigation }) {
   }
 
   async function handleDownload(withKunci) {
-    setDownloading(true);
     setShowDownload(false);
-    const filename = `Soal_${assessment?.topik?.replace(/\s+/g, '_') ?? 'MC'}_${withKunci ? 'kunci' : 'tanpa_kunci'}.pdf`;
-    await downloadWithToken(`${API_URL}/assessment/print/${id}`, token, filename);
-    setDownloading(false);
+    setDownloading(true);
+    try {
+      const url = `${API_URL}/assessment/print/${id}?with_kunci=${withKunci ? 'true' : 'false'}`;
+      await openPDFInBrowser(url, token);
+    } finally {
+      setDownloading(false);
+    }
   }
 
   if (loading) {
@@ -379,10 +430,34 @@ export default function MCDetailScreen({ route, navigation }) {
 
         {/* Action bar */}
         <View style={styles.actionBar}>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionBtnSave]}
+            onPress={() => {
+              addNotification({
+                title: 'Soal PG Tersimpan 📝',
+                message: `${assessment?.jumlah_soal} soal ${assessment?.mata_pelajaran} — "${assessment?.topik}" tersimpan di Dokumen Saya.`,
+                type: 'info',
+                icon: 'bookmark',
+              });
+              Alert.alert(
+                'Tersimpan ✅',
+                'Soal ini sudah tersimpan di Dokumen Saya. Kamu bisa menemukannya di tab Dokumen.',
+                [
+                  { text: 'Lihat Dokumen', onPress: () => navigation.navigate('Dokumen') },
+                  { text: 'OK', style: 'cancel' },
+                ]
+              );
+            }}
+          >
+            <Ionicons name="bookmark" size={18} color="#fff" />
+            <Text style={[styles.actionBtnText, { color: '#fff' }]}>Simpan</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.actionBtn} onPress={() => setShowDownload(true)}>
             <Ionicons name="download-outline" size={18} color={C.primary} />
             <Text style={styles.actionBtnText}>Download PDF</Text>
           </TouchableOpacity>
+
           {hasChanges && (
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: C.primary, borderColor: C.primary }]}
@@ -448,6 +523,15 @@ export default function MCDetailScreen({ route, navigation }) {
             ) : null}
           </View>
         ))}
+        <View style={{ height: 8 }} />
+
+        {/* Rating & Feedback AI */}
+        <Text style={styles.sectionTitle}>Nilai Hasil Generate</Text>
+        <FeedbackRating
+          requestId={assessment?.request_id}
+          endpoint="mc"
+        />
+
         <View style={{ height: 32 }} />
       </ScrollView>
 
@@ -502,6 +586,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 10, backgroundColor: C.card,
   },
   actionBtnDanger: { borderColor: '#fca5a5', backgroundColor: '#fff5f5' },
+  actionBtnSave: { backgroundColor: C.primary, borderColor: C.primary },
   actionBtnText: { fontSize: 13, fontWeight: '600', color: C.ink },
 
   sectionTitle: { fontSize: 15, fontWeight: '700', color: C.ink },

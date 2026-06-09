@@ -212,8 +212,8 @@ PENTING:
 const getAllWorksheets = async (req, res) => {
     try {
         const finalUserId = req.user.id;
-        const isKepsek = req.user.role === 'kepala_sekolah';
-        const worksheets = await WorksheetModel.getAllWorksheets(finalUserId, isKepsek);
+        // Selalu filter by userId — kepsek hanya lihat dokumen miliknya sendiri
+        const worksheets = await WorksheetModel.getAllWorksheets(finalUserId, false);
 
         res.status(200).json({
             success: true,

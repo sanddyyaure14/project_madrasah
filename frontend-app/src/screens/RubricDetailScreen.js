@@ -6,18 +6,20 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, TextInput, Modal,
+  ActivityIndicator, Alert, TextInput, Modal, Linking, Clipboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import { downloadAsync, documentDirectory } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useAuth, API_URL } from '../lib/auth';
 import { C, S } from '../lib/theme';
+import FeedbackRating from '../components/FeedbackRating';
+import { useNotifications } from '../lib/notifications';
 
 async function downloadWithToken(url, token, filename) {
   try {
-    const localUri = FileSystem.documentDirectory + filename;
-    const result = await FileSystem.downloadAsync(url, localUri, {
+    const localUri = documentDirectory + filename;
+    const result = await downloadAsync(url, localUri, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (result.status !== 200) { Alert.alert('Gagal', 'Server menolak permintaan download.'); return; }
@@ -34,6 +36,21 @@ async function downloadWithToken(url, token, filename) {
     Alert.alert('Error', 'Gagal download: ' + e.message);
   }
 }
+// ─── Buka file di browser (mirip pola WorksheetDetailScreen) ────────────────
+async function openFileInBrowser(url, token) {
+  const urlWithToken = `${url}?token=${token}`;
+  const supported = await Linking.canOpenURL(urlWithToken);
+  if (supported) {
+    await Linking.openURL(urlWithToken);
+  } else {
+    Clipboard.setString(url);
+    Alert.alert(
+      'Tidak bisa buka browser',
+      'URL sudah disalin ke clipboard. Buka di browser dan tambahkan header Authorization Bearer.',
+    );
+  }
+}
+
 
 // ─── Badge Skala ──────────────────────────────────────────────────────────────
 function BadgeSkala({ skala }) {
@@ -124,18 +141,30 @@ const em = StyleSheet.create({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function RubricDetailScreen({ route, navigation }) {
-  const { id } = route.params;
+  const { id, data: initialData } = route.params;
   const { token } = useAuth();
+  const { addNotification } = useNotifications();
 
-  const [rubric, setRubric] = useState(null);
-  const [aspekList, setAspekList] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [rubric, setRubric]       = useState(initialData ?? null);
+  const [aspekList, setAspekList] = useState(() => {
+    if (!initialData?.rubric_json) return [];
+    let rj = initialData.rubric_json;
+    if (typeof rj === 'string') rj = JSON.parse(rj);
+    const rubricData = rj?.rubric ?? rj;
+    return rubricData?.aspek ?? [];
+  });
+  const [loading, setLoading]     = useState(!initialData);
+  const [saving, setSaving]       = useState(false);
   const [exporting, setExporting] = useState(false);
   const [editAspek, setEditAspek] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
 
-  useEffect(() => { fetchDetail(); }, [id]);
+  useEffect(() => {
+    // Jika tidak ada data awal, fetch dari server
+    if (!initialData) {
+      fetchDetail();
+    }
+  }, [id]);
 
   async function fetchDetail() {
     setLoading(true);
@@ -191,6 +220,12 @@ export default function RubricDetailScreen({ route, navigation }) {
       const data = await res.json();
       if (data.success) {
         Alert.alert('Tersimpan', 'Perubahan rubrik berhasil disimpan.');
+        addNotification({
+          title: 'Rubrik Diperbarui 📊',
+          message: `Perubahan pada rubrik "${rubric?.jenis_tugas}" berhasil disimpan.`,
+          type: 'success',
+          icon: 'checkmark-circle',
+        });
         setHasChanges(false);
       } else Alert.alert('Gagal', data.message);
     } catch { Alert.alert('Error', 'Tidak dapat terhubung ke server.'); }
@@ -217,10 +252,16 @@ export default function RubricDetailScreen({ route, navigation }) {
   }
 
   async function handleExportExcel() {
+    if (!rubric?.id) {
+      Alert.alert('Error', 'Data rubrik belum termuat. Silakan tunggu atau coba lagi.');
+      return;
+    }
     setExporting(true);
-    const filename = `Rubrik_${rubric?.jenis_tugas?.replace(/\s+/g, '_') ?? 'rubrik'}.xlsx`;
-    await downloadWithToken(`${API_URL}/rubrics/${id}/export-excel`, token, filename);
-    setExporting(false);
+    try {
+      await openFileInBrowser(`${API_URL}/rubrics/${id}/export-excel`, token);
+    } finally {
+      setExporting(false);
+    }
   }
 
   if (loading) {
@@ -278,6 +319,29 @@ export default function RubricDetailScreen({ route, navigation }) {
 
         {/* Action bar */}
         <View style={styles.actionBar}>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionBtnSave]}
+            onPress={() => {
+              addNotification({
+                title: 'Rubrik Tersimpan 📊',
+                message: `Rubrik "${rubric?.jenis_tugas}" dengan ${aspekList.length} aspek tersimpan di Dokumen Saya.`,
+                type: 'info',
+                icon: 'bookmark',
+              });
+              Alert.alert(
+                'Tersimpan ✅',
+                'Rubrik ini sudah tersimpan di Dokumen Saya.',
+                [
+                  { text: 'Lihat Dokumen', onPress: () => navigation.navigate('Dokumen') },
+                  { text: 'OK', style: 'cancel' },
+                ]
+              );
+            }}
+          >
+            <Ionicons name="bookmark" size={18} color="#fff" />
+            <Text style={[styles.actionBtnText, { color: '#fff' }]}>Simpan</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.actionBtn} onPress={handleExportExcel} disabled={exporting}>
             {exporting
               ? <ActivityIndicator size="small" color={C.primary} />
@@ -292,7 +356,7 @@ export default function RubricDetailScreen({ route, navigation }) {
               disabled={saving}
             >
               {saving ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="save-outline" size={18} color="#fff" />}
-              <Text style={[styles.actionBtnText, { color: '#fff' }]}>Simpan</Text>
+              <Text style={[styles.actionBtnText, { color: '#fff' }]}>Simpan Perubahan</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger]} onPress={handleDelete}>
@@ -335,6 +399,15 @@ export default function RubricDetailScreen({ route, navigation }) {
           </View>
         ))}
 
+        <View style={{ height: 8 }} />
+
+        {/* Rating & Feedback AI */}
+        <Text style={styles.sectionTitle}>Nilai Hasil Generate</Text>
+        <FeedbackRating
+          requestId={rubric?.request_id}
+          endpoint="rubric"
+        />
+
         <View style={{ height: 32 }} />
       </ScrollView>
 
@@ -372,6 +445,7 @@ const styles = StyleSheet.create({
   actionBar: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: C.card },
   actionBtnDanger: { borderColor: '#fca5a5', backgroundColor: '#fff5f5' },
+  actionBtnSave: { backgroundColor: C.primary, borderColor: C.primary },
   actionBtnText: { fontSize: 13, fontWeight: '600', color: C.ink },
 
   sectionTitle: { fontSize: 15, fontWeight: '700', color: C.ink },

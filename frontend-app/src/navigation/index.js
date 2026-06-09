@@ -1,9 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth';
 import { C } from '../lib/theme';
+
+// Custom header title dengan logo
+function HeaderLogo() {
+  return (
+    <View style={headerStyles.row}>
+      <Image
+        source={require('../../assets/images/logo.png')}
+        style={headerStyles.logo}
+        resizeMode="contain"
+      />
+      <Text style={headerStyles.title}>MadrasahAI</Text>
+    </View>
+  );
+}
+
+const headerStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logo: { width: 36, height: 36, borderRadius: 8 },
+  title: { fontSize: 17, fontWeight: '700', color: C.ink },
+});
 
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -21,9 +42,14 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import KepsekEditProfileScreen from '../screens/KepsekEditProfileScreen';
-import { useNotifications } from '../lib/notifications';
+import { useNotifications, usePendingApprovals } from '../lib/notifications';
+import { API_URL } from '../lib/auth';
 import MCDetailScreen from '../screens/MCDetailScreen';
 import RubricDetailScreen from '../screens/RubricDetailScreen';
+import KepsekGenerateStatsScreen from '../screens/KepsekGenerateStatsScreen';
+import KepsekFeedbackStatsScreen from '../screens/KepsekFeedbackStatsScreen';
+import KepsekActivityScreen from '../screens/KepsekActivityScreen';
+import SplashScreen from '../screens/SplashScreen';
 import SyllabusFormScreen from '../screens/SyllabusFormScreen';
 import SyllabusPreviewScreen from '../screens/SyllabusPreviewScreen';
 import AcademicContentFormScreen from '../screens/AcademicContentFormScreen';
@@ -35,11 +61,20 @@ import AcademicContentEditScreen from '../screens/AcademicContentEditScreen';
 import PresentationFormScreen from '../screens/PresentationFormScreen';
 import PresentationPreviewScreen from '../screens/PresentationPreviewScreen';
 import PresentationDetailScreen from '../screens/PresentationDetailScreen';
+import GenerateStatsScreen from '../screens/GenerateStatsScreen';
+import UsageStatsScreen from '../screens/UsageStatsScreen';
+import FeedbackStatsScreen from '../screens/FeedbackStatsScreen';
+import UnitPlanDetailScreen from '../screens/UnitPlanDetailScreen';
+import UnitPlanEditScreen from '../screens/UnitPlanEditScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function SuperAdminTabs() {
+  const { token } = useAuth();
+  const { unreadCount } = useNotifications();
+  const { pendingCount } = usePendingApprovals({ token, apiUrl: API_URL, enabled: true });
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -57,9 +92,25 @@ function SuperAdminTabs() {
     >
       <Tab.Screen name="Dashboard" component={DashboardStack} options={{ headerShown: false }} />
       <Tab.Screen name="Dokumen" component={DocsStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Guru" component={TeachersScreen} options={{ title: 'Daftar Guru' }} />
-      <Tab.Screen name="Persetujuan" component={ApprovalsScreen} options={{ title: 'Persetujuan' }} />
-      <Tab.Screen name="Profil" component={KepsekProfilStack} options={{ headerShown: false }} />
+      <Tab.Screen name="Guru" component={GuruStack} options={{ headerShown: false }} />
+      <Tab.Screen
+        name="Persetujuan"
+        component={ApprovalsScreen}
+        options={{
+          title: 'Persetujuan',
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#dc2626', fontSize: 10 },
+        }}
+      />
+      <Tab.Screen
+        name="Profil"
+        component={KepsekProfilStack}
+        options={{
+          headerShown: false,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#dc2626', fontSize: 10 },
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -115,6 +166,22 @@ function DocsStack() {
       <Stack.Screen name="AcademicContentDetail" component={AcademicContentDetailScreen} options={{ title: 'Detail Konten Akademik' }} />
       <Stack.Screen name="AcademicContentEdit" component={AcademicContentEditScreen} options={{ title: 'Edit Konten Akademik' }} />
       <Stack.Screen name="PresentationDetail" component={PresentationDetailScreen} options={{ title: 'Detail Presentasi' }} />
+      <Stack.Screen name="UnitPlanDetail" component={UnitPlanDetailScreen} options={{ title: 'Detail RPP' }} />
+      <Stack.Screen name="UnitPlanEdit" component={UnitPlanEditScreen} options={{ title: 'Edit RPP' }} />
+    </Stack.Navigator>
+  );
+}
+
+function GuruStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: C.card },
+        headerTitleStyle: { fontSize: 17, fontWeight: '700', color: C.ink },
+        headerTintColor: C.primary,
+      }}
+    >
+      <Stack.Screen name="TeachersList" component={TeachersScreen} options={{ title: 'Daftar Guru' }} />
     </Stack.Navigator>
   );
 }
@@ -162,7 +229,7 @@ function DashboardStack() {
         headerTintColor: C.primary,
       }}
     >
-      <Stack.Screen name="DashboardHome" component={DashboardHomeScreen} options={{ title: 'MadrasahAI' }} />
+      <Stack.Screen name="DashboardHome" component={DashboardHomeScreen} options={{ headerTitle: () => <HeaderLogo /> }} />
       <Stack.Screen
         name="ToolPage"
         component={ToolPageScreen}
@@ -189,6 +256,12 @@ function DashboardStack() {
       <Stack.Screen name="PresentationDetail" component={PresentationDetailScreen} options={{ title: 'Detail Presentasi' }} />
       <Stack.Screen name="Teachers" component={TeachersScreen} options={{ title: 'Daftar Guru' }} />
       <Stack.Screen name="Approvals" component={ApprovalsScreen} options={{ title: 'Persetujuan' }} />
+      <Stack.Screen name="GenerateStats" component={GenerateStatsScreen} options={{ title: 'Statistik Generate' }} />
+      <Stack.Screen name="UsageStats" component={UsageStatsScreen} options={{ title: 'Waktu Penggunaan' }} />
+      <Stack.Screen name="FeedbackStats" component={FeedbackStatsScreen} options={{ title: 'Rating Feedback' }} />
+      <Stack.Screen name="KepsekGenerateStats" component={KepsekGenerateStatsScreen} options={{ title: 'Statistik Generate' }} />
+      <Stack.Screen name="KepsekFeedbackStats" component={KepsekFeedbackStatsScreen} options={{ title: 'Rating Feedback' }} />
+      <Stack.Screen name="KepsekActivity" component={KepsekActivityScreen} options={{ title: 'Semua Aktivitas' }} />
     </Stack.Navigator>
   );
 }
@@ -197,13 +270,19 @@ function AuthStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
 
 export default function RootNavigation() {
   const { user } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
+
+  if (!splashDone) {
+    return <SplashScreen onDone={() => setSplashDone(true)} />;
+  }
+
   if (!user) return <AuthStack />;
   return user.role === 'superadmin' ? <SuperAdminTabs /> : <GuruTabs />;
 }

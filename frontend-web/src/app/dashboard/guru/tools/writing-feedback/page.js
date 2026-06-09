@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import RatingFeedback from "@/components/RatingFeedback";
 
 const KELAS_OPTIONS = ['VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 const JENIS_OPTIONS = ['narasi', 'deskripsi', 'eksposisi', 'argumentasi'];
@@ -100,6 +101,7 @@ export default function WritingFeedbackPage() {
   const [bahasa, setBahasa] = useState('Indonesia');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [writingId, setWritingId] = useState(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -113,12 +115,13 @@ export default function WritingFeedbackPage() {
     setError('');
     setLoading(true);
     setResult(null);
+    setWritingId(null);
 
     try {
       const token = sessionStorage.getItem("accessToken");
       if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login ulang.");
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
       const formData = new FormData();
       formData.append("tulisan_siswa", tulisan.trim());
       formData.append("jenis_tulisan", jenis);
@@ -136,6 +139,7 @@ export default function WritingFeedbackPage() {
       const resData = await response.json();
       if (!response.ok) throw new Error(resData.message || "Gagal memproses feedback.");
       setResult(resData.data);
+      setWritingId(resData.data?.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -152,6 +156,7 @@ export default function WritingFeedbackPage() {
 
   function handleReset() {
     setResult(null);
+    setWritingId(null);
     setError('');
     setTulisan('');
     setNamaSiswa('');
@@ -289,6 +294,7 @@ export default function WritingFeedbackPage() {
         </div>
 
         {/* ===== PREVIEW FEEDBACK ===== */}
+        <div className="flex flex-col gap-4">
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           {result ? (
             <>
@@ -318,7 +324,6 @@ export default function WritingFeedbackPage() {
 
               {/* Feedback Content — scrollable */}
               <div className="flex-1 overflow-y-auto p-6 space-y-5">
-
                 {/* Header skor */}
                 <div className="flex items-start gap-4">
                   <div className="flex-1">
@@ -361,6 +366,11 @@ export default function WritingFeedbackPage() {
           )}
         </div>
 
+        {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
+        {result && writingId && (
+          <RatingFeedback requestId={writingId} featureLabel="writing feedback" />
+        )}
+        </div>
       </div>
     </div>
   );

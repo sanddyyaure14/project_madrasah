@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
+import FeedbackRating from '../components/FeedbackRating';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -201,7 +202,7 @@ export default function FeedbackDetailScreen({ route, navigation }) {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/feedback/${id}`, {
+      const res = await fetch(`${API_URL}/writing-feedback/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
@@ -216,7 +217,7 @@ export default function FeedbackDetailScreen({ route, navigation }) {
 
   async function handleSaveEdit(payload) {
     try {
-      const res = await fetch(`${API_URL}/feedback/edit/${id}`, {
+      const res = await fetch(`${API_URL}/writing-feedback/edit/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -249,7 +250,7 @@ export default function FeedbackDetailScreen({ route, navigation }) {
           onPress: async () => {
             setDeleting(true);
             try {
-              const res = await fetch(`${API_URL}/feedback/delete/${id}`, {
+              const res = await fetch(`${API_URL}/writing-feedback/delete/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` },
               });
@@ -277,7 +278,7 @@ export default function FeedbackDetailScreen({ route, navigation }) {
     const text = buildDownloadText(data);
     Clipboard.setString(text);
     Alert.alert(
-      'Download / Salin',
+      'Tersalin!',
       'Teks laporan lengkap telah disalin ke clipboard. Tempel di WhatsApp, email, atau dokumen.',
       [{ text: 'OK' }]
     );
@@ -374,8 +375,8 @@ export default function FeedbackDetailScreen({ route, navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionBtn} onPress={handleDownload}>
-            <Ionicons name="download-outline" size={17} color={C.primary} />
-            <Text style={styles.actionBtnText}>Download</Text>
+            <Ionicons name="copy-outline" size={17} color={C.primary} />
+            <Text style={styles.actionBtnText}>Copy</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.actionBtn, styles.actionBtnWA]} onPress={handleKirim}>
@@ -440,6 +441,13 @@ export default function FeedbackDetailScreen({ route, navigation }) {
             <Text style={styles.tulisanText}>{data.tulisan_siswa}</Text>
           </View>
         ) : null}
+
+        {/* Rating & Feedback AI */}
+        <Text style={styles.tulisanTitle}>Nilai Hasil Generate</Text>
+        <FeedbackRating
+          requestId={data.request_id}
+          endpoint="writing"
+        />
 
       </ScrollView>
 

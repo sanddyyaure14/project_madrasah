@@ -78,18 +78,120 @@ router.post('/generate/writing-feedback',
 // =========================================================================
 
 // 2. READ ALL (Diletakkan paling atas agar tidak bentrok dengan parameter :id)
-router.get('/feedback', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getAllFeedback);
+router.get('/writing-feedback', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getAllFeedback);
 
 // Rute Share Text WA 
-router.get('/feedback/share/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), getFeedbackShareText);
+router.get('/writing-feedback/share/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), getFeedbackShareText);
 
-// 3. READ BY ID (Alur 2 - Langkah 4: Tampilkan Output / Ambil data dari library)
-router.get('/feedback/:id', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getFeedbackById);
+// 3. READ BY ID
+router.get('/writing-feedback/:id', verifyToken, authorizeRoles('guru', 'kepsek', 'kepala_sekolah', 'admin'), getFeedbackById);
 
-// 4. UPDATE (Alur 2 - Langkah 4: Edit jika perlu & Simpan kembali ke library)
-router.put('/feedback/edit/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), updateFeedback);
+// 4. UPDATE
+router.put('/writing-feedback/edit/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), updateFeedback);
 
 // 5. DELETE
-router.delete('/feedback/delete/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), deleteFeedback);
+router.delete('/writing-feedback/delete/:id', verifyToken, authorizeRoles('guru', 'kepala_sekolah'), deleteFeedback);
+
+// ── Rating / Feedback untuk hasil generate writing ───────────────────────────
+const db = require('../../config/db');
+const { v4: uuidv4 } = require('uuid');
+
+// POST /api/feedback/writing/:requestId — kirim rating & komentar
+router.post('/feedback/writing/:requestId', verifyToken, async (req, res) => {
+    const { requestId } = req.params;
+    const { rating, komentar, is_helpful } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ success: false, message: 'Rating harus antara 1 sampai 5.' });
+    }
+
+    try {
+        const existing = await db.query(
+            'SELECT id FROM user_feedback WHERE request_id = $1 AND user_id = $2',
+            [requestId, req.user.id]
+        );
+
+        if (existing.rows.length > 0) {
+            await db.query(
+                'UPDATE user_feedback SET rating = $1, komentar = $2, is_helpful = $3 WHERE request_id = $4 AND user_id = $5',
+                [rating, komentar || null, is_helpful ?? null, requestId, req.user.id]
+            );
+            return res.json({ success: true, message: 'Feedback berhasil diperbarui.' });
+        }
+
+        await db.query(
+            'INSERT INTO user_feedback (id, request_id, user_id, rating, komentar, is_helpful) VALUES ($1, $2, $3, $4, $5, $6)',
+            [uuidv4(), requestId, req.user.id, rating, komentar || null, is_helpful ?? null]
+        );
+        return res.json({ success: true, message: 'Terima kasih atas feedback-mu!' });
+    } catch (e) {
+        console.error('Error simpan feedback Writing:', e);
+        return res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// GET /api/feedback/writing/:requestId — ambil feedback yang sudah dikirim
+router.get('/feedback/writing/:requestId', verifyToken, async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            'SELECT rating, komentar, is_helpful FROM user_feedback WHERE request_id = $1 AND user_id = $2',
+            [req.params.requestId, req.user.id]
+        );
+        return res.json({ success: true, data: rows[0] ?? null });
+    } catch (e) {
+        return res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// ── Rating / Feedback untuk hasil generate WORKSHEET ─────────────────────────
+// Dipasang di sini (/api) agar URL konsisten: /api/feedback/worksheet/:requestId
+// Sama dengan pattern MC (/api/feedback/mc/:id) dan Rubric (/api/feedback/rubric/:id)
+
+// POST /api/feedback/worksheet/:requestId — kirim rating & komentar
+router.post('/feedback/worksheet/:requestId', verifyToken, async (req, res) => {
+    const { requestId } = req.params;
+    const { rating, komentar, is_helpful } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ success: false, message: 'Rating harus antara 1 sampai 5.' });
+    }
+
+    try {
+        const existing = await db.query(
+            'SELECT id FROM user_feedback WHERE request_id = $1 AND user_id = $2',
+            [requestId, req.user.id]
+        );
+
+        if (existing.rows.length > 0) {
+            await db.query(
+                'UPDATE user_feedback SET rating = $1, komentar = $2, is_helpful = $3 WHERE request_id = $4 AND user_id = $5',
+                [rating, komentar || null, is_helpful ?? null, requestId, req.user.id]
+            );
+            return res.json({ success: true, message: 'Feedback berhasil diperbarui.' });
+        }
+
+        await db.query(
+            'INSERT INTO user_feedback (id, request_id, user_id, rating, komentar, is_helpful) VALUES ($1, $2, $3, $4, $5, $6)',
+            [uuidv4(), requestId, req.user.id, rating, komentar || null, is_helpful ?? null]
+        );
+        return res.json({ success: true, message: 'Terima kasih atas feedback-mu!' });
+    } catch (e) {
+        console.error('Error simpan feedback Worksheet:', e);
+        return res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// GET /api/feedback/worksheet/:requestId — ambil feedback yang sudah dikirim
+router.get('/feedback/worksheet/:requestId', verifyToken, async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            'SELECT rating, komentar, is_helpful FROM user_feedback WHERE request_id = $1 AND user_id = $2',
+            [req.params.requestId, req.user.id]
+        );
+        return res.json({ success: true, data: rows[0] ?? null });
+    } catch (e) {
+        return res.status(500).json({ success: false, message: e.message });
+    }
+});
 
 module.exports = router;
