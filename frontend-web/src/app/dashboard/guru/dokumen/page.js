@@ -190,7 +190,7 @@ const DELETE_URL = (type, id) => {
     case "rubric":       return `/rubrics/${id}`;
     case "syllabus":     return `/syllabus/${id}`;
     case "academic":     return `/academic-content/${id}`;
-    case "feedback":     return `/feedback/delete/${id}`;
+    case "feedback":     return `/writing-feedback/delete/${id}`;
     case "presentation": return `/presentation/${id}`;
     case "unit_plan":    return `/unit-plan/${id}`;
     default:             return null;
@@ -205,7 +205,7 @@ const DETAIL_URL = (type, id) => {
     case "rubric":       return `/rubrics/${id}`;
     case "syllabus":     return `/syllabus/${id}`;
     case "academic":     return `/academic-content/${id}`;
-    case "feedback":     return `/feedback/${id}`;
+    case "feedback":     return `/writing-feedback/${id}`;
     case "presentation": return `/presentation/${id}`;
     case "unit_plan":    return `/unit-plan/${id}`;
     default:             return null;
@@ -220,7 +220,7 @@ const UPDATE_URL = (type, id) => {
     case "rubric":       return `/rubrics/${id}`;
     case "syllabus":     return `/syllabus/${id}`;
     case "academic":     return `/academic-content/${id}`;
-    case "feedback":     return `/feedback/edit/${id}`;
+    case "feedback":     return `/writing-feedback/edit/${id}`;
     case "presentation": return `/presentation/${id}`;
     case "unit_plan":    return `/unit-plan/${id}`;
     default:             return null;
