@@ -123,7 +123,7 @@ router.post('/feedback/writing/:requestId', verifyToken, async (req, res) => {
             'INSERT INTO user_feedback (id, request_id, user_id, rating, komentar, is_helpful) VALUES ($1, $2, $3, $4, $5, $6)',
             [uuidv4(), requestId, req.user.id, rating, komentar || null, is_helpful ?? null]
         );
-        return res.json({ success: true, message: 'Terima kasih atas feedback-mu!' });
+        return res.json({ success: true, message: 'Terima kasih atas feedback-mu!', data: { request_id: requestId, rating, komentar: komentar || null, is_helpful: is_helpful ?? null } });
     } catch (e) {
         console.error('Error simpan feedback Writing:', e);
         return res.status(500).json({ success: false, message: e.message });
@@ -163,18 +163,20 @@ router.post('/feedback/worksheet/:requestId', verifyToken, async (req, res) => {
         );
 
         if (existing.rows.length > 0) {
-            await db.query(
-                'UPDATE user_feedback SET rating = $1, komentar = $2, is_helpful = $3 WHERE request_id = $4 AND user_id = $5',
+            // Update existing feedback
+            console.log('[FeedbackRoute] Updating existing feedback');
+            const updateResult = await db.query(
+                'UPDATE user_feedback SET rating = $1, komentar = $2, is_helpful = $3 WHERE request_id = $4 AND user_id = $5 RETURNING *',
                 [rating, komentar || null, is_helpful ?? null, requestId, req.user.id]
             );
-            return res.json({ success: true, message: 'Feedback berhasil diperbarui.' });
+            return res.json({ success: true, message: 'Feedback berhasil diperbarui.', data: updateResult.rows[0] });
         }
 
         await db.query(
             'INSERT INTO user_feedback (id, request_id, user_id, rating, komentar, is_helpful) VALUES ($1, $2, $3, $4, $5, $6)',
             [uuidv4(), requestId, req.user.id, rating, komentar || null, is_helpful ?? null]
         );
-        return res.json({ success: true, message: 'Terima kasih atas feedback-mu!' });
+        return res.json({ success: true, message: 'Terima kasih atas feedback-mu!', data: { request_id: requestId, rating, komentar: komentar || null, is_helpful: is_helpful ?? null } });
     } catch (e) {
         console.error('Error simpan feedback Worksheet:', e);
         return res.status(500).json({ success: false, message: e.message });
