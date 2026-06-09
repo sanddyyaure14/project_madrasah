@@ -58,6 +58,7 @@ export default function WorksheetGeneratorPage() {
       if (!response.ok) throw new Error(resData.message || "Gagal membuat worksheet.");
       setLks(resData.data?.worksheet);
       setWorksheetId(resData.data?.request_id || null);
+
     } catch (err) {
       setError(err.message);
     } finally {
