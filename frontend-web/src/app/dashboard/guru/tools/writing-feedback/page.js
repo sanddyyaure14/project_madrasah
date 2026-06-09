@@ -311,7 +311,7 @@ export default function WritingFeedbackPage() {
                   </button>
                   <button type="button" onClick={handleReset}
                     className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 transition">
-                    ✕ Baru
+                    ✕ Hapus
                   </button>
                 </div>
               </div>

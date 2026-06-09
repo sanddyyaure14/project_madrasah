@@ -233,13 +233,9 @@ export default function WorksheetGeneratorPage() {
                     className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-1.5 rounded-lg transition">
                     ⬇️ Unduh PDF
                   </button>
-                  <button type="button" onClick={() => window.print()}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 px-3 py-1.5 rounded-lg transition print:hidden">
-                    🖨️ Print
-                  </button>
                   <button type="button" onClick={handleReset}
                     className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 transition">
-                    ✕ Baru
+                    ✕ Hapus
                   </button>
                 </div>
               </div>
