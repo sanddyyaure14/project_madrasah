@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
 import { useAuth, API_URL } from '../lib/auth';
+import FeedbackRating from '../components/FeedbackRating';
 
 const JENIS_LABEL = {
   penjelasan: 'Materi Pembelajaran',
@@ -332,6 +333,13 @@ export default function AcademicContentDetailScreen({ route, navigation }) {
             <Ionicons name="document-text-outline" size={16} color={C.primary} />
             <Text style={styles.exportBtnText}>Export PDF</Text>
           </TouchableOpacity>
+
+          {/* Rating & Feedback AI */}
+          <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Nilai Hasil Generate</Text>
+          <FeedbackRating
+            requestId={data?.request_id}
+            endpoint="academic"
+          />
         </View>
       </ScrollView>
 
