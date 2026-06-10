@@ -130,7 +130,9 @@ export default function MultipleChoicePage() {
           <div className="flex-1 overflow-y-auto">
             <form onSubmit={handleGenerate} className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Mata Pelajaran *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
+                  Mata Pelajaran <span className="text-red-500">*</span>
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {["Akidah Akhlak", "Al-Qur'an Hadis", "Fiqih", "SKI", "Bahasa Arab", "Matematika", "IPA", "IPS", "Bahasa Indonesia"].map((m) => (
                     <button key={m} type="button" onClick={() => setFormData({...formData, mata_pelajaran: m})}
@@ -142,7 +144,9 @@ export default function MultipleChoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Kelas *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
+                  Kelas <span className="text-red-500">*</span>
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {["VII", "VIII", "IX", "X", "XI", "XII"].map((k) => (
                     <button key={k} type="button" onClick={() => setFormData({...formData, tingkat_kelas: k})}
@@ -154,21 +158,27 @@ export default function MultipleChoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Topik / Materi *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                  Topik / Materi <span className="text-red-500">*</span>
+                </label>
                 <textarea rows="3" required placeholder="cth. Thaharah, Wudhu..." className="w-full text-sm p-3 border border-gray-200 rounded-lg" 
                   onChange={(e) => setFormData({ ...formData, topik: e.target.value })} />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jumlah Soal *</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                    Jumlah Soal <span className="text-red-500">*</span>
+                  </label>
                   <input type="number" value={formData.jumlah_soal} className="w-full text-sm p-2 border border-gray-200 rounded-lg" 
                     onChange={(e) => setFormData({ ...formData, jumlah_soal: e.target.value })} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kesulitan *</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                    Kesulitan <span className="text-red-500">*</span>
+                  </label>
                   <div className="flex gap-2">
-                    {["mudah", "sedang"].map((lvl) => (
+                    {["mudah", "sedang", "sulit"].map((lvl) => (
                       <button key={lvl} type="button" onClick={() => setFormData({...formData, tingkat_kesulitan: lvl})}
                         className={`flex-1 py-2 rounded-full text-xs capitalize border ${formData.tingkat_kesulitan.toLowerCase() === lvl ? 'bg-[#006747] text-white' : 'bg-white border-gray-200'}`}>
                         {lvl}

@@ -129,7 +129,9 @@ export default function RubricGeneratorPage() {
           <div className="flex-1 overflow-y-auto">
             <form onSubmit={handleGenerate} className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jenis Tugas / Aktivitas *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                  Jenis Tugas / Aktivitas <span className="text-red-500">*</span>
+                </label>
                 <input 
                   className="w-full text-sm p-3 border border-gray-200 rounded-lg" 
                   placeholder="Contoh: Presentasi Kelompok"
@@ -140,7 +142,9 @@ export default function RubricGeneratorPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tujuan pembelajaran *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                  Tujuan pembelajaran <span className="text-red-500">*</span>
+                </label>
                 <input 
                   className="w-full text-sm p-3 border border-gray-200 rounded-lg" 
                   placeholder="Masukkan Tujuan Pembelajaran"
@@ -151,7 +155,9 @@ export default function RubricGeneratorPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Aspek Penilaian * (Pisahkan dengan koma)</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                  Aspek Penilaian <span className="text-red-500">*</span> (Pisahkan dengan koma)
+                </label>
                 <textarea 
                   rows="3"
                   className="w-full text-sm p-3 border border-gray-200 rounded-lg" 
@@ -163,7 +169,9 @@ export default function RubricGeneratorPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Skala Nilai *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
+                  Skala Nilai <span className="text-red-500">*</span>
+                </label>
                 <div className="flex gap-2">
                   {["1-4", "1-10", "1-100"].map(s => (
                     <button 
