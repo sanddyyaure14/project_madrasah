@@ -28,7 +28,7 @@ export default function RegisterPage() {
   useEffect(() => {
     const fetchInstitutions = async () => {
       try {
-        const res = await fetch("http://20.5.27.127:3000/api/auth/institutions");
+        const res = await fetch("http://127.0.0.1:3000/api/auth/institutions");
         const data = await res.json();
         if (data.success) {
           setInstitutions(data.data);
@@ -85,7 +85,7 @@ export default function RegisterPage() {
     setErrorMsg("");
 
     try {
-      const res = await fetch("http://20.5.27.127:3000/api/auth/register", {
+      const res = await fetch("http://127.0.0.1:3000/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

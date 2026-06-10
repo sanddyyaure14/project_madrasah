@@ -7,7 +7,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     // Fetch live summary data
-    fetch("http://20.5.27.127:3000/api/kepsek/dashboard/summary")
+    fetch("http://127.0.0.1:3000/api/kepsek/dashboard/summary")
       .then(res => res.json())
       .then(data => {
         if(data.success) setSummary(data.data);
