@@ -131,8 +131,11 @@ export default function SyllabusEditScreen({ route, navigation }) {
           {
             text: 'OK',
             onPress: () => {
-              // Navigate ke Dokumen tab — MyDocs useFocusEffect auto re-fetch
-              navigation.navigate('Dokumen');
+              navigation.navigate({
+                name: 'SyllabusDetail',
+                params: { id: id, updatedJson: updatedJson },
+                merge: true,
+              });
             },
           },
         ]);
