@@ -1931,7 +1931,9 @@ function FeedbackDetail({ doc, onDelete, onEdit }) {
   const borderColor = skor >= 80 ? "border-emerald-500" : skor >= 65 ? "border-amber-400" : "border-red-400";
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      {/* Konten scroll internal */}
+      <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
       {/* Score header */}
       <div className="flex items-start gap-4">
         <div className="flex-1">
@@ -1990,6 +1992,7 @@ function FeedbackDetail({ doc, onDelete, onEdit }) {
           })}
         </div>
       )}
+      </div>
 
       {/* Action buttons */}
       <div className="flex gap-2 pt-1 border-t border-gray-100">
@@ -2009,16 +2012,10 @@ function FeedbackDetail({ doc, onDelete, onEdit }) {
 
       {/* Edit & Delete */}
       <div className="flex gap-2">
-        <button
-          onClick={onEdit}
-          className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-xl hover:bg-gray-50 transition"
-        >
+        <button onClick={onEdit} className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-xl hover:bg-gray-50 transition">
           Edit
         </button>
-        <button
-          onClick={onDelete}
-          className="flex-1 flex items-center justify-center gap-1.5 border border-red-200 text-red-500 text-sm font-semibold py-2 rounded-xl hover:bg-red-50 transition"
-        >
+        <button onClick={onDelete} className="flex-1 flex items-center justify-center gap-1.5 border border-red-200 text-red-500 text-sm font-semibold py-2 rounded-xl hover:bg-red-50 transition">
           Hapus
         </button>
       </div>
