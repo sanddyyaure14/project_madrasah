@@ -114,6 +114,13 @@ export default function AcademicContentDetailScreen({ route, navigation }) {
 
   useEffect(() => { fetchDetail(); }, [id]);
 
+  useEffect(() => {
+    if (route.params?.updatedJson) {
+      setData(prev => prev ? { ...prev, content_json: route.params.updatedJson } : prev);
+      navigation.setParams({ updatedJson: undefined });
+    }
+  }, [route.params?.updatedJson]);
+
   async function fetchDetail() {
     setLoading(true);
     try {

@@ -14,9 +14,9 @@ export default function KepsekDashboard() {
     const fetchData = async () => {
       try {
         const [summaryRes, pendingRes] = await Promise.all([
-          fetch("http://127.0.0.1:3000/api/kepsek/dashboard/summary"),
+          fetch("http://20.5.27.127:3000/api/kepsek/dashboard/summary"),
           // Menggunakan dummy instansi_id untuk demo. Pada sistem nyata, ambil dari token JWT / session.
-          fetch("http://127.0.0.1:3000/api/kepsek/pending-teachers?instansi_id=b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a")
+          fetch("http://20.5.27.127:3000/api/kepsek/pending-teachers?instansi_id=b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a")
         ]);
         
         const summaryData = await summaryRes.json();
@@ -41,7 +41,7 @@ export default function KepsekDashboard() {
   const handleReview = async (teacherId, action) => {
     setProcessingId(teacherId);
     try {
-      const res = await fetch("http://127.0.0.1:3000/api/kepsek/review-teacher", {
+      const res = await fetch("http://20.5.27.127:3000/api/kepsek/review-teacher", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
