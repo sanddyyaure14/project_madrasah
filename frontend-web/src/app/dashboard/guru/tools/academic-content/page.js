@@ -255,7 +255,8 @@ export default function AcademicContentPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [activeJenis, setActiveJenis] = useState(null); // tipe saat generate dilakukan
-  const [contentId, setContentId] = useState(null);
+  const [contentId, setContentId] = useState(null); // UUID dari tabel academic_contents (untuk download)
+  const [requestId, setRequestId] = useState(null); // request_id (untuk rating/feedback)
   const [error, setError] = useState("");
   const [downloading, setDownloading]     = useState(false);
   const [downloadingDocx, setDownloadingDocx] = useState(false);
@@ -267,6 +268,7 @@ export default function AcademicContentPage() {
     setLoading(true);
     setResult(null);
     setContentId(null);
+    setRequestId(null);
     setActiveJenis(jenisKonten); // simpan tipe yang dipilih
 
     try {
@@ -290,7 +292,10 @@ export default function AcademicContentPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "Gagal generate konten.");
       setResult(json.data?.content_json || json.data);
-      setContentId(json.data?.request_id || json.request_id || null);
+      // json.data.id = UUID di tabel academic_contents (dipakai untuk download)
+      // json.data.request_id = request_id dari generation_requests (dipakai untuk rating)
+      setContentId(json.data?.id || null);
+      setRequestId(json.data?.request_id || json.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -334,7 +339,7 @@ export default function AcademicContentPage() {
     finally { setDownloadingDocx(false); }
   }
 
-  function handleReset() { setResult(null); setContentId(null); setError(""); }
+  function handleReset() { setResult(null); setContentId(null); setRequestId(null); setError(""); }
 
   const meta = JENIS_META[activeJenis] || JENIS_META.penjelasan;
 
@@ -532,7 +537,7 @@ export default function AcademicContentPage() {
 
         {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
         {result && contentId && (
-          <RatingFeedback requestId={contentId} featureLabel="konten akademik" endpoint="academic" />
+          <RatingFeedback requestId={requestId} featureLabel="konten akademik" endpoint="academic" />
         )}
         </div>
       </div>

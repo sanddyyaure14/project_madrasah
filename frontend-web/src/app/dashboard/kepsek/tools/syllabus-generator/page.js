@@ -29,7 +29,8 @@ export default function KepsekSyllabusGeneratorPage() {
   const [tahunAjaran, setTahunAjaran] = useState("2025/2026");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [syllabusId, setSyllabusId] = useState(null);
+  const [syllabusId, setSyllabusId] = useState(null); // UUID dari tabel syllabi (untuk download)
+  const [requestId, setRequestId] = useState(null); // request_id (untuk rating/feedback)
   const [error, setError] = useState("");
 
   const handleGenerate = async (e) => {
@@ -38,6 +39,7 @@ export default function KepsekSyllabusGeneratorPage() {
     setLoading(true);
     setResult(null);
     setSyllabusId(null);
+    setRequestId(null);
 
     try {
       const token = sessionStorage.getItem("accessToken");
@@ -64,7 +66,10 @@ export default function KepsekSyllabusGeneratorPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "Gagal generate silabus.");
       setResult(json.data?.silabus_json || json.data);
-      setSyllabusId(json.data?.request_id || json.request_id || null);
+      // json.data.id = UUID di tabel syllabi (dipakai untuk download)
+      // json.data.request_id = request_id dari generation_requests (dipakai untuk rating)
+      setSyllabusId(json.data?.id || null);
+      setRequestId(json.data?.request_id || json.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -102,6 +107,7 @@ export default function KepsekSyllabusGeneratorPage() {
   function handleReset() {
     setResult(null);
     setSyllabusId(null);
+    setRequestId(null);
     setError("");
   }
 
@@ -317,8 +323,8 @@ export default function KepsekSyllabusGeneratorPage() {
           </div>
 
           {/* Rating & Feedback — di bawah panel preview, muncul setelah generate */}
-          {result && syllabusId && (
-          <RatingFeedback requestId={syllabusId} featureLabel="silabus" endpoint="syllabus" />
+          {result && requestId && (
+          <RatingFeedback requestId={requestId} featureLabel="silabus" endpoint="syllabus" />
           )}
         </div>
       </div>

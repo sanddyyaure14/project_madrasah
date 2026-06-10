@@ -12,6 +12,9 @@ export default function KepsekSettingsPage() {
   const [email, setEmail]             = useState("");
   const [noHp, setNoHp]               = useState("");
   const [nip, setNip]                 = useState("");
+  const [jenjang, setJenjang]         = useState("");
+  const [kurikulum, setKurikulum]     = useState("");
+  const [namaInstansi, setNamaInstansi] = useState("");
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [savingProfile, setSavingProfile]   = useState(false);
   const [profileMsg, setProfileMsg]         = useState({ type: "", text: "" });
@@ -48,6 +51,9 @@ export default function KepsekSettingsPage() {
           setEmail(d.email || "");
           setNoHp(d.no_hp || "");
           setNip(d.nip || "");
+          setJenjang(d.jenjang || "");
+          setKurikulum(d.kurikulum || "");
+          setNamaInstansi(d.nama_instansi || "");
           // Simpan ke sessionStorage supaya sidebar langsung update
           const stored = JSON.parse(sessionStorage.getItem("user") || "{}");
           sessionStorage.setItem("user", JSON.stringify({ ...stored, ...d }));
@@ -75,13 +81,26 @@ export default function KepsekSettingsPage() {
       const res = await fetch(`${API_URL}/api/kepsek/profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ nama_lengkap: namaLengkap.trim(), no_hp: noHp.trim() || null, nip: nip.trim() || null }),
+        body: JSON.stringify({
+          nama_lengkap: namaLengkap.trim(),
+          no_hp: noHp.trim() || null,
+          nip: nip.trim() || null,
+          jenjang: jenjang || null,
+          kurikulum: kurikulum || null
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "Gagal menyimpan profil.");
       // Update sessionStorage
       const stored = JSON.parse(sessionStorage.getItem("user") || "{}");
-      sessionStorage.setItem("user", JSON.stringify({ ...stored, nama_lengkap: namaLengkap.trim() }));
+      sessionStorage.setItem("user", JSON.stringify({
+        ...stored,
+        nama_lengkap: namaLengkap.trim(),
+        no_hp: noHp.trim() || null,
+        nip: nip.trim() || null,
+        jenjang: jenjang || null,
+        kurikulum: kurikulum || null
+      }));
       setProfileMsg({ type: "success", text: "Profil berhasil diperbarui." });
     } catch (err) {
       setProfileMsg({ type: "error", text: err.message });
@@ -217,6 +236,41 @@ export default function KepsekSettingsPage() {
                     onChange={e => setNip(e.target.value)}
                     placeholder="cth. 198001012005011001"
                     className="w-full px-4 py-2.5 bg-white rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] text-gray-700 mb-2 font-semibold">Jenjang</label>
+                  <select
+                    value={jenjang}
+                    onChange={e => setJenjang(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                  >
+                    <option value="">Pilih Jenjang</option>
+                    <option value="MI">MI (Madrasah Ibtidaiyah)</option>
+                    <option value="MTs">MTs (Madrasah Tsanawiyah)</option>
+                    <option value="MA">MA (Madrasah Aliyah)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-gray-700 mb-2 font-semibold">Kurikulum</label>
+                  <select
+                    value={kurikulum}
+                    onChange={e => setKurikulum(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                  >
+                    <option value="">Pilih Kurikulum</option>
+                    <option value="Merdeka">Kurikulum Merdeka</option>
+                    <option value="K13">Kurikulum 2013 (K13)</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-[13px] text-gray-700 mb-2 font-semibold">Instansi / Madrasah</label>
+                  <input
+                    type="text"
+                    value={namaInstansi}
+                    readOnly
+                    className="w-full px-4 py-2.5 bg-gray-50 text-gray-500 rounded-xl border border-gray-200 text-sm shadow-sm cursor-not-allowed"
+                    placeholder="Belum terhubung ke instansi"
                   />
                 </div>
               </div>

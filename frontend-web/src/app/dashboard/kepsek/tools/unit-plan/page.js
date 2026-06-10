@@ -21,7 +21,8 @@ export default function KepsekUnitPlanPage() {
   const [durasiJP, setDurasiJP] = useState(40);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [unitPlanId, setUnitPlanId] = useState(null);
+  const [unitPlanId, setUnitPlanId] = useState(null); // UUID dari tabel unit_plans (untuk download)
+  const [requestId, setRequestId] = useState(null); // request_id (untuk rating/feedback)
   const [error, setError] = useState("");
 
   const handleGenerate = async (e) => {
@@ -32,6 +33,7 @@ export default function KepsekUnitPlanPage() {
     setLoading(true);
     setResult(null);
     setUnitPlanId(null);
+    setRequestId(null);
 
     try {
       const token = sessionStorage.getItem("accessToken");
@@ -56,7 +58,10 @@ export default function KepsekUnitPlanPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "Gagal generate Unit Plan.");
       setResult(json.data?.unit_plan_json || json.data);
-      setUnitPlanId(json.data?.request_id || json.request_id || null);
+      // json.data.id = UUID di tabel unit_plans (dipakai untuk download)
+      // json.data.request_id = request_id dari generation_requests (dipakai untuk rating)
+      setUnitPlanId(json.data?.id || null);
+      setRequestId(json.data?.request_id || json.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -92,6 +97,7 @@ export default function KepsekUnitPlanPage() {
   function handleReset() {
     setResult(null);
     setUnitPlanId(null);
+    setRequestId(null);
     setError("");
   }
 
@@ -378,8 +384,8 @@ export default function KepsekUnitPlanPage() {
         </div>
 
         {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
-        {result && unitPlanId && (
-          <RatingFeedback requestId={unitPlanId} featureLabel="modul ajar / RPP" endpoint="unit-plan" />
+        {result && requestId && (
+          <RatingFeedback requestId={requestId} featureLabel="modul ajar / RPP" endpoint="unit-plan" />
         )}
         </div>
       </div>

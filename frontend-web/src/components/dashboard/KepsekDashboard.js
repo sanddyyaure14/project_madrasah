@@ -3,45 +3,113 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+
+const getFeatureLabel = (type) => {
+  const map = {
+    'multiple_choice': 'Soal Pilihan Ganda',
+    'rubric': 'Rubrik Penilaian',
+    'writing_feedback': 'Analisis Tulisan',
+    'worksheet': 'Lembar Kerja Siswa',
+    'presentation': 'Materi Presentasi',
+    'syllabus': 'Silabus',
+    'unit_plan': 'Modul Ajar / RPP',
+    'academic_content': 'Materi Ajar'
+  };
+  return map[type] || type;
+};
+
+const getInitials = (name) => {
+  if (!name) return "U";
+  return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+};
+
+const formatRelativeTime = (dateStr) => {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return "Baru saja";
+  if (diffMins < 60) return `${diffMins} menit lalu`;
+  if (diffHours < 24) return `${diffHours} jam lalu`;
+  if (diffDays === 1) return "Kemarin";
+  return date.toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+};
+
+const renderActivityText = (act) => {
+  const name = act.nama_user || "Seseorang";
+  const label = getFeatureLabel(act.feature_type);
+  const topik = act.topik || "";
+  const mapel = act.mata_pelajaran || "";
+  
+  let actionStr = `melakukan generate ${label}`;
+  if (topik && mapel) {
+    actionStr = `membuat ${label} dengan topik "${topik}" untuk mapel ${mapel}`;
+  } else if (topik) {
+    actionStr = `membuat ${label} dengan topik "${topik}"`;
+  } else if (mapel) {
+    actionStr = `membuat ${label} untuk mapel ${mapel}`;
+  }
+
+  return (
+    <p className="text-[13px] text-gray-600 m-0">
+      <strong className="text-gray-900">{name}</strong> {actionStr}
+    </p>
+  );
+};
 
 export default function KepsekDashboard() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
   const [pendingTeachers, setPendingTeachers] = useState([]);
+  const [activeTeachers, setActiveTeachers] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
   const [processingId, setProcessingId] = useState(null);
+
+  const fetchData = async () => {
+    try {
+      const token = sessionStorage.getItem("accessToken");
+      if (!token) return;
+
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const [summaryRes, pendingRes, teachersRes, activityRes] = await Promise.all([
+        fetch(`${API_URL}/api/kepsek/dashboard/summary`, { headers }),
+        fetch(`${API_URL}/api/kepsek/pending-teachers`, { headers }),
+        fetch(`${API_URL}/api/kepsek/guru`, { headers }),
+        fetch(`${API_URL}/api/kepsek/activity/recent`, { headers })
+      ]);
+      
+      const summaryData = await summaryRes.json();
+      const pendingData = await pendingRes.json();
+      const teachersData = await teachersRes.json();
+      const activityData = await activityRes.json();
+
+      if (summaryData.success) {
+        setSummary(summaryData.data);
+      }
+      if (pendingData.success) {
+        setPendingTeachers(pendingData.data);
+      }
+      if (teachersData.success) {
+        setActiveTeachers(teachersData.data);
+      }
+      if (activityData.success) {
+        setRecentActivities(activityData.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Fetch Summary & Pending Teachers on mount
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = sessionStorage.getItem("accessToken");
-        if (!token) return;
-
-        const headers = { Authorization: `Bearer ${token}` };
-
-        const [summaryRes, pendingRes] = await Promise.all([
-          fetch(`${API_URL}/api/kepsek/dashboard/summary`, { headers }),
-          // Menggunakan dummy instansi_id untuk demo. Pada sistem nyata, ambil dari token JWT / session.
-          fetch(`${API_URL}/api/kepsek/pending-teachers?instansi_id=b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a`, { headers })
-        ]);
-        
-        const summaryData = await summaryRes.json();
-        const pendingData = await pendingRes.json();
-
-        if (summaryData.success) {
-          setSummary(summaryData.data);
-        }
-        if (pendingData.success) {
-          setPendingTeachers(pendingData.data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
 
@@ -65,19 +133,8 @@ export default function KepsekDashboard() {
         // Hapus guru yang sudah diapprove/direject dari list
         setPendingTeachers(prev => prev.filter(t => t.id !== teacherId));
         
-        // Update angka summary "Total Guru" jika approve
-        if (action === "approve") {
-          setSummary(prev => {
-            if(!prev) return prev;
-            return {
-              ...prev,
-              informasi_madrasah: {
-                ...prev.informasi_madrasah,
-                total_guru: Number(prev.informasi_madrasah.total_guru) + 1
-              }
-            };
-          });
-        }
+        // Refresh semua data dashboard agar sinkron
+        fetchData();
       } else {
         alert(data.message);
       }
@@ -104,11 +161,21 @@ export default function KepsekDashboard() {
   const rataRataRating = summary?.informasi_madrasah?.rata_rata_rating || 0;
   const totalFeedbackRating = summary?.informasi_madrasah?.total_feedback_rating || 0;
 
-  const myGenerate = summary?.informasi_saya?.total_generate_saya || 0;
+  const myGenerate = summary?.informasi_saya?.dokumen_tersimpan || 0;
   const myMonthlyLimit = summary?.informasi_saya?.monthly_limit_saya || 100;
   const myDocs = summary?.informasi_saya?.dokumen_tersimpan || 0;
   const myRating = summary?.informasi_saya?.rata_rata_feedback || 0;
   const myTotalFeedback = summary?.informasi_saya?.total_feedback_saya || 0;
+
+  const sortedTeachers = [...activeTeachers]
+    .sort((a, b) => (b.total_generate_bulan_ini || 0) - (a.total_generate_bulan_ini || 0))
+    .slice(0, 5);
+
+  const renderMapel = (mapel) => {
+    if (!mapel) return "-";
+    if (Array.isArray(mapel)) return mapel.join(", ");
+    return mapel;
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -165,8 +232,8 @@ export default function KepsekDashboard() {
 
         {/* Kartu 3: Menunggu Persetujuan */}
         <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 flex items-center gap-4">
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center shrink-0">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-50 rounded-xl flex items-center justify-center shrink-0">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
           </div>
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">MENUNGGU PERSETUJUAN</p>
@@ -213,7 +280,7 @@ export default function KepsekDashboard() {
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">GENERATE SAYA</p>
             <div className="flex items-baseline gap-1">
               <h4 className="text-2xl font-serif text-gray-900 m-0">{myGenerate}</h4>
-              <span className="text-lg text-gray-400 font-serif">/ {myMonthlyLimit}</span>
+              <span className="text-lg text-gray-400 font-serif">/ ∞</span>
             </div>
           </div>
         </div>
@@ -287,7 +354,7 @@ export default function KepsekDashboard() {
                     <h4 className="text-[15px] font-semibold text-gray-900 m-0">{teacher.nama_lengkap}</h4>
                   </div>
                   <p className="text-[13px] text-gray-500 m-0">
-                    <span className="font-medium text-gray-700">{teacher.email}</span> · {teacher.mata_pelajaran}
+                    <span className="font-medium text-gray-700">{teacher.email}</span> · {renderMapel(teacher.mata_pelajaran)}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -315,66 +382,48 @@ export default function KepsekDashboard() {
         )}
       </div>
 
-      {/* DOKUMEN & AKTIVITAS (MOCKUP) */}
+      {/* GURU PALING AKTIF & AKTIVITAS TERBARU */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Kolom Kiri: Dokumen */}
+        {/* Kolom Kiri: Guru Paling Aktif */}
         <div className="lg:col-span-2 bg-white p-6 md:p-8 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h3 className="text-lg font-serif text-gray-900 m-0">Menunggu Persetujuan</h3>
-              <p className="text-[13px] text-gray-500 m-0 mt-1">Dokumen yang diajukan guru untuk disetujui.</p>
+              <h3 className="text-lg font-serif text-gray-900 m-0">Guru Paling Aktif</h3>
+              <p className="text-[13px] text-gray-500 m-0 mt-1">Berdasarkan jumlah dokumen yang dihasilkan bulan ini.</p>
             </div>
-            <Link href="/dashboard/kepsek/approvals" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 transition-colors">
-              Lihat semua <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+            <Link href="/dashboard/kepsek/teachers" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 transition-colors">
+              Kelola guru <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
             </Link>
           </div>
-          
-          <div className="space-y-0">
-            {/* Mock Item 1 */}
-            <div className="py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">RPP</span>
-                  <span className="text-xs text-gray-400">Ust. Ahmad Fauzi · Hari ini, 09:12</span>
-                </div>
-                <h4 className="text-[15px] font-medium text-gray-900 m-0">RPP Fiqih Bab Thaharah - Kelas VII</h4>
-              </div>
-              <div className="flex items-center gap-2">
-                <button className="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors">Tolak</button>
-                <button className="px-4 py-2 bg-[#106A43] text-white rounded-lg text-xs font-semibold hover:bg-emerald-800 shadow-sm transition-colors">Setujui</button>
-              </div>
-            </div>
 
-            {/* Mock Item 2 */}
-            <div className="py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="bg-amber-50 text-amber-700 border border-amber-100 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">SOAL</span>
-                  <span className="text-xs text-gray-400">Ustz. Aisyah Nurhaliza · Hari ini, 08:45</span>
-                </div>
-                <h4 className="text-[15px] font-medium text-gray-900 m-0">Soal PG Bahasa Arab — Mufrodat Tema Keluarga</h4>
-              </div>
-              <div className="flex items-center gap-2">
-                <button className="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors">Tolak</button>
-                <button className="px-4 py-2 bg-[#106A43] text-white rounded-lg text-xs font-semibold hover:bg-emerald-800 shadow-sm transition-colors">Setujui</button>
-              </div>
-            </div>
-
-             {/* Mock Item 3 */}
-             <div className="py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">SILABUS</span>
-                  <span className="text-xs text-gray-400">Ust. Hamzah Ibrahim · Kemarin, 16:20</span>
-                </div>
-                <h4 className="text-[15px] font-medium text-gray-900 m-0">Silabus SKI Semester Ganjil Kelas VIII</h4>
-              </div>
-              <div className="flex items-center gap-2">
-                <button className="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors">Tolak</button>
-                <button className="px-4 py-2 bg-[#106A43] text-white rounded-lg text-xs font-semibold hover:bg-emerald-800 shadow-sm transition-colors">Setujui</button>
-              </div>
-            </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">NAMA</th>
+                  <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">MAPEL</th>
+                  <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-center">GENERATE</th>
+                  <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-right">TERAKHIR AKTIF</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {sortedTeachers.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-sm text-gray-400">Belum ada data guru aktif.</td>
+                  </tr>
+                ) : (
+                  sortedTeachers.map((teacher) => (
+                    <tr key={teacher.id}>
+                      <td className="py-4 text-[13px] text-gray-800 font-medium">{teacher.nama_lengkap}</td>
+                      <td className="py-4 text-[13px] text-gray-500">{renderMapel(teacher.mata_pelajaran)}</td>
+                      <td className="py-4 text-[14px] text-gray-900 font-serif text-center">{teacher.total_generate_bulan_ini || 0}</td>
+                      <td className="py-4 text-[12px] text-gray-400 text-right">{teacher.last_login_at ? formatRelativeTime(teacher.last_login_at) : "-"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -386,114 +435,24 @@ export default function KepsekDashboard() {
           </h3>
 
           <div className="space-y-6 relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-100 before:to-transparent">
-            {/* Mock Item 1 */}
-            <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold shrink-0 z-10 border-2 border-white">UA</div>
-                <div>
-                  <p className="text-[13px] text-gray-600 m-0"><strong className="text-gray-900">Ustz. Aisyah</strong> membuat 20 soal PG Bahasa Arab</p>
-                  <p className="text-[11px] text-gray-400 m-0 mt-0.5">12 menit lalu</p>
+            {recentActivities.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-8">Belum ada aktivitas terbaru.</p>
+            ) : (
+              recentActivities.slice(0, 5).map((act) => (
+                <div key={act.request_id} className="relative flex items-center group">
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold shrink-0 z-10 border-2 border-white">
+                      {getInitials(act.nama_user)}
+                    </div>
+                    <div>
+                      {renderActivityText(act)}
+                      <p className="text-[11px] text-gray-400 m-0 mt-0.5">{formatRelativeTime(act.created_at)}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Mock Item 2 */}
-            <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold shrink-0 z-10 border-2 border-white">UA</div>
-                <div>
-                  <p className="text-[13px] text-gray-600 m-0"><strong className="text-gray-900">Ust. Ahmad</strong> menyelesaikan RPP Thaharah</p>
-                  <p className="text-[11px] text-gray-400 m-0 mt-0.5">2 jam lalu</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Mock Item 3 */}
-            <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-[10px] font-bold shrink-0 z-10 border-2 border-white">UY</div>
-                <div>
-                  <p className="text-[13px] text-gray-600 m-0"><strong className="text-gray-900">Ust. Yusuf</strong> generate Silabus Al-Qur'an Hadis</p>
-                  <p className="text-[11px] text-gray-400 m-0 mt-0.5">Kemarin</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Mock Item 4 */}
-            <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-[10px] font-bold shrink-0 z-10 border-2 border-white">UM</div>
-                <div>
-                  <p className="text-[13px] text-gray-600 m-0"><strong className="text-gray-900">Ustz. Maryam</strong> menambah LKS Matematika</p>
-                  <p className="text-[11px] text-gray-400 m-0 mt-0.5">Kemarin</p>
-                </div>
-              </div>
-            </div>
+              ))
+            )}
           </div>
-        </div>
-      </div>
-
-      {/* GURU PALING AKTIF (MOCKUP) */}
-      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h3 className="text-lg font-serif text-gray-900 m-0">Guru Paling Aktif</h3>
-            <p className="text-[13px] text-gray-500 m-0 mt-1">Berdasarkan jumlah dokumen yang dihasilkan bulan ini.</p>
-          </div>
-          <Link href="/dashboard/kepsek/teachers" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 transition-colors">
-            Kelola guru <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-          </Link>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">NAMA</th>
-                <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">MAPEL</th>
-                <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">STATUS</th>
-                <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-center">GENERATE</th>
-                <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-right">TERAKHIR AKTIF</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              <tr>
-                <td className="py-4 text-[13px] text-gray-800 font-medium">Ustz. Aisyah Nurhaliza, S.Pd.</td>
-                <td className="py-4 text-[13px] text-gray-500">Bahasa Arab</td>
-                <td className="py-4"><span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded text-[10px] font-semibold">Aktif</span></td>
-                <td className="py-4 text-[14px] text-gray-900 font-serif text-center">51</td>
-                <td className="py-4 text-[12px] text-gray-400 text-right">12 menit lalu</td>
-              </tr>
-              <tr>
-                <td className="py-4 text-[13px] text-gray-800 font-medium">Ust. Ahmad Fauzi, S.Pd.I.</td>
-                <td className="py-4 text-[13px] text-gray-500">Fiqih</td>
-                <td className="py-4"><span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded text-[10px] font-semibold">Aktif</span></td>
-                <td className="py-4 text-[14px] text-gray-900 font-serif text-center">38</td>
-                <td className="py-4 text-[12px] text-gray-400 text-right">2 jam lalu</td>
-              </tr>
-              <tr>
-                <td className="py-4 text-[13px] text-gray-800 font-medium">Ustz. Maryam Zahra, S.Pd.</td>
-                <td className="py-4 text-[13px] text-gray-500">Matematika</td>
-                <td className="py-4"><span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded text-[10px] font-semibold">Aktif</span></td>
-                <td className="py-4 text-[14px] text-gray-900 font-serif text-center">33</td>
-                <td className="py-4 text-[12px] text-gray-400 text-right">3 jam lalu</td>
-              </tr>
-              <tr>
-                <td className="py-4 text-[13px] text-gray-800 font-medium">Ust. Yusuf Maulana, M.Pd.</td>
-                <td className="py-4 text-[13px] text-gray-500">Al-Qur'an Hadis</td>
-                <td className="py-4"><span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded text-[10px] font-semibold">Aktif</span></td>
-                <td className="py-4 text-[14px] text-gray-900 font-serif text-center">27</td>
-                <td className="py-4 text-[12px] text-gray-400 text-right">1 hari lalu</td>
-              </tr>
-              <tr>
-                <td className="py-4 text-[13px] text-gray-800 font-medium">Ust. Hamzah Ibrahim, S.Pd.</td>
-                <td className="py-4 text-[13px] text-gray-500">Sejarah Kebudayaan Islam</td>
-                <td className="py-4"><span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded text-[10px] font-semibold">Aktif</span></td>
-                <td className="py-4 text-[14px] text-gray-900 font-serif text-center">19</td>
-                <td className="py-4 text-[12px] text-gray-400 text-right">Kemarin</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </div>
 

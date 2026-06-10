@@ -16,6 +16,7 @@ export default function GuruSettingsPage() {
     jenjang: "",
     kurikulum: "",
     mata_pelajaran: "",
+    nama_instansi: "",
   });
 
   // State form keamanan
@@ -63,6 +64,7 @@ export default function GuruSettingsPage() {
           no_hp:          p.no_hp           || "",
           jenjang:        p.jenjang         || "",
           kurikulum:      p.kurikulum       || "",
+          nama_instansi:  p.nama_instansi   || "",
           // mata_pelajaran di DB berupa array, tampilkan sebagai string
           mata_pelajaran: Array.isArray(p.mata_pelajaran)
             ? p.mata_pelajaran.join(", ")
@@ -355,9 +357,34 @@ export default function GuruSettingsPage() {
                     </select>
                   </div>
 
+                  {/* Kurikulum */}
+                  <div>
+                    <label className="block text-[13px] text-gray-700 mb-2 font-semibold">Kurikulum</label>
+                    <select
+                      value={formData.kurikulum}
+                      onChange={(e) => setFormData({ ...formData, kurikulum: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                    >
+                      <option value="">-- Pilih Kurikulum --</option>
+                      <option value="Merdeka">Kurikulum Merdeka</option>
+                      <option value="K13">Kurikulum 2013 (K13)</option>
+                    </select>
+                  </div>
+
+                  {/* Instansi / Madrasah */}
+                  <div className="md:col-span-2">
+                    <label className="block text-[13px] text-gray-700 mb-2 font-semibold">Instansi / Madrasah</label>
+                    <input
+                      type="text"
+                      value={formData.nama_instansi}
+                      readOnly
+                      title="Instansi tidak dapat diubah"
+                      className="w-full px-4 py-2.5 bg-gray-50 text-gray-500 rounded-xl border border-gray-200 text-sm shadow-sm cursor-not-allowed"
+                      placeholder="Belum terhubung ke instansi"
+                    />
+                  </div>
+
                 </div>
-
-
 
                 <div className="pt-2">
                   <button

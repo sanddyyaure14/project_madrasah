@@ -15,7 +15,8 @@ export default function KepsekPresentationGeneratorPage() {
   const [includeCatatan, setIncludeCatatan] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [presentationId, setPresentationId] = useState(null);
+  const [presentationId, setPresentationId] = useState(null); // UUID dari tabel presentations (untuk download)
+  const [requestId, setRequestId] = useState(null); // request_id (untuk rating/feedback)
   const [error, setError] = useState("");
 
   const handleGenerate = async (e) => {
@@ -25,6 +26,7 @@ export default function KepsekPresentationGeneratorPage() {
     setLoading(true);
     setResult(null);
     setPresentationId(null);
+    setRequestId(null);
 
     try {
       const token = sessionStorage.getItem("accessToken");
@@ -48,7 +50,10 @@ export default function KepsekPresentationGeneratorPage() {
       const json = await response.json();
       if (!response.ok) throw new Error(json.message || "Gagal generate presentasi.");
       setResult(json.data?.slides_json || json.data);
-      setPresentationId(json.data?.request_id || json.request_id || null);
+      // json.data.id = UUID di tabel presentations (dipakai untuk download)
+      // json.data.request_id = request_id dari generation_requests (dipakai untuk rating)
+      setPresentationId(json.data?.id || null);
+      setRequestId(json.data?.request_id || json.request_id || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -84,6 +89,7 @@ export default function KepsekPresentationGeneratorPage() {
   function handleReset() {
     setResult(null);
     setPresentationId(null);
+    setRequestId(null);
     setError("");
   }
 
@@ -268,8 +274,8 @@ export default function KepsekPresentationGeneratorPage() {
         </div>
 
         {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
-        {result && presentationId && (
-          <RatingFeedback requestId={presentationId} featureLabel="presentasi" endpoint="presentation" />
+        {result && requestId && (
+          <RatingFeedback requestId={requestId} featureLabel="presentasi" endpoint="presentation" />
         )}
         </div>
       </div>
