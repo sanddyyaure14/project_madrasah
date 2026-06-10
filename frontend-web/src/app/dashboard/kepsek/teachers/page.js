@@ -103,25 +103,7 @@ export default function TeachersPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">TOTAL GURU</p>
-          <h4 className="text-3xl font-serif text-gray-900 m-0">{totalGuru}</h4>
-        </div>
-        <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">AKTIF</p>
-          <h4 className="text-3xl font-serif text-gray-900 m-0">{aktifGuru}</h4>
-        </div>
-        <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">CUTI</p>
-          <h4 className="text-3xl font-serif text-gray-900 m-0">{cutiGuru}</h4>
-        </div>
-        <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">NONAKTIF</p>
-          <h4 className="text-3xl font-serif text-gray-900 m-0">{nonaktifGuru}</h4>
-        </div>
-      </div>
+
 
       {/* Table Section */}
       <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 overflow-hidden">
