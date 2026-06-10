@@ -16,7 +16,8 @@ export default function WorksheetGeneratorPage() {
   const [tipeSelected, setTipeSelected] = useState(['isian']);
   const [loading, setLoading] = useState(false);
   const [lks, setLks] = useState(null);
-  const [worksheetId, setWorksheetId] = useState(null);
+  const [worksheetId, setWorksheetId] = useState(null); // ID worksheet untuk cetak PDF
+  const [requestId, setRequestId] = useState(null);     // request_id untuk feedback
   const [error, setError] = useState('');
 
   function toggleTipe(opt) {
@@ -35,6 +36,7 @@ export default function WorksheetGeneratorPage() {
     setLoading(true);
     setLks(null);
     setWorksheetId(null);
+    setRequestId(null);
 
     try {
       const token = sessionStorage.getItem("accessToken");
@@ -56,8 +58,12 @@ export default function WorksheetGeneratorPage() {
 
       const resData = await response.json();
       if (!response.ok) throw new Error(resData.message || "Gagal membuat worksheet.");
+
       setLks(resData.data?.worksheet);
-      setWorksheetId(resData.data?.request_id || null);
+      // ID worksheet (UUID di tabel worksheets) — dipakai untuk cetak PDF
+      setWorksheetId(resData.data?.id || resData.data?.worksheet_id || null);
+      // request_id — dipakai untuk feedback
+      setRequestId(resData.data?.request_id || null);
 
     } catch (err) {
       setError(err.message);
@@ -67,14 +73,28 @@ export default function WorksheetGeneratorPage() {
   };
 
   const handleCetakPDF = async () => {
-    if (!worksheetId) return;
+    if (!worksheetId) {
+      alert("ID worksheet tidak ditemukan, tidak bisa mencetak PDF.");
+      return;
+    }
     const token = sessionStorage.getItem("accessToken");
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
     try {
       const res = await fetch(`${apiUrl}/api/worksheet/worksheets/${worksheetId}/cetak-pdf`, {
         headers: { "Authorization": `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Gagal mengunduh PDF");
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`${res.status} - ${errText}`);
+      }
+
+      const contentType = res.headers.get("content-type");
+      if (!contentType?.includes("application/pdf")) {
+        const errText = await res.text();
+        throw new Error(`Response bukan PDF: ${errText}`);
+      }
+
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -90,7 +110,14 @@ export default function WorksheetGeneratorPage() {
   function handleReset() {
     setLks(null);
     setWorksheetId(null);
+    setRequestId(null);
     setError('');
+    setMapel('');
+    setTopik('');
+    setKelas('VII');
+    setDurasi(45);
+    setTujuan('');
+    setTipeSelected(['isian']);
   }
 
   return (
@@ -112,7 +139,7 @@ export default function WorksheetGeneratorPage() {
       {/* ===== GRID: FORM + PREVIEW ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
-        {/* ===== FORM (fixed height sama dengan preview, tidak scroll) ===== */}
+        {/* ===== FORM ===== */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
           <div className="flex-1 overflow-y-auto">
             <form onSubmit={handleGenerate} className="p-6 space-y-5">
@@ -225,97 +252,97 @@ export default function WorksheetGeneratorPage() {
 
         {/* ===== PREVIEW ===== */}
         <div className="flex flex-col gap-4">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
-          {lks ? (
-            <>
-              {/* Toolbar — fixed, tidak ikut scroll */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50 shrink-0">
-                <p className="text-xs font-semibold text-gray-600">Pratinjau LKS</p>
-                <div className="flex gap-2">
-                  <button type="button" onClick={handleCetakPDF}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-1.5 rounded-lg transition">
-                    ⬇️ Unduh PDF
-                  </button>
-                  <button type="button" onClick={handleReset}
-                    className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 transition">
-                    ✕ Hapus
-                  </button>
-                </div>
-              </div>
-
-              {/* LKS Content — scrollable */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
-                {/* Header LKS */}
-                <div className="text-center border-b-2 border-gray-800 pb-4">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Lembar Kerja Siswa (LKS)</p>
-                  <h3 className="font-bold text-sm text-gray-900 uppercase">{lks.judul}</h3>
-                  <div className="flex items-center justify-center gap-3 mt-2 flex-wrap">
-                    <span className="text-[10px] text-gray-500 font-mono">Mapel: {lks.info?.mata_pelajaran}</span>
-                    <span className="text-gray-300">|</span>
-                    <span className="text-[10px] text-gray-500 font-mono">Kelas: {lks.info?.kelas}</span>
-                    <span className="text-gray-300">|</span>
-                    <span className="text-[10px] text-gray-500 font-mono">Waktu: {lks.info?.durasi}</span>
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+            {lks ? (
+              <>
+                {/* Toolbar — fixed, tidak ikut scroll */}
+                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50 shrink-0">
+                  <p className="text-xs font-semibold text-gray-600">Pratinjau LKS</p>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={handleCetakPDF}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-1.5 rounded-lg transition">
+                      ⬇️ Unduh PDF
+                    </button>
+                    <button type="button" onClick={handleReset}
+                      className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 transition">
+                      ✕ Baru
+                    </button>
                   </div>
-                  <p className="text-[10px] text-gray-500 font-mono mt-1">Topik: {lks.info?.topik}</p>
                 </div>
 
-                {/* Tujuan */}
-                {lks.tujuan && (
-                  <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
-                    <p className="font-bold text-emerald-800 mb-1">Tujuan Pembelajaran:</p>
-                    <p className="text-gray-700 leading-relaxed">{lks.tujuan}</p>
-                  </div>
-                )}
-
-                {/* Petunjuk */}
-                {lks.petunjuk && (
-                  <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
-                    <p className="font-bold text-amber-800 mb-1">Petunjuk Pengerjaan:</p>
-                    <p className="text-gray-700 leading-relaxed">{lks.petunjuk}</p>
-                  </div>
-                )}
-
-                {/* Aktivitas */}
-                {lks.aktivitas?.map((akt, i) => (
-                  <div key={i} className="space-y-3">
-                    <div className="flex items-center gap-2 pb-1 border-b border-emerald-200">
-                      <span className="w-6 h-6 rounded-full bg-emerald-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
-                      <p className="font-bold text-emerald-900 uppercase tracking-wide text-[11px]">Aktivitas {i + 1} — {akt.tipe}</p>
+                {/* LKS Content — scrollable */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
+                  {/* Header LKS */}
+                  <div className="text-center border-b-2 border-gray-800 pb-4">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Lembar Kerja Siswa (LKS)</p>
+                    <h3 className="font-bold text-sm text-gray-900 uppercase">{lks.judul}</h3>
+                    <div className="flex items-center justify-center gap-3 mt-2 flex-wrap">
+                      <span className="text-[10px] text-gray-500 font-mono">Mapel: {lks.info?.mata_pelajaran}</span>
+                      <span className="text-gray-300">|</span>
+                      <span className="text-[10px] text-gray-500 font-mono">Kelas: {lks.info?.kelas}</span>
+                      <span className="text-gray-300">|</span>
+                      <span className="text-[10px] text-gray-500 font-mono">Waktu: {lks.info?.durasi}</span>
                     </div>
-                    <p className="text-gray-500 italic leading-relaxed">{akt.instruksi}</p>
-                    <div className="space-y-4">
-                      {akt.soal?.map((s) => (
-                        <div key={s.no}>
-                          <p className="text-gray-800 font-medium">{s.no}. {s.pertanyaan}</p>
-                          {Array.isArray(s.opsi) && s.opsi.length > 0 ? (
-                            <ul className="mt-1.5 ml-4 space-y-1">
-                              {s.opsi.map((opsi, j) => (
-                                <li key={j} className="text-gray-600">{String.fromCharCode(65 + j)}. {opsi}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className="mt-2 border-b border-gray-300 w-full" />
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    <p className="text-[10px] text-gray-500 font-mono mt-1">Topik: {lks.info?.topik}</p>
                   </div>
-                ))}
+
+                  {/* Tujuan */}
+                  {lks.tujuan && (
+                    <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                      <p className="font-bold text-emerald-800 mb-1">Tujuan Pembelajaran:</p>
+                      <p className="text-gray-700 leading-relaxed">{lks.tujuan}</p>
+                    </div>
+                  )}
+
+                  {/* Petunjuk */}
+                  {lks.petunjuk && (
+                    <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+                      <p className="font-bold text-amber-800 mb-1">Petunjuk Pengerjaan:</p>
+                      <p className="text-gray-700 leading-relaxed">{lks.petunjuk}</p>
+                    </div>
+                  )}
+
+                  {/* Aktivitas */}
+                  {lks.aktivitas?.map((akt, i) => (
+                    <div key={i} className="space-y-3">
+                      <div className="flex items-center gap-2 pb-1 border-b border-emerald-200">
+                        <span className="w-6 h-6 rounded-full bg-emerald-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                        <p className="font-bold text-emerald-900 uppercase tracking-wide text-[11px]">Aktivitas {i + 1} — {akt.tipe}</p>
+                      </div>
+                      <p className="text-gray-500 italic leading-relaxed">{akt.instruksi}</p>
+                      <div className="space-y-4">
+                        {akt.soal?.map((s) => (
+                          <div key={s.no}>
+                            <p className="text-gray-800 font-medium">{s.no}. {s.pertanyaan}</p>
+                            {Array.isArray(s.opsi) && s.opsi.length > 0 ? (
+                              <ul className="mt-1.5 ml-4 space-y-1">
+                                {s.opsi.map((opsi, j) => (
+                                  <li key={j} className="text-gray-600">{String.fromCharCode(65 + j)}. {opsi}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div className="mt-2 border-b border-gray-300 w-full" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
+                <span className="text-4xl">📋</span>
+                <p className="font-medium">Pratinjau LKS akan tampil di sini</p>
+                <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate LKS</p>
               </div>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs gap-2 p-8">
-              <span className="text-4xl">📋</span>
-              <p className="font-medium">Pratinjau LKS akan tampil di sini</p>
-              <p className="text-gray-300">Isi form di sebelah kiri lalu klik Generate LKS</p>
-            </div>
+            )}
+          </div>
+
+          {/* Rating & Feedback — muncul setelah generate */}
+          {lks && requestId && (
+            <RatingFeedback requestId={requestId} featureLabel="worksheet" endpoint="worksheet" />
           )}
-        </div>
-
-        {/* Rating & Feedback — di bawah panel, muncul setelah generate */}
-        {lks && worksheetId && (
-          <RatingFeedback requestId={worksheetId} featureLabel="worksheet" endpoint="worksheet" />
-        )}
         </div>
       </div>
     </div>
