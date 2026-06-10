@@ -98,6 +98,13 @@ export default function SyllabusDetailScreen({ route, navigation }) {
 
   useEffect(() => { fetchDetail(); }, [id]);
 
+  useEffect(() => {
+    if (route.params?.updatedJson) {
+      setData(prev => prev ? { ...prev, silabus_json: route.params.updatedJson } : prev);
+      navigation.setParams({ updatedJson: undefined });
+    }
+  }, [route.params?.updatedJson]);
+
   async function fetchDetail() {
     setLoading(true);
     try {
@@ -196,7 +203,7 @@ export default function SyllabusDetailScreen({ route, navigation }) {
     );
   }
 
-  const syllabusJson = data?.silabus_json || (typeof data?.silabus_json === 'string' ? JSON.parse(data.silabus_json) : {});
+  const syllabusJson = typeof data?.silabus_json === 'string' ? JSON.parse(data.silabus_json) : (data?.silabus_json || {});
   const tabelSilabus = syllabusJson?.tabel_silabus || [];
   const kompetensiInti = syllabusJson?.kompetensi_inti || [];
 
