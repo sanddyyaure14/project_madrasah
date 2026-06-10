@@ -2098,28 +2098,8 @@ function WorksheetDetail({ doc, onDelete, onEdit }) {
 
   return (
     <div className="space-y-4">
-      {/* Tombol Aksi Atas */}
-      <div className="flex gap-2">
-        <button onClick={handleCetakPDF} className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-2 rounded-lg transition">
-          ⬇️ Unduh PDF
-        </button>
-        <button 
-          onClick={() => { 
-            navigator.clipboard.writeText(buildWorksheetText()); 
-            setCopied(true); 
-            setTimeout(() => setCopied(false), 2000); 
-          }} 
-          className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-white border border-emerald-600 hover:bg-emerald-50 px-3 py-2 rounded-lg transition"
-        >
-          {copied ? "✓ Tersalin!" : "Copy Teks"}
-        </button>
-        <button onClick={() => window.print()} className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 px-3 py-2 rounded-lg transition">
-          Print
-        </button>
-      </div>
-
-      {/* Preview LKS */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden">
+      {/* Preview LKS — scroll internal */}
+      <div className="border border-gray-200 rounded-xl overflow-hidden max-h-[380px] overflow-y-auto">
         <div className="p-5 space-y-4 text-xs">
           <div className="text-center border-b-2 border-gray-800 pb-4">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Lembar Kerja Siswa (LKS)</p>
@@ -2172,6 +2152,18 @@ function WorksheetDetail({ doc, onDelete, onEdit }) {
         </div>
       </div>
 
+      {/* Tombol Aksi Bawah */}
+      <div className="flex gap-2">
+        <button onClick={handleCetakPDF} className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-2 rounded-lg transition">
+          ⬇️ Unduh PDF
+        </button>
+        <button
+          onClick={() => { navigator.clipboard.writeText(buildWorksheetText()); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+          className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-white border border-emerald-600 hover:bg-emerald-50 px-3 py-2 rounded-lg transition"
+        >
+          {copied ? "✓ Tersalin!" : "Copy Teks"}
+        </button>
+      </div>
       {/* Tombol CRUD Bawah */}
       <div className="flex gap-2">
         <button onClick={onEdit} className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-xl hover:bg-gray-50 transition">
@@ -2210,12 +2202,6 @@ function PresentationDetail({ doc, onDelete, onEdit }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
-        <button onClick={handleDownloadPPT} className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-2 rounded-lg transition">
-          Unduh PPTX
-        </button>
-      </div>
-
       <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-4 max-h-[400px] overflow-y-auto">
         <h4 className="font-bold text-sm text-gray-900 border-b border-gray-200 pb-2 uppercase">{doc.topik}</h4>
         {slides.map((slide, idx) => (
@@ -2240,6 +2226,9 @@ function PresentationDetail({ doc, onDelete, onEdit }) {
       </div>
 
       <div className="flex gap-2">
+        <button onClick={handleDownloadPPT} className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-2 rounded-lg transition">
+          ⬇️ Unduh PPTX
+        </button>
         <button onClick={onEdit} className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-xl hover:bg-gray-50 transition">
           Edit
         </button>
@@ -2278,12 +2267,6 @@ function UnitPlanDetail({ doc, onDelete, onEdit }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
-        <button onClick={handleDownloadDocx} className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-2 rounded-lg transition">
-          Unduh DOCX
-        </button>
-      </div>
-
       <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-4 max-h-[400px] overflow-y-auto text-xs">
         <div className="text-center border-b-2 border-gray-800 pb-3">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Modul Ajar / RPP</p>
@@ -2409,6 +2392,9 @@ function UnitPlanDetail({ doc, onDelete, onEdit }) {
       </div>
 
       <div className="flex gap-2">
+        <button onClick={handleDownloadDocx} className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-2 rounded-lg transition">
+          ⬇️ Unduh DOCX
+        </button>
         <button onClick={onEdit} className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-xl hover:bg-gray-50 transition">
           Edit
         </button>
@@ -2513,6 +2499,21 @@ function MCDetail({ doc, onDelete, onEdit }) {
       {/* Action */}
       <div className="flex gap-2 pt-1 border-t border-gray-100">
         <button
+          onClick={async () => {
+            if (!doc.id) return;
+            try {
+              const res = await fetch(`${getApiBase()}/api/assessment/print/${doc.id}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+              if (!res.ok) throw new Error("Gagal mengunduh PDF");
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = `Soal_${doc.mata_pelajaran || "PG"}.pdf`; a.click(); URL.revokeObjectURL(url);
+            } catch (err) { alert("Gagal unduh PDF: " + err.message); }
+          }}
+          className="flex items-center justify-center gap-1.5 border border-emerald-600 text-emerald-700 font-semibold text-sm py-2.5 px-3 rounded-xl hover:bg-emerald-50 transition"
+        >
+          ⬇️ PDF
+        </button>
+        <button
           onClick={() => { navigator.clipboard.writeText(buildText()); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
           className="flex-1 flex items-center justify-center gap-1.5 border border-red-300 text-red-600 font-semibold text-sm py-2.5 rounded-xl hover:bg-red-50 transition"
         >
@@ -2596,6 +2597,21 @@ function RubricDetail({ doc, onDelete, onEdit }) {
       </div>
 
       <div className="flex gap-2 pt-1 border-t border-gray-100">
+        <button
+          onClick={async () => {
+            if (!doc.id) return;
+            try {
+              const res = await fetch(`${getApiBase()}/api/rubrics/${doc.id}/export-excel`, { headers: { Authorization: `Bearer ${getToken()}` } });
+              if (!res.ok) throw new Error("Gagal mengunduh Excel");
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = `Rubrik_${doc.jenis_tugas || "penilaian"}.xlsx`; a.click(); URL.revokeObjectURL(url);
+            } catch (err) { alert("Gagal unduh Excel: " + err.message); }
+          }}
+          className="flex items-center justify-center gap-1.5 border border-emerald-600 text-emerald-700 font-semibold text-sm py-2.5 px-3 rounded-xl hover:bg-emerald-50 transition"
+        >
+          📊 Excel
+        </button>
         <button onClick={() => { navigator.clipboard.writeText(buildText()); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
           className="flex-1 flex items-center justify-center gap-1.5 border border-yellow-400 text-yellow-700 font-semibold text-sm py-2.5 rounded-xl hover:bg-yellow-50 transition">
           {copied ? "✓ Tersalin!" : "Copy Rubrik"}
@@ -2662,6 +2678,34 @@ function SyllabusDetail({ doc, onDelete, onEdit }) {
       </div>
 
       <div className="flex gap-2">
+        <button
+          onClick={async () => {
+            if (!doc.id) return;
+            try {
+              const res = await fetch(`${getApiBase()}/api/syllabus/download/${doc.id}/pdf`, { headers: { Authorization: `Bearer ${getToken()}` } });
+              if (!res.ok) throw new Error("Gagal unduh PDF");
+              const blob = await res.blob(); const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = `Silabus_${doc.mata_pelajaran || doc.id}.pdf`; a.click(); URL.revokeObjectURL(url);
+            } catch (err) { alert("Gagal unduh PDF: " + err.message); }
+          }}
+          className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-2 rounded-lg transition"
+        >
+          ⬇️ PDF
+        </button>
+        <button
+          onClick={async () => {
+            if (!doc.id) return;
+            try {
+              const res = await fetch(`${getApiBase()}/api/syllabus/download/${doc.id}/docx`, { headers: { Authorization: `Bearer ${getToken()}` } });
+              if (!res.ok) throw new Error("Gagal unduh DOCX");
+              const blob = await res.blob(); const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = `Silabus_${doc.mata_pelajaran || doc.id}.docx`; a.click(); URL.revokeObjectURL(url);
+            } catch (err) { alert("Gagal unduh DOCX: " + err.message); }
+          }}
+          className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2 rounded-lg transition"
+        >
+          ⬇️ DOCX
+        </button>
         <button onClick={onEdit} className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-xl hover:bg-gray-50 transition">Edit</button>
         <button onClick={onDelete} className="flex-1 flex items-center justify-center gap-1.5 border border-red-200 text-red-500 text-sm font-semibold py-2 rounded-xl hover:bg-red-50 transition">Hapus</button>
       </div>
@@ -2797,9 +2841,37 @@ function AcademicDetail({ doc, onDelete, onEdit }) {
       </div>
 
       <div className="flex gap-2 pt-1 border-t border-gray-100">
+        <button
+          onClick={async () => {
+            if (!doc.id) return;
+            try {
+              const res = await fetch(`${getApiBase()}/api/academic-content/download/${doc.id}/pdf`, { headers: { Authorization: `Bearer ${getToken()}` } });
+              if (!res.ok) throw new Error("Gagal unduh PDF");
+              const blob = await res.blob(); const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = `Konten_${doc.id}.pdf`; a.click(); URL.revokeObjectURL(url);
+            } catch (err) { alert("Gagal unduh PDF: " + err.message); }
+          }}
+          className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#006747] hover:bg-emerald-800 px-3 py-2 rounded-lg transition"
+        >
+          ⬇️ PDF
+        </button>
+        <button
+          onClick={async () => {
+            if (!doc.id) return;
+            try {
+              const res = await fetch(`${getApiBase()}/api/academic-content/download/${doc.id}/docx`, { headers: { Authorization: `Bearer ${getToken()}` } });
+              if (!res.ok) throw new Error("Gagal unduh DOCX");
+              const blob = await res.blob(); const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = `Konten_${doc.id}.docx`; a.click(); URL.revokeObjectURL(url);
+            } catch (err) { alert("Gagal unduh DOCX: " + err.message); }
+          }}
+          className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2 rounded-lg transition"
+        >
+          ⬇️ DOCX
+        </button>
         <button onClick={() => { navigator.clipboard.writeText(buildText()); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
           className="flex-1 flex items-center justify-center gap-1.5 border border-blue-400 text-blue-700 font-semibold text-sm py-2.5 rounded-xl hover:bg-blue-50 transition">
-          {copied ? "✓ Tersalin!" : "Copy Konten"}
+          {copied ? "✓ Tersalin!" : "Copy"}
         </button>
       </div>
       <div className="flex gap-2">
