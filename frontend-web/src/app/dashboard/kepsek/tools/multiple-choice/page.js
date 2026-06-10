@@ -100,7 +100,9 @@ export default function KepsekMultipleChoicePage() {
         </div>
       </div>
 
-      {error && <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg font-medium">{error}</div>}
+      {error && (
+        <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg font-medium">{error}</div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2 items-start">
         {/* FORM */}
@@ -108,11 +110,11 @@ export default function KepsekMultipleChoicePage() {
           <div className="flex-1 overflow-y-auto">
             <form onSubmit={handleGenerate} className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Mata Pelajaran *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Mata Pelajaran <span className="text-red-500">*</span></label>
                 <div className="flex flex-wrap gap-2">
                   {["Akidah Akhlak", "Al-Qur'an Hadis", "Fiqih", "SKI", "Bahasa Arab", "Matematika", "IPA", "IPS", "Bahasa Indonesia"].map((m) => (
                     <button key={m} type="button" onClick={() => setFormData({...formData, mata_pelajaran: m})}
-                      className={`px-3 py-1 text-xs rounded-full border transition ${formData.mata_pelajaran === m ? "bg-[#006747] text-white border-[#006747]" : "bg-white border-gray-200 text-gray-700"}`}>
+                      className={`px-3 py-1 text-xs rounded-full border transition ${formData.mata_pelajaran === m ? 'bg-[#006747] text-white border-[#006747]' : 'bg-white border-gray-200 text-gray-700'}`}>
                       {m}
                     </button>
                   ))}
@@ -120,11 +122,11 @@ export default function KepsekMultipleChoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Kelas *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Kelas <span className="text-red-500">*</span></label>
                 <div className="flex flex-wrap gap-2">
                   {["VII","VIII","IX","X","XI","XII"].map((k) => (
                     <button key={k} type="button" onClick={() => setFormData({...formData, tingkat_kelas: k})}
-                      className={`px-4 py-1 text-xs rounded-full border transition ${formData.tingkat_kelas === k ? "bg-[#006747] text-white border-[#006747]" : "bg-white border-gray-200 text-gray-700"}`}>
+                      className={`px-4 py-1 text-xs rounded-full border transition ${formData.tingkat_kelas === k ? 'bg-[#006747] text-white border-[#006747]' : 'bg-white border-gray-200 text-gray-700'}`}>
                       {k}
                     </button>
                   ))}
@@ -132,25 +134,23 @@ export default function KepsekMultipleChoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Topik / Materi *</label>
-                <textarea rows="3" required placeholder="cth. Thaharah, Wudhu..."
-                  className="w-full text-sm p-3 border border-gray-200 rounded-lg"
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Topik / Materi <span className="text-red-500">*</span></label>
+                <textarea rows="3" required placeholder="cth. Thaharah, Wudhu..." className="w-full text-sm p-3 border border-gray-200 rounded-lg"
                   onChange={(e) => setFormData({ ...formData, topik: e.target.value })} />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jumlah Soal *</label>
-                  <input type="number" value={formData.jumlah_soal}
-                    className="w-full text-sm p-2 border border-gray-200 rounded-lg"
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jumlah Soal <span className="text-red-500">*</span></label>
+                  <input type="number" value={formData.jumlah_soal} className="w-full text-sm p-2 border border-gray-200 rounded-lg"
                     onChange={(e) => setFormData({ ...formData, jumlah_soal: e.target.value })} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kesulitan *</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kesulitan <span className="text-red-500">*</span></label>
                   <div className="flex gap-2">
-                    {["mudah","sedang"].map((lvl) => (
+                    {["mudah","sedang","sulit"].map((lvl) => (
                       <button key={lvl} type="button" onClick={() => setFormData({...formData, tingkat_kesulitan: lvl})}
-                        className={`flex-1 py-2 rounded-full text-xs capitalize border ${formData.tingkat_kesulitan.toLowerCase() === lvl ? "bg-[#006747] text-white" : "bg-white border-gray-200"}`}>
+                        className={`flex-1 py-2 rounded-full text-xs capitalize border ${formData.tingkat_kesulitan.toLowerCase() === lvl ? 'bg-[#006747] text-white' : 'bg-white border-gray-200'}`}>
                         {lvl}
                       </button>
                     ))}
@@ -160,8 +160,7 @@ export default function KepsekMultipleChoicePage() {
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kompetensi Dasar (KD)</label>
-                <textarea rows="2" placeholder="cth. 3.1 Memahami ketentuan..."
-                  className="w-full text-sm p-3 border border-gray-200 rounded-lg"
+                <textarea rows="2" placeholder="cth. 3.1 Memahami ketentuan..." className="w-full text-sm p-3 border border-gray-200 rounded-lg"
                   onChange={(e) => setFormData({ ...formData, kd: e.target.value })} />
               </div>
 
@@ -199,6 +198,10 @@ export default function KepsekMultipleChoicePage() {
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                  <div className="border-b pb-3">
+                    <h3 className="text-lg font-bold text-gray-800">Hasil Generate Soal</h3>
+                    <p className="text-xs text-gray-500 mt-1">Soal otomatis berhasil dibuat.</p>
+                  </div>
                   {questions.map((item, index) => (
                     <div key={index} className="border border-gray-200 rounded-xl p-5">
                       <h4 className="font-semibold text-gray-800 mb-4">{index + 1}. {item.soal}</h4>
@@ -207,7 +210,9 @@ export default function KepsekMultipleChoicePage() {
                           <p key={key} className="text-sm text-gray-700">{key}. {value}</p>
                         ))}
                       </div>
-                      {item.kunci && <div className="mt-4 text-sm font-semibold text-emerald-700">Jawaban: {item.kunci}</div>}
+                      {item.kunci && (
+                        <div className="mt-4 text-sm font-semibold text-emerald-700">Jawaban: {item.kunci}</div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -96,7 +96,9 @@ export default function KepsekRubricGeneratorPage() {
         </div>
       </div>
 
-      {error && <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg font-medium">{error}</div>}
+      {error && (
+        <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg font-medium">{error}</div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2 items-start">
         {/* FORM */}
@@ -104,22 +106,25 @@ export default function KepsekRubricGeneratorPage() {
           <div className="flex-1 overflow-y-auto">
             <form onSubmit={handleGenerate} className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jenis Tugas / Aktivitas *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jenis Tugas / Aktivitas <span className="text-red-500">*</span></label>
                 <input className="w-full text-sm p-3 border border-gray-200 rounded-lg" placeholder="Contoh: Presentasi Kelompok"
                   value={formData.jenis_tugas} onChange={(e) => setFormData({...formData, jenis_tugas: e.target.value})} required />
               </div>
+
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tujuan Pembelajaran *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tujuan Pembelajaran <span className="text-red-500">*</span></label>
                 <input className="w-full text-sm p-3 border border-gray-200 rounded-lg" placeholder="Masukkan Tujuan Pembelajaran"
                   value={formData.tujuan_pembelajaran} onChange={(e) => setFormData({...formData, tujuan_pembelajaran: e.target.value})} required />
               </div>
+
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Aspek Penilaian * (Pisahkan dengan koma)</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Aspek Penilaian <span className="text-red-500">*</span> (Pisahkan dengan koma)</label>
                 <textarea rows="3" className="w-full text-sm p-3 border border-gray-200 rounded-lg" placeholder="Contoh: Isi Materi, Penyampaian, Kerja Sama"
                   value={formData.aspek_penilaian} onChange={(e) => setFormData({...formData, aspek_penilaian: e.target.value})} required />
               </div>
+
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Skala Nilai *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Skala Nilai <span className="text-red-500">*</span></label>
                 <div className="flex gap-2">
                   {["1-4","1-10","1-100"].map(s => (
                     <button key={s} type="button" onClick={() => setFormData({...formData, skala_nilai: s})}
@@ -129,16 +134,19 @@ export default function KepsekRubricGeneratorPage() {
                   ))}
                 </div>
               </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">TP / KD (Opsional)</label>
                 <input className="w-full text-sm p-3 border border-gray-200 rounded-lg" placeholder="Contoh: 3.1 Memahami ketentuan..."
                   value={formData.tp_kd} onChange={(e) => setFormData({...formData, tp_kd: e.target.value})} />
               </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Deskripsi Tugas (Opsional)</label>
                 <textarea rows="3" className="w-full text-sm p-3 border border-gray-200 rounded-lg" placeholder="Contoh: Siswa diminta untuk..."
                   value={formData.deskripsi_tugas} onChange={(e) => setFormData({...formData, deskripsi_tugas: e.target.value})} />
               </div>
+
               <button type="submit" disabled={loading}
                 className="w-full bg-[#006747] hover:bg-emerald-800 text-white font-medium py-2 rounded-lg text-sm transition">
                 {loading ? "Generating Rubric..." : "📚 Generate Rubrik"}
@@ -164,6 +172,7 @@ export default function KepsekRubricGeneratorPage() {
                     </button>
                   )}
                 </div>
+
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="bg-[#006747] text-white">
