@@ -178,7 +178,7 @@ const GuruModel = {
                 ar.rubric_json          AS rubric_data,
                 ws.worksheet_json       AS worksheet_data,
                 sl.silabus_json         AS syllabus_data,
-                up.rpp_json             AS unit_plan_data,
+                up.unit_plan_json       AS unit_plan_data,
                 pr.slides_json          AS presentation_data,
                 ac.content_json         AS academic_content_data
             FROM generation_requests gr
