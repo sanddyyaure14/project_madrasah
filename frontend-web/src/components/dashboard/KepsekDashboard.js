@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3000";
+
 export default function KepsekDashboard() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
@@ -13,10 +15,15 @@ export default function KepsekDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const token = sessionStorage.getItem("accessToken");
+        if (!token) return;
+
+        const headers = { Authorization: `Bearer ${token}` };
+
         const [summaryRes, pendingRes] = await Promise.all([
-          fetch("http://127.0.0.1:3000/api/kepsek/dashboard/summary"),
+          fetch(`${API_URL}/api/kepsek/dashboard/summary`, { headers }),
           // Menggunakan dummy instansi_id untuk demo. Pada sistem nyata, ambil dari token JWT / session.
-          fetch("http://127.0.0.1:3000/api/kepsek/pending-teachers?instansi_id=b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a")
+          fetch(`${API_URL}/api/kepsek/pending-teachers?instansi_id=b3b0c2a1-1234-4bc1-bf2a-9f8e7d6c5b4a`, { headers })
         ]);
         
         const summaryData = await summaryRes.json();
@@ -41,10 +48,12 @@ export default function KepsekDashboard() {
   const handleReview = async (teacherId, action) => {
     setProcessingId(teacherId);
     try {
-      const res = await fetch("http://127.0.0.1:3000/api/kepsek/review-teacher", {
+      const token = sessionStorage.getItem("accessToken");
+      const res = await fetch(`${API_URL}/api/kepsek/review-teacher`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
           targetUserId: teacherId,
@@ -58,13 +67,16 @@ export default function KepsekDashboard() {
         
         // Update angka summary "Total Guru" jika approve
         if (action === "approve") {
-          setSummary(prev => ({
-            ...prev,
-            card_total_guru: {
-              ...prev.card_total_guru,
-              total: Number(prev.card_total_guru.total) + 1
-            }
-          }));
+          setSummary(prev => {
+            if(!prev) return prev;
+            return {
+              ...prev,
+              informasi_madrasah: {
+                ...prev.informasi_madrasah,
+                total_guru: Number(prev.informasi_madrasah.total_guru) + 1
+              }
+            };
+          });
         }
       } else {
         alert(data.message);
@@ -86,9 +98,17 @@ export default function KepsekDashboard() {
   }
 
   // Fallbacks if data fails to load
-  const totalGuru = summary?.card_total_guru?.total || 0;
-  const generateBulanIni = summary?.card_total_generate?.total || 0;
-  const menungguPersetujuan = pendingTeachers.length;
+  const totalGuru = summary?.informasi_madrasah?.total_guru || 0;
+  const generateBulanIni = summary?.informasi_madrasah?.total_generate_bulan_ini || 0;
+  const menungguPersetujuan = pendingTeachers.length; // Uses dynamic array length
+  const rataRataRating = summary?.informasi_madrasah?.rata_rata_rating || 0;
+  const totalFeedbackRating = summary?.informasi_madrasah?.total_feedback_rating || 0;
+
+  const myGenerate = summary?.informasi_saya?.total_generate_saya || 0;
+  const myMonthlyLimit = summary?.informasi_saya?.monthly_limit_saya || 100;
+  const myDocs = summary?.informasi_saya?.dokumen_tersimpan || 0;
+  const myRating = summary?.informasi_saya?.rata_rata_feedback || 0;
+  const myTotalFeedback = summary?.informasi_saya?.total_feedback_saya || 0;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -113,7 +133,13 @@ export default function KepsekDashboard() {
         </div>
       </div>
 
-      {/* KPI GRID (8 KARTU) */}
+      {/* LABEL INFORMASI MADRASAH */}
+      <div className="flex items-center gap-2 mb-4 mt-8">
+        <svg className="w-5 h-5 text-emerald-600/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide m-0">INFORMASI MADRASAH</h3>
+      </div>
+
+      {/* KPI GRID MADRASAH (4 KARTU) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Kartu 1: Total Guru */}
         <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 flex items-center gap-4">
@@ -126,42 +152,9 @@ export default function KepsekDashboard() {
           </div>
         </div>
 
-        {/* Kartu 2: Total Siswa (Mock) */}
+        {/* Kartu 2: Generate Bulan Ini */}
         <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 flex items-center gap-4">
           <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center shrink-0">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" /></svg>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">TOTAL SISWA</p>
-            <h4 className="text-2xl font-serif text-gray-900 m-0">612</h4>
-          </div>
-        </div>
-
-        {/* Kartu 3: Kelas Aktif (Mock) */}
-        <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 flex items-center gap-4">
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center shrink-0">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">KELAS AKTIF</p>
-            <h4 className="text-2xl font-serif text-gray-900 m-0">21</h4>
-          </div>
-        </div>
-
-        {/* Kartu 4: Dokumen Dibuat (Mock) */}
-        <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 flex items-center gap-4">
-          <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">DOKUMEN DIBUAT</p>
-            <h4 className="text-2xl font-serif text-gray-900 m-0">1284</h4>
-          </div>
-        </div>
-
-        {/* Kartu 5: Generate Bulan Ini */}
-        <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 flex items-center gap-4">
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center shrink-0">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
           </div>
           <div>
@@ -170,18 +163,7 @@ export default function KepsekDashboard() {
           </div>
         </div>
 
-        {/* Kartu 6: Total Jam Dihemat (Mock) */}
-        <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 flex items-center gap-4">
-          <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center shrink-0">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">TOTAL JAM DIHEMAT</p>
-            <h4 className="text-2xl font-serif text-gray-900 m-0">184j</h4>
-          </div>
-        </div>
-
-        {/* Kartu 7: Menunggu Persetujuan (Guru Baru) */}
+        {/* Kartu 3: Menunggu Persetujuan */}
         <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 flex items-center gap-4">
           <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center shrink-0">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
@@ -192,17 +174,81 @@ export default function KepsekDashboard() {
           </div>
         </div>
 
-        {/* Kartu 8: Tingkat Aktif (Mock) */}
+        {/* Kartu 4: Feedback Rating */}
         <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 flex items-center gap-4">
           <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center shrink-0">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
           </div>
           <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">TINGKAT AKTIF</p>
-            <h4 className="text-2xl font-serif text-gray-900 m-0">92%</h4>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">RATING MADRASAH</p>
+            {rataRataRating === 0 || rataRataRating === "0" ? (
+              <div>
+                <h4 className="text-lg font-serif text-gray-400 m-0">Belum ada</h4>
+                <p className="text-[11px] text-gray-400 m-0 mt-0.5">dari {totalFeedbackRating} feedback</p>
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-1">
+                <h4 className="text-2xl font-serif text-gray-900 m-0">{rataRataRating}</h4>
+                <span className="text-xs text-gray-500 font-medium">({totalFeedbackRating})</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* LABEL INFORMASI SAYA */}
+      <div className="flex items-center gap-2 mb-4 mt-8">
+        <svg className="w-5 h-5 text-emerald-600/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide m-0">INFORMASI SAYA (KEPALA MADRASAH)</h3>
+      </div>
+
+      {/* KPI GRID SAYA (3 KARTU) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Kartu 1: Total Generate Saya */}
+        <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 flex items-center gap-4">
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
+             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">GENERATE SAYA</p>
+            <div className="flex items-baseline gap-1">
+              <h4 className="text-2xl font-serif text-gray-900 m-0">{myGenerate}</h4>
+              <span className="text-lg text-gray-400 font-serif">/ {myMonthlyLimit}</span>
+            </div>
           </div>
         </div>
 
+        {/* Kartu 2: Dokumen Tersimpan */}
+        <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 flex items-center gap-4">
+          <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center shrink-0">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">DOKUMEN TERSIMPAN</p>
+            <h4 className="text-2xl font-serif text-gray-900 m-0">{myDocs}</h4>
+          </div>
+        </div>
+
+        {/* Kartu 3: Feedback Saya */}
+        <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100 flex items-center gap-4">
+          <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center shrink-0">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">RATING SAYA</p>
+            {myRating === 0 || myRating === "0" ? (
+              <div>
+                <h4 className="text-lg font-serif text-gray-400 m-0">Belum ada</h4>
+                <p className="text-[11px] text-gray-400 m-0 mt-0.5">dari {myTotalFeedback} feedback</p>
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-1">
+                <h4 className="text-2xl font-serif text-gray-900 m-0">{myRating}</h4>
+                <span className="text-xs text-gray-500 font-medium">({myTotalFeedback})</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* GURU BARU (MENUNGGU PERSETUJUAN) */}

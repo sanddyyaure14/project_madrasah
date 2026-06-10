@@ -4,27 +4,73 @@ const db = require('../../../config/db');
 
 const getDashboardSummary = async (req, res) => {
     try {
-        // 1. Ambal semua data summary (Total Guru, Rating, dan Total Global Generate) secara bersamaan (Paralel)
-        const [totalGuru, ratingData, globalGenerate] = await Promise.all([
-            KepsekModel.countTotalGuru(),
-            KepsekModel.getAverageRatingSummary(),
-            KepsekModel.getTotalGlobalGenerate() // 🌟 Menggunakan fungsi counter baru dari model
+        const userId = req.user.id;
+
+        // 1. Ambil data global (Informasi Madrasah)
+        const totalGuruPromise = KepsekModel.countTotalGuru();
+        const ratingDataPromise = KepsekModel.getAverageRatingSummary();
+        const globalGeneratePromise = KepsekModel.getTotalGlobalGenerate();
+        const pendingTeachersPromise = KepsekModel.getPendingTeachers();
+
+        // 2. Ambil data personal (Informasi Saya)
+        // a. Total Generate Saya (Bulan ini)
+        const myGeneratePromise = db.query(`
+            SELECT COALESCE(used_this_month, 0) AS used_this_month, COALESCE(monthly_limit, 100) AS monthly_limit
+            FROM usage_quotas 
+            WHERE user_id = $1
+        `, [userId]);
+        
+        // b. Dokumen Tersimpan (Total history saya)
+        const myDocsPromise = db.query(`
+            SELECT COUNT(*) AS total 
+            FROM generation_requests 
+            WHERE user_id = $1 AND status = 'completed'
+        `, [userId]);
+
+        // c. Feedback Saya (Rata-rata feedback saya)
+        const myFeedbackPromise = db.query(`
+            SELECT 
+                COUNT(*) AS total_feedback,
+                ROUND(AVG(rating), 1) AS rata_rata
+            FROM user_feedback
+            WHERE user_id = $1
+        `, [userId]);
+
+        const [
+            totalGuru, 
+            ratingData, 
+            globalGenerate, 
+            pendingTeachers,
+            myGenerateRes,
+            myDocsRes,
+            myFeedbackRes
+        ] = await Promise.all([
+            totalGuruPromise,
+            ratingDataPromise,
+            globalGeneratePromise,
+            pendingTeachersPromise,
+            myGeneratePromise,
+            myDocsPromise,
+            myFeedbackPromise
         ]);
 
-        // 2. Response JSON yang dikelompokkan dengan rapi untuk Front-end (Fokus komponen Cards)
         return res.status(200).json({
             success: true,
             message: "Berhasil memuat data Cards Summary untuk Dashboard Kepsek.",
             data: {
-                card_total_guru: {
-                    total: totalGuru
+                informasi_madrasah: {
+                    total_guru: totalGuru,
+                    total_generate_bulan_ini: globalGenerate,
+                    menunggu_persetujuan: pendingTeachers.length,
+                    rata_rata_rating: ratingData.rata_rata,
+                    total_feedback_rating: ratingData.jumlah_feedback
                 },
-                card_rata_rating: {
-                    rating: ratingData.rata_rata,
-                    total_feedback: ratingData.jumlah_feedback
-                },
-                card_total_generate: {
-                    total: globalGenerate
+                informasi_saya: {
+                    total_generate_saya: myGenerateRes.rows[0] ? myGenerateRes.rows[0].used_this_month : 0,
+                    monthly_limit_saya: myGenerateRes.rows[0] ? myGenerateRes.rows[0].monthly_limit : 100,
+                    dokumen_tersimpan: myDocsRes.rows[0] ? parseInt(myDocsRes.rows[0].total, 10) : 0,
+                    rata_rata_feedback: myFeedbackRes.rows[0] && myFeedbackRes.rows[0].rata_rata ? parseFloat(myFeedbackRes.rows[0].rata_rata) : 0,
+                    total_feedback_saya: myFeedbackRes.rows[0] ? parseInt(myFeedbackRes.rows[0].total_feedback, 10) : 0
                 }
             }
         });
