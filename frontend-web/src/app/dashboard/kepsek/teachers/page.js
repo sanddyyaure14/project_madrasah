@@ -13,6 +13,18 @@ export default function TeachersPage() {
   const [openActionId, setOpenActionId] = useState(null);
   const [editingTeacher, setEditingTeacher] = useState(null);
   const [editStatusDropdown, setEditStatusDropdown] = useState(false);
+
+  const daftarMapel = [
+    "Akidah Akhlak",
+    "Al-Qur'an Hadis",
+    "Fiqih",
+    "SKI",
+    "Bahasa Arab",
+    "Matematika",
+    "IPA",
+    "IPS",
+    "Bahasa Indonesia",
+  ];
   
   // Dummy data
   const [teachers, setTeachers] = useState([
@@ -350,14 +362,17 @@ export default function TeachersPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[13px] text-gray-700 mb-1.5 font-medium">Mata Pelajaran</label>
-                    <input 
-                      type="text" 
+                    <select
                       required
                       value={editingTeacher.mapel}
                       onChange={(e) => setEditingTeacher({...editingTeacher, mapel: e.target.value})}
-                      placeholder="Fiqih, Bahasa Arab..." 
-                      className="w-full px-4 py-2.5 bg-white rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
-                    />
+                      className="w-full px-4 py-2.5 bg-white rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm cursor-pointer"
+                    >
+                      <option value="" disabled>Pilih mapel...</option>
+                      {daftarMapel.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="relative">
                     <label className="block text-[13px] text-gray-700 mb-1.5 font-medium">Status</label>
