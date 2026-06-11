@@ -39,20 +39,14 @@ export default function KepsekSyllabusGeneratorPage() {
   const [tahunAjaran, setTahunAjaran] = useState("2025/2026");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [syllabusId, setSyllabusId] = useState(null);
-  const [requestId, setRequestId] = useState(null);
+  const [syllabusId, setSyllabusId] = useState(null); // UUID dari tabel syllabi (untuk download)
+  const [requestId, setRequestId] = useState(null); // request_id (untuk rating/feedback)
   const [error, setError] = useState("");
 
   function handleJenjangChange(j) {
     setJenjang(j);
     setKelas(KELAS_OPTIONS[j][0]);
   }
-  const [tahunAjaran, setTahunAjaran] = useState("2025/2026");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [syllabusId, setSyllabusId] = useState(null); // UUID dari tabel syllabi (untuk download)
-  const [requestId, setRequestId] = useState(null); // request_id (untuk rating/feedback)
-  const [error, setError] = useState("");
 
   const handleGenerate = async (e) => {
     e.preventDefault();
