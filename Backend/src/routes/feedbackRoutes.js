@@ -34,6 +34,15 @@ async function getFeedback(requestId, userId) {
     return rows[0] ?? null;
 }
 
+// Helper — hapus feedback
+async function deleteFeedback(requestId, userId) {
+    const { rowCount } = await db.query(
+        'DELETE FROM user_feedback WHERE request_id = $1 AND user_id = $2',
+        [requestId, userId]
+    );
+    return rowCount > 0;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ENDPOINT GENERIK (fallback, pakai validasi ownership)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,12 +65,39 @@ router.post('/feedback/unit-plan/:requestId', verifyToken, async (req, res) => {
     }
 });
 
+router.put('/feedback/unit-plan/:requestId', verifyToken, async (req, res) => {
+    const { rating, komentar, is_helpful } = req.body;
+    if (!rating || rating < 1 || rating > 5)
+        return res.status(400).json({ success: false, message: 'Rating harus antara 1 sampai 5.' });
+    try {
+        const data = await upsertFeedback(req.params.requestId, req.user.id, rating, komentar, is_helpful);
+        res.json({ success: true, message: 'Feedback berhasil diperbarui!', data });
+    } catch (err) {
+        console.error('[FeedbackRoute] update unit-plan:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 router.get('/feedback/unit-plan/:requestId', verifyToken, async (req, res) => {
     try {
         const data = await getFeedback(req.params.requestId, req.user.id);
         res.json({ success: true, data });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+router.delete('/feedback/unit-plan/:requestId', verifyToken, async (req, res) => {
+    try {
+        const deleted = await deleteFeedback(req.params.requestId, req.user.id);
+        if (deleted) {
+            res.json({ success: true, message: 'Feedback berhasil dihapus.' });
+        } else {
+            res.status(404).json({ success: false, message: 'Feedback tidak ditemukan.' });
+        }
+    } catch (err) {
+        console.error('[FeedbackRoute] delete unit-plan:', err.message);
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 
@@ -81,12 +117,39 @@ router.post('/feedback/presentation/:requestId', verifyToken, async (req, res) =
     }
 });
 
+router.put('/feedback/presentation/:requestId', verifyToken, async (req, res) => {
+    const { rating, komentar, is_helpful } = req.body;
+    if (!rating || rating < 1 || rating > 5)
+        return res.status(400).json({ success: false, message: 'Rating harus antara 1 sampai 5.' });
+    try {
+        const data = await upsertFeedback(req.params.requestId, req.user.id, rating, komentar, is_helpful);
+        res.json({ success: true, message: 'Feedback berhasil diperbarui!', data });
+    } catch (err) {
+        console.error('[FeedbackRoute] update presentation:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 router.get('/feedback/presentation/:requestId', verifyToken, async (req, res) => {
     try {
         const data = await getFeedback(req.params.requestId, req.user.id);
         res.json({ success: true, data });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+router.delete('/feedback/presentation/:requestId', verifyToken, async (req, res) => {
+    try {
+        const deleted = await deleteFeedback(req.params.requestId, req.user.id);
+        if (deleted) {
+            res.json({ success: true, message: 'Feedback berhasil dihapus.' });
+        } else {
+            res.status(404).json({ success: false, message: 'Feedback tidak ditemukan.' });
+        }
+    } catch (err) {
+        console.error('[FeedbackRoute] delete presentation:', err.message);
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 
@@ -106,12 +169,39 @@ router.post('/feedback/syllabus/:requestId', verifyToken, async (req, res) => {
     }
 });
 
+router.put('/feedback/syllabus/:requestId', verifyToken, async (req, res) => {
+    const { rating, komentar, is_helpful } = req.body;
+    if (!rating || rating < 1 || rating > 5)
+        return res.status(400).json({ success: false, message: 'Rating harus antara 1 sampai 5.' });
+    try {
+        const data = await upsertFeedback(req.params.requestId, req.user.id, rating, komentar, is_helpful);
+        res.json({ success: true, message: 'Feedback berhasil diperbarui!', data });
+    } catch (err) {
+        console.error('[FeedbackRoute] update syllabus:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 router.get('/feedback/syllabus/:requestId', verifyToken, async (req, res) => {
     try {
         const data = await getFeedback(req.params.requestId, req.user.id);
         res.json({ success: true, data });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+router.delete('/feedback/syllabus/:requestId', verifyToken, async (req, res) => {
+    try {
+        const deleted = await deleteFeedback(req.params.requestId, req.user.id);
+        if (deleted) {
+            res.json({ success: true, message: 'Feedback berhasil dihapus.' });
+        } else {
+            res.status(404).json({ success: false, message: 'Feedback tidak ditemukan.' });
+        }
+    } catch (err) {
+        console.error('[FeedbackRoute] delete syllabus:', err.message);
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 
@@ -131,12 +221,39 @@ router.post('/feedback/academic/:requestId', verifyToken, async (req, res) => {
     }
 });
 
+router.put('/feedback/academic/:requestId', verifyToken, async (req, res) => {
+    const { rating, komentar, is_helpful } = req.body;
+    if (!rating || rating < 1 || rating > 5)
+        return res.status(400).json({ success: false, message: 'Rating harus antara 1 sampai 5.' });
+    try {
+        const data = await upsertFeedback(req.params.requestId, req.user.id, rating, komentar, is_helpful);
+        res.json({ success: true, message: 'Feedback berhasil diperbarui!', data });
+    } catch (err) {
+        console.error('[FeedbackRoute] update academic:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 router.get('/feedback/academic/:requestId', verifyToken, async (req, res) => {
     try {
         const data = await getFeedback(req.params.requestId, req.user.id);
         res.json({ success: true, data });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+router.delete('/feedback/academic/:requestId', verifyToken, async (req, res) => {
+    try {
+        const deleted = await deleteFeedback(req.params.requestId, req.user.id);
+        if (deleted) {
+            res.json({ success: true, message: 'Feedback berhasil dihapus.' });
+        } else {
+            res.status(404).json({ success: false, message: 'Feedback tidak ditemukan.' });
+        }
+    } catch (err) {
+        console.error('[FeedbackRoute] delete academic:', err.message);
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 

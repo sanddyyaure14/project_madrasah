@@ -65,6 +65,41 @@ router.post('/feedback/rubric/:requestId', verifyToken, async (req, res) => {
     }
 });
 
+// PUT /api/feedback/rubric/:requestId — update rating & komentar
+router.put('/feedback/rubric/:requestId', verifyToken, async (req, res) => {
+    const { requestId } = req.params;
+    const { rating, komentar, is_helpful } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ success: false, message: 'Rating harus antara 1 sampai 5.' });
+    }
+
+    try {
+        const existing = await db.query(
+            'SELECT id FROM user_feedback WHERE request_id = $1 AND user_id = $2',
+            [requestId, req.user.id]
+        );
+
+        if (existing.rows.length > 0) {
+            const updated = await db.query(
+                'UPDATE user_feedback SET rating = $1, komentar = $2, is_helpful = $3 WHERE request_id = $4 AND user_id = $5 RETURNING *',
+                [rating, komentar || null, is_helpful ?? null, requestId, req.user.id]
+            );
+            return res.json({ success: true, message: 'Feedback berhasil diperbarui.', data: updated.rows[0] });
+        }
+
+        const inserted = await db.query(
+            'INSERT INTO user_feedback (id, request_id, user_id, rating, komentar, is_helpful) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [uuidv4(), requestId, req.user.id, rating, komentar || null, is_helpful ?? null]
+        );
+        return res.json({ success: true, message: 'Terima kasih atas feedback-mu!', data: inserted.rows[0] });
+    } catch (e) {
+        console.error('Error update feedback Rubric:', e);
+        return res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+
 // GET /api/feedback/rubric/:requestId — ambil feedback yang sudah dikirim
 router.get('/feedback/rubric/:requestId', verifyToken, async (req, res) => {
     try {
@@ -74,6 +109,24 @@ router.get('/feedback/rubric/:requestId', verifyToken, async (req, res) => {
         );
         return res.json({ success: true, data: rows[0] ?? null });
     } catch (e) {
+        return res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// DELETE /api/feedback/rubric/:requestId — hapus feedback
+router.delete('/feedback/rubric/:requestId', verifyToken, async (req, res) => {
+    try {
+        const { rowCount } = await db.query(
+            'DELETE FROM user_feedback WHERE request_id = $1 AND user_id = $2',
+            [req.params.requestId, req.user.id]
+        );
+        if (rowCount > 0) {
+            return res.json({ success: true, message: 'Feedback berhasil dihapus.' });
+        } else {
+            return res.status(404).json({ success: false, message: 'Feedback tidak ditemukan.' });
+        }
+    } catch (e) {
+        console.error('Error hapus feedback Rubric:', e);
         return res.status(500).json({ success: false, message: e.message });
     }
 });
