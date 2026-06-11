@@ -161,8 +161,8 @@ export default function KepsekDashboard() {
   const rataRataRating = summary?.informasi_madrasah?.rata_rata_rating || 0;
   const totalFeedbackRating = summary?.informasi_madrasah?.total_feedback_rating || 0;
 
-  const myGenerate = summary?.informasi_saya?.dokumen_tersimpan || 0;
-  const myMonthlyLimit = summary?.informasi_saya?.monthly_limit_saya || 100;
+  const myGenerate = summary?.informasi_saya?.total_generate_saya || 0;
+  const myMonthlyLimit = summary?.informasi_saya?.monthly_limit_saya || "∞";
   const myDocs = summary?.informasi_saya?.dokumen_tersimpan || 0;
   const myRating = summary?.informasi_saya?.rata_rata_feedback || 0;
   const myTotalFeedback = summary?.informasi_saya?.total_feedback_saya || 0;
@@ -277,7 +277,7 @@ export default function KepsekDashboard() {
              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
           </div>
           <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">GENERATE SAYA</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">GENERATE BULAN INI</p>
             <div className="flex items-baseline gap-1">
               <h4 className="text-2xl font-serif text-gray-900 m-0">{myGenerate}</h4>
               <span className="text-lg text-gray-400 font-serif">/ ∞</span>

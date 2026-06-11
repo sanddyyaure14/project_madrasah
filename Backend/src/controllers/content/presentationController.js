@@ -18,15 +18,18 @@ const generatePresentation = async (req, res) => {
 
     try {
         const {
-            topik, jumlah_slide, tujuan, audiens, include_catatan
+            topik, jumlah_slide, tujuan, audiens, tingkat_kelas, include_catatan
         } = req.body;
 
         // userId diambil dari JWT token
         const finalUserId = req.user.id;
         const isKepsek = req.user.role === 'kepala_sekolah';
 
+        // Gunakan tingkat_kelas jika ada, fallback ke audiens untuk kompatibilitas
+        const targetAudiens = tingkat_kelas ? `Siswa Kelas ${tingkat_kelas}` : (audiens || 'Umum');
+
         const inputDataForLog = {
-            topik, jumlah_slide, tujuan, audiens, include_catatan
+            topik, jumlah_slide, tujuan, audiens: targetAudiens, tingkat_kelas, include_catatan
         };
 
         // LANGKAH A: Tulis Log Request Awal (Pending)
@@ -53,7 +56,7 @@ const generatePresentation = async (req, res) => {
         // 2. Panggil Groq AI Llama 3.3
         const prompt = `Anda adalah asisten pembuat materi presentasi yang ahli. Buatlah presentasi tentang topik: "${topik}".
 Tujuan presentasi: ${tujuan || 'Edukasi / Penjelasan umum'}.
-Target Audiens: ${audiens || 'Umum'}.
+Target Audiens: ${targetAudiens}.
 Sertakan catatan presenter: ${include_catatan ? 'Ya' : 'Tidak'}.
 
 ATURAN WAJIB:
@@ -100,7 +103,7 @@ PENTING: Array slides_json harus berisi TEPAT ${jumlah_slide} elemen.`;
             topik: topik,
             jumlah_slide: aiResponse.slides_json.length,
             tujuan: tujuan || null,
-            audiens: audiens || null,
+            audiens: targetAudiens,
             slides_json: aiResponse.slides_json,
             include_catatan: include_catatan || false
         };

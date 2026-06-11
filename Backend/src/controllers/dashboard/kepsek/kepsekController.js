@@ -13,11 +13,14 @@ const getDashboardSummary = async (req, res) => {
         const pendingTeachersPromise = KepsekModel.getPendingTeachers();
 
         // 2. Ambil data personal (Informasi Saya)
-        // a. Total Generate Saya (Bulan ini)
+        // a. Total Generate Saya (Bulan ini) — kepsek unlimited, hitung dari generation_requests
         const myGeneratePromise = db.query(`
-            SELECT COALESCE(used_this_month, 0) AS used_this_month, COALESCE(monthly_limit, 100) AS monthly_limit
-            FROM usage_quotas 
-            WHERE user_id = $1
+            SELECT COUNT(*) AS used_this_month
+            FROM generation_requests 
+            WHERE user_id = $1 
+              AND status = 'completed'
+              AND created_at >= date_trunc('month', NOW())
+              AND created_at <  date_trunc('month', NOW()) + INTERVAL '1 month'
         `, [userId]);
         
         // b. Dokumen Tersimpan (Total history saya)
@@ -66,8 +69,8 @@ const getDashboardSummary = async (req, res) => {
                     total_feedback_rating: ratingData.jumlah_feedback
                 },
                 informasi_saya: {
-                    total_generate_saya: myGenerateRes.rows[0] ? myGenerateRes.rows[0].used_this_month : 0,
-                    monthly_limit_saya: myGenerateRes.rows[0] ? myGenerateRes.rows[0].monthly_limit : 100,
+                    total_generate_saya: myGenerateRes.rows[0] ? parseInt(myGenerateRes.rows[0].used_this_month, 10) : 0,
+                    monthly_limit_saya: null,
                     dokumen_tersimpan: myDocsRes.rows[0] ? parseInt(myDocsRes.rows[0].total, 10) : 0,
                     rata_rata_feedback: myFeedbackRes.rows[0] && myFeedbackRes.rows[0].rata_rata ? parseFloat(myFeedbackRes.rows[0].rata_rata) : 0,
                     total_feedback_saya: myFeedbackRes.rows[0] ? parseInt(myFeedbackRes.rows[0].total_feedback, 10) : 0

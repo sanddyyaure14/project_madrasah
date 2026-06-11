@@ -4,14 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import RatingFeedback from "@/components/RatingFeedback";
 
-const AUDIENS_OPTIONS = ["Siswa MI", "Siswa MTs", "Siswa MA", "Guru", "Orang Tua", "Umum"];
+const KELAS_OPTIONS = ["VII", "VIII", "IX", "X", "XI", "XII"];
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function PresentationGeneratorPage() {
   const [topik, setTopik] = useState("");
   const [jumlahSlide, setJumlahSlide] = useState(8);
   const [tujuan, setTujuan] = useState("");
-  const [audiens, setAudiens] = useState("Siswa MTs");
+  const [kelas, setKelas] = useState("VII");
   const [includeCatatan, setIncludeCatatan] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -42,7 +42,7 @@ export default function PresentationGeneratorPage() {
           topik: topik.trim(),
           jumlah_slide: jumlahSlide,
           tujuan: tujuan.trim() || "Edukasi / Penjelasan Materi",
-          audiens: audiens,
+          tingkat_kelas: kelas,
           include_catatan: includeCatatan,
         }),
       });
@@ -143,15 +143,15 @@ export default function PresentationGeneratorPage() {
             />
           </div>
 
-          {/* Target Audiens */}
+          {/* Kelas */}
           <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-2">Target Audiens</label>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">Kelas <span className="text-red-500">*</span></label>
             <div className="flex flex-wrap gap-2">
-              {AUDIENS_OPTIONS.map((a) => (
-                <button key={a} type="button" onClick={() => setAudiens(a)}
-                  className={`px-3 py-1.5 rounded-full text-xs border transition font-medium
-                    ${audiens === a ? "bg-[#006747] text-white border-[#006747]" : "bg-white text-gray-700 border-gray-200 hover:border-emerald-400"}`}>
-                  {a}
+              {KELAS_OPTIONS.map((k) => (
+                <button key={k} type="button" onClick={() => setKelas(k)}
+                  className={`px-4 py-2 rounded-full text-sm border transition font-medium
+                    ${kelas === k ? "bg-[#006747] text-white border-[#006747]" : "bg-white text-gray-700 border-gray-200 hover:border-emerald-400"}`}>
+                  {k}
                 </button>
               ))}
             </div>

@@ -260,11 +260,15 @@ static async getStatistikGuru(instansiId) {
             SELECT 
                 u.id AS guru_id,
                 u.nama_lengkap,
-                COUNT(gr.id) AS total_generate,
-                COUNT(CASE WHEN gr.feature_type = 'rubric' THEN 1 END) AS total_rubric,
-                COUNT(CASE WHEN gr.feature_type = 'worksheet' THEN 1 END) AS total_worksheet,
-                COUNT(CASE WHEN gr.feature_type = 'multiple_choice' THEN 1 END) AS total_mc,
-                COUNT(CASE WHEN gr.feature_type = 'writing_feedback' THEN 1 END) AS total_writing,
+                COUNT(gr.id)::int AS total_generate,
+                COUNT(CASE WHEN gr.feature_type = 'multiple_choice'  THEN 1 END)::int AS total_mc,
+                COUNT(CASE WHEN gr.feature_type = 'rubric'           THEN 1 END)::int AS total_rubric,
+                COUNT(CASE WHEN gr.feature_type = 'worksheet'        THEN 1 END)::int AS total_worksheet,
+                COUNT(CASE WHEN gr.feature_type = 'writing_feedback' THEN 1 END)::int AS total_writing,
+                COUNT(CASE WHEN gr.feature_type = 'syllabus'         THEN 1 END)::int AS total_syllabus,
+                COUNT(CASE WHEN gr.feature_type = 'unit_plan'        THEN 1 END)::int AS total_unit_plan,
+                COUNT(CASE WHEN gr.feature_type = 'presentation'     THEN 1 END)::int AS total_presentation,
+                COUNT(CASE WHEN gr.feature_type = 'academic_content' THEN 1 END)::int AS total_academic_content,
                 MAX(gr.created_at) AS last_generate_at
             FROM users u
             INNER JOIN user_profiles p ON u.id = p.user_id
