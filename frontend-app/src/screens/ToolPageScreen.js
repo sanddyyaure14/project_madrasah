@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, ActivityIndicator, Alert, Switch, Clipboard, Linking,
@@ -10,6 +10,7 @@ import { findTool } from '../lib/tools';
 import { useAuth, API_URL } from '../lib/auth';
 import { useNotifications } from '../lib/notifications';
 import { C, S } from '../lib/theme';
+import FeedbackRating from '../components/FeedbackRating';
 
 // ─── Download file dengan token (untuk PDF/Excel) ──────────────────────────
 async function downloadWithToken(url, token, filename) {
@@ -593,7 +594,266 @@ function SyllabusForm() {
   );
 }
 
-function UnitPlanForm({ navigation }) {
+// ─── UnitPlan Result Panel (mirrors WorksheetScreen pattern) ───────────────
+function UnitPlanResultPanel({ data, unitPlanId, navigation, onReset }) {
+  const { token } = useAuth();
+  const [downloading, setDownloading] = useState(false);
+
+  const unitPlanJson = data.unit_plan_json || {};
+  const infoUmum = unitPlanJson.informasi_umum || {};
+  const komponenInti = unitPlanJson.komponen_inti || {};
+
+  function handleCopy() {
+    let text = `MODUL AJAR / RPP\n${data.judul_unit}\n\nMata Pelajaran: ${data.mata_pelajaran}\nKelas: ${data.tingkat_kelas}\n\n`;
+    if (infoUmum.alokasi_waktu) text += `Alokasi Waktu: ${infoUmum.alokasi_waktu}\n\n`;
+    if (komponenInti.tujuan_pembelajaran?.length > 0) {
+      text += `Tujuan Pembelajaran:\n`;
+      komponenInti.tujuan_pembelajaran.forEach(item => text += `• ${item}\n`);
+    }
+    Clipboard.setString(text);
+    Alert.alert('Tersalin!', 'Ringkasan RPP berhasil disalin ke clipboard.');
+  }
+
+  function handleSimpan() {
+    if (!unitPlanId) {
+      Alert.alert('Info', 'RPP sudah otomatis tersimpan saat di-generate.');
+      return;
+    }
+    Alert.alert(
+      'Tersimpan ✅',
+      'RPP berhasil disimpan ke Dokumen Saya (MyDocs).',
+      [
+        { text: 'Nanti', style: 'cancel' },
+        { text: 'Lihat Detail', onPress: () => navigation.navigate('UnitPlanDetail', { id: unitPlanId, data }) },
+      ]
+    );
+  }
+
+  async function handleDownloadDocx() {
+    if (!unitPlanId || !token) return;
+    try {
+      setDownloading(true);
+      const url = `${API_URL}/unit-plan/download/${unitPlanId}/docx`;
+      const localUri = documentDirectory + `rpp_${data.judul_unit.replace(/\s+/g, '_')}.docx`;
+      const result = await downloadAsync(url, localUri, { headers: { Authorization: `Bearer ${token}` } });
+      if (result.status !== 200) { Alert.alert('Gagal', 'Server menolak permintaan download.'); return; }
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(result.uri, { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', dialogTitle: 'Buka RPP.docx' });
+      } else {
+        Alert.alert('Selesai', `File tersimpan di: ${result.uri}`);
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Gagal download: ' + err.message);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <View style={[upS.resultCard, S.shadow]}>
+      {/* Header */}
+      <View style={upS.lksHeader}>
+        <View style={upS.lksTitleRow}>
+          <Ionicons name="document-text" size={20} color={C.primary} />
+          <Text style={upS.lksTitle}>{data.judul_unit || 'Modul Ajar / RPP'}</Text>
+        </View>
+        <View style={upS.lksMeta}>
+          {data.mata_pelajaran && <View style={upS.metaChip}><Text style={upS.metaChipText}>{data.mata_pelajaran}</Text></View>}
+          {data.tingkat_kelas && <View style={upS.metaChip}><Text style={upS.metaChipText}>Kelas {data.tingkat_kelas}</Text></View>}
+          {infoUmum.alokasi_waktu && <View style={upS.metaChip}><Ionicons name="time-outline" size={11} color={C.muted} /><Text style={upS.metaChipText}>{infoUmum.alokasi_waktu}</Text></View>}
+        </View>
+      </View>
+
+      {/* Target Peserta Didik */}
+      {infoUmum.target_peserta_didik ? (
+        <View style={upS.infoBox}>
+          <Text style={upS.infoLabel}>👥 Target Peserta Didik</Text>
+          <Text style={upS.infoText}>{infoUmum.target_peserta_didik}</Text>
+        </View>
+      ) : null}
+
+      {/* Kompetensi Awal */}
+      {infoUmum.kompetensi_awal?.length > 0 && (
+        <View style={upS.infoBox}>
+          <Text style={upS.infoLabel}>🔑 Kompetensi Awal</Text>
+          {infoUmum.kompetensi_awal.map((item, idx) => (
+            <View key={idx} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+              <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary, marginTop: 8, flexShrink: 0 }} />
+              <Text style={upS.infoText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Profil Pelajar Pancasila */}
+      {infoUmum.profil_pelajar_pancasila?.length > 0 && (
+        <View style={upS.infoBox}>
+          <Text style={upS.infoLabel}>🌟 Profil Pelajar Pancasila</Text>
+          {infoUmum.profil_pelajar_pancasila.map((item, idx) => (
+            <View key={idx} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+              <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary, marginTop: 8, flexShrink: 0 }} />
+              <Text style={upS.infoText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Sarana Prasarana */}
+      {infoUmum.sarana_prasarana?.length > 0 && (
+        <View style={upS.infoBox}>
+          <Text style={upS.infoLabel}>🏫 Sarana & Prasarana</Text>
+          {infoUmum.sarana_prasarana.map((item, idx) => (
+            <View key={idx} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+              <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary, marginTop: 8, flexShrink: 0 }} />
+              <Text style={upS.infoText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Tujuan Pembelajaran */}
+      {komponenInti.tujuan_pembelajaran?.length > 0 && (
+        <View style={upS.infoBox}>
+          <Text style={upS.infoLabel}>🎯 Tujuan Pembelajaran</Text>
+          {komponenInti.tujuan_pembelajaran.map((item, idx) => (
+            <View key={idx} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+              <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary, marginTop: 8, flexShrink: 0 }} />
+              <Text style={upS.infoText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Pemahaman Bermakna */}
+      {komponenInti.pemahaman_bermakna ? (
+        <View style={[upS.infoBox, { backgroundColor: C.goldLight, borderColor: '#fde68a' }]}>
+          <Text style={[upS.infoLabel, { color: '#92400e' }]}>💡 Pemahaman Bermakna</Text>
+          <Text style={[upS.infoText, { color: '#78350f' }]}>{komponenInti.pemahaman_bermakna}</Text>
+        </View>
+      ) : null}
+
+      {/* Pertanyaan Pemantik */}
+      {komponenInti.pertanyaan_pemantik?.length > 0 && (
+        <View style={upS.infoBox}>
+          <Text style={upS.infoLabel}>❓ Pertanyaan Pemantik</Text>
+          {komponenInti.pertanyaan_pemantik.map((item, idx) => (
+            <View key={idx} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+              <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary, marginTop: 8, flexShrink: 0 }} />
+              <Text style={upS.infoText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Kegiatan Pembelajaran */}
+      {komponenInti.kegiatan_pembelajaran?.length > 0 && (
+        <View style={{ gap: 10 }}>
+          <Text style={upS.sectionLabel}>KEGIATAN PEMBELAJARAN</Text>
+          {komponenInti.kegiatan_pembelajaran.map((p, idx) => (
+            <PertemuanCard key={idx} pertemuan={p} index={idx} />
+          ))}
+        </View>
+      )}
+
+      {/* Asesmen */}
+      {komponenInti.asesmen?.length > 0 && (
+        <View style={upS.infoBox}>
+          <Text style={upS.infoLabel}>📝 Asesmen</Text>
+          {komponenInti.asesmen.map((item, idx) => (
+            <View key={idx} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+              <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary, marginTop: 8, flexShrink: 0 }} />
+              <Text style={upS.infoText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Pengayaan & Remedial */}
+      {komponenInti.pengayaan_dan_remedial?.length > 0 && (
+        <View style={upS.infoBox}>
+          <Text style={upS.infoLabel}>📈 Pengayaan & Remedial</Text>
+          {komponenInti.pengayaan_dan_remedial.map((item, idx) => (
+            <View key={idx} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+              <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary, marginTop: 8, flexShrink: 0 }} />
+              <Text style={upS.infoText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Action buttons */}
+      <View style={upS.actionsRow}>
+        <TouchableOpacity style={upS.btnOutline} onPress={handleCopy} activeOpacity={0.8}>
+          <Ionicons name="copy-outline" size={15} color={C.primary} />
+          <Text style={upS.btnOutlineText}>Copy</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={upS.btnOutline} onPress={handleDownloadDocx} disabled={downloading} activeOpacity={0.8}>
+          {downloading ? <ActivityIndicator size="small" color={C.primary} /> : <><Ionicons name="document-outline" size={15} color={C.primary} /><Text style={upS.btnOutlineText}>Cetak DOCX</Text></>}
+        </TouchableOpacity>
+        <TouchableOpacity style={upS.btnSave} onPress={handleSimpan} activeOpacity={0.8}>
+          <Ionicons name="bookmark" size={15} color="#fff" />
+          <Text style={upS.btnSaveText}>Simpan</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity style={upS.btnReset} onPress={onReset}>
+        <Ionicons name="refresh" size={15} color={C.muted} />
+        <Text style={upS.btnResetText}>Buat RPP Baru</Text>
+      </TouchableOpacity>
+
+      {data.request_id && (
+        <FeedbackRating requestId={data.request_id} endpoint="unit-plan" featureLabel="Modul Ajar / RPP" />
+      )}
+    </View>
+  );
+}
+
+function PertemuanCard({ pertemuan, index }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={upS.aktCard}>
+      <TouchableOpacity style={upS.aktHeader} onPress={() => setOpen(v => !v)} activeOpacity={0.8}>
+        <View style={upS.aktBadge}><Text style={upS.aktBadgeText}>{pertemuan.pertemuan_ke || index + 1}</Text></View>
+        <View style={{ flex: 1 }}>
+          <Text style={upS.aktTipe}>PERTEMUAN KE-{pertemuan.pertemuan_ke || index + 1}</Text>
+        </View>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={C.muted} />
+      </TouchableOpacity>
+      {open && (
+        <View style={upS.aktBody}>
+          {pertemuan.pendahuluan?.length > 0 && (
+            <View style={{ gap: 4 }}>
+              <Text style={upS.kegLabel}>Pendahuluan</Text>
+              {pertemuan.pendahuluan.map((item, i) => (
+                <View key={i} style={{ flexDirection: 'row', gap: 8 }}><View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.muted, marginTop: 8 }} /><Text style={upS.kegText}>{item}</Text></View>
+              ))}
+            </View>
+          )}
+          {pertemuan.kegiatan_inti?.length > 0 && (
+            <View style={{ gap: 4 }}>
+              <Text style={upS.kegLabel}>Kegiatan Inti</Text>
+              {pertemuan.kegiatan_inti.map((item, i) => (
+                <View key={i} style={{ flexDirection: 'row', gap: 8 }}><View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.muted, marginTop: 8 }} /><Text style={upS.kegText}>{item}</Text></View>
+              ))}
+            </View>
+          )}
+          {pertemuan.penutup?.length > 0 && (
+            <View style={{ gap: 4 }}>
+              <Text style={upS.kegLabel}>Penutup</Text>
+              {pertemuan.penutup.map((item, i) => (
+                <View key={i} style={{ flexDirection: 'row', gap: 8 }}><View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.muted, marginTop: 8 }} /><Text style={upS.kegText}>{item}</Text></View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── UnitPlan Form (form only — result state lifted to ToolPageScreen) ──────
+function UnitPlanForm({ onResult }) {
   const { token } = useAuth();
   const [judulUnit, setJudulUnit] = useState('');
   const [mataPelajaran, setMataPelajaran] = useState(MAPEL[0]);
@@ -603,6 +863,7 @@ function UnitPlanForm({ navigation }) {
   const [durasiPerJp, setDurasiPerJp] = useState('40');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { addNotification } = useNotifications();
 
   async function handleGenerate() {
     if (!judulUnit.trim()) {
@@ -654,36 +915,13 @@ function UnitPlanForm({ navigation }) {
         return;
       }
 
-      // ── Navigasi ke halaman detail setelah generate berhasil ──
-      try {
-        console.log('[UnitPlan] Navigating to UnitPlanDetail...');
-        
-        // Simplified navigation - langsung ke MyDocs
-        Alert.alert(
-          'Berhasil! 🎉',
-          'RPP berhasil dibuat dan tersimpan.',
-          [
-            {
-              text: 'Lihat di Dokumen',
-              onPress: () => navigation.navigate('MyDocs'),
-            },
-            { text: 'OK', onPress: () => navigation.goBack() },
-          ]
-        );
-      } catch (navError) {
-        console.error('[UnitPlan] Navigation error:', navError);
-        Alert.alert(
-          'Berhasil Generate!',
-          'RPP berhasil dibuat. Silakan cek di halaman Dokumen.',
-          [
-            {
-              text: 'Lihat Dokumen',
-              onPress: () => navigation.navigate('MyDocs'),
-            },
-            { text: 'OK' },
-          ]
-        );
-      }
+      addNotification({
+        title: 'RPP Berhasil Dibuat',
+        message: `RPP "${judulUnit.trim()}" berhasil digenerate.`,
+        type: 'success',
+        icon: 'document-text',
+      });
+      onResult(data.data, data.data.id);
     } catch (e) {
       console.error('UnitPlan generate error:', e);
       setError('Tidak dapat terhubung ke server. Pastikan backend berjalan.');
@@ -691,6 +929,7 @@ function UnitPlanForm({ navigation }) {
       setLoading(false);
     }
   }
+
 
   return (
     <>
@@ -798,6 +1037,11 @@ const TOOL_FORMS = {
 
 export default function ToolPageScreen({ route, navigation }) {
   const { slug } = route.params;
+  const scrollRef = useRef(null);
+
+  // State khusus untuk unit-plan (RPP) — lifted agar ResultPanel bisa jadi sibling hero
+  const [upResult, setUpResult] = useState(null);
+  const [upId, setUpId] = useState(null);
 
   // Redirect tools dengan dedicated screen (Rules of Hooks: useEffect di level atas)
   useEffect(() => {
@@ -811,11 +1055,52 @@ export default function ToolPageScreen({ route, navigation }) {
 
   const iconName = ICON_MAP[tool.icon] ?? 'sparkles';
   const isGold = tool.accent === 'gold';
+
+  // ── Alur RPP (unit-plan): Form → ResultPanel penuh (sama dengan Worksheet/Silabus) ──
+  if (slug === 'unit-plan') {
+    return (
+      <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.hero}>
+          <View style={[styles.heroIcon, styles.heroIconEmerald]}>
+            <Ionicons name={iconName} size={28} color={C.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroSub}>{tool.subtitle}</Text>
+            <Text style={styles.heroTitle}>{tool.title}</Text>
+            <Text style={styles.heroDesc}>{tool.desc}</Text>
+          </View>
+        </View>
+
+        {!upResult ? (
+          <View style={[styles.formCard, S.shadow]}>
+            <UnitPlanForm
+              onResult={(data, id) => {
+                setUpResult(data);
+                setUpId(id);
+                setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+              }}
+            />
+          </View>
+        ) : (
+          <UnitPlanResultPanel
+            data={upResult}
+            unitPlanId={upId}
+            navigation={navigation}
+            onReset={() => {
+              setUpResult(null);
+              setUpId(null);
+              scrollRef.current?.scrollTo({ y: 0, animated: true });
+            }}
+          />
+        )}
+      </ScrollView>
+    );
+  }
+
   const ToolForm = TOOL_FORMS[slug] ?? (() => <Text style={{ color: C.muted }}>Form tidak ditemukan.</Text>);
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      {/* Hero */}
       <View style={styles.hero}>
         <View style={[styles.heroIcon, isGold ? styles.heroIconGold : styles.heroIconEmerald]}>
           <Ionicons name={iconName} size={28} color={isGold ? C.goldFg : C.primary} />
@@ -826,8 +1111,6 @@ export default function ToolPageScreen({ route, navigation }) {
           <Text style={styles.heroDesc}>{tool.desc}</Text>
         </View>
       </View>
-
-      {/* Form card */}
       <View style={[styles.formCard, S.shadow]}>
         <ToolForm navigation={navigation} />
       </View>
@@ -963,4 +1246,34 @@ const rubricS = StyleSheet.create({
   skorBadge: { backgroundColor: C.primaryLight, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
   skorText: { fontSize: 11, fontWeight: '700', color: C.primary },
   levelDesc: { fontSize: 12, color: C.muted, lineHeight: 17 },
+});
+
+// Styles khusus UnitPlanResultPanel (mirror WorksheetScreen)
+const upS = StyleSheet.create({
+  resultCard: { backgroundColor: C.card, borderRadius: 20, padding: 20, gap: 14 },
+  lksHeader: { gap: 8 },
+  lksTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  lksTitle: { fontSize: 17, fontWeight: '700', color: C.ink, flex: 1 },
+  lksMeta: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  metaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.primaryLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  metaChipText: { fontSize: 11, fontWeight: '600', color: C.primary },
+  infoBox: { backgroundColor: C.primaryLight, borderRadius: 12, padding: 12, gap: 6, borderWidth: 1, borderColor: '#bbf7d0' },
+  infoLabel: { fontSize: 11, fontWeight: '700', color: C.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  infoText: { fontSize: 13, color: C.ink, lineHeight: 20, flex: 1 },
+  sectionLabel: { fontSize: 11, fontWeight: '800', color: C.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  aktCard: { backgroundColor: C.bg, borderRadius: 14, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+  aktHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
+  aktBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  aktBadgeText: { fontSize: 12, fontWeight: '700', color: C.primary },
+  aktTipe: { fontSize: 11, fontWeight: '700', color: C.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  aktBody: { borderTopWidth: 1, borderTopColor: C.separator, padding: 14, gap: 12 },
+  kegLabel: { fontSize: 11, fontWeight: '700', color: '#b45309', textTransform: 'uppercase', letterSpacing: 0.4 },
+  kegText: { flex: 1, fontSize: 13, color: C.ink, lineHeight: 20 },
+  actionsRow: { flexDirection: 'row', gap: 8 },
+  btnOutline: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1.5, borderColor: C.primary, borderRadius: 12, paddingVertical: 11 },
+  btnOutlineText: { fontSize: 12, fontWeight: '600', color: C.primary },
+  btnSave: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: C.primary, borderRadius: 12, paddingVertical: 11 },
+  btnSaveText: { fontSize: 12, fontWeight: '600', color: '#fff' },
+  btnReset: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
+  btnResetText: { fontSize: 13, color: C.muted },
 });

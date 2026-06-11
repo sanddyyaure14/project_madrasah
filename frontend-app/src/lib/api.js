@@ -1,31 +1,42 @@
 // =========================================================================
 // API Service Layer — MadrasahAI
-// Base URL otomatis terdeteksi via expo-constants (ganti WiFi = otomatis)
+// Base URL otomatis terdeteksi via expo-constants (ganti WiFi = otomatis).
+// TIDAK ada hardcoded IP — IP diambil langsung dari hostUri Expo bundler.
 // =========================================================================
 import Constants from 'expo-constants';
-import { Platform, NativeModules, Linking } from 'react-native';
+import { NativeModules, Linking } from 'react-native';
+
+const BACKEND_PORT = '3000';
 
 function getApiBaseUrl() {
-  // Ambil IP laptop dari hostUri
+  // 1. Sumber paling andal: hostUri yang diisi Expo bundler saat `expo start`.
+  //    Berisi IP LAN aktif laptop, berubah otomatis setiap ganti WiFi.
   let host = Constants.expoConfig?.hostUri?.split(':')[0];
-  
+
+  // 2. Fallback: experienceUrl (format exp://IP:PORT)
   if (!host && Constants.experienceUrl) {
     host = Constants.experienceUrl.replace('exp://', '').split(':')[0];
   }
 
+  // 3. Fallback: scriptURL dari Metro bundler (tersedia di beberapa versi RN)
   if (!host && NativeModules.SourceCode?.scriptURL) {
     host = NativeModules.SourceCode.scriptURL.split('://')[1]?.split(':')[0];
   }
 
-  console.log('Detected Host:', host, '| expUrl:', Constants.experienceUrl);
-
   if (host && host !== '127.0.0.1' && host !== 'localhost') {
-    return `http://${host}:3000/api`;
+    const url = `http://${host}:${BACKEND_PORT}/api`;
+    console.log('[API] Base URL (auto-detected):', url);
+    return url;
   }
-  
-  // Fallback
-  if (Platform.OS === 'android') return 'http://10.0.2.2:3000/api';
-  return 'http://localhost:3000/api';
+
+  // 4. Tidak bisa mendeteksi host — log peringatan, kembalikan string kosong
+  //    agar error fetch terlihat jelas di console daripada crash diam-diam.
+  console.warn(
+    '[API] PERINGATAN: Tidak dapat mendeteksi IP host dari Expo bundler.\n' +
+    'Pastikan Expo dijalankan dalam mode LAN (bukan Tunnel) dan HP berada\n' +
+    'di jaringan WiFi yang sama dengan laptop. Jalankan: expo start -c'
+  );
+  return `http://localhost:${BACKEND_PORT}/api`; // fallback aman, tidak akan berhasil di HP
 }
 
 export const API_URL = getApiBaseUrl();
@@ -64,14 +75,19 @@ async function request(method, path, body = null, isFormData = false) {
   const opts = { method, headers };
   if (body) opts.body = isFormData ? body : JSON.stringify(body);
 
-  const res = await fetch(`${BASE_URL}${path}`, opts);
-  const json = await res.json();
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, opts);
+    const json = await res.json();
 
-  if (!res.ok) {
-    const msg = json?.message || `HTTP ${res.status}`;
-    throw new Error(msg);
+    if (!res.ok) {
+      const msg = json?.message || `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    return json;
+  } catch (err) {
+    console.error(`[API] ${method} ${BASE_URL}${path} — FAILED:`, err.message);
+    throw new Error(`Server tidak dapat dijangkau. Pastikan backend berjalan dan HP terhubung ke WiFi yang sama dengan laptop.`);
   }
-  return json;
 }
 
 // ---------------------------------------------------------------------------
