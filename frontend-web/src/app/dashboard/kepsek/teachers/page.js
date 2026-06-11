@@ -135,7 +135,7 @@ export default function TeachersPage() {
   };
 
   const handleDeleteTeacher = async (id) => {
-    if (confirm("Apakah Anda yakin ingin menghapus guru ini dari sistem?")) {
+    if (confirm("Apakah Anda yakin ingin menghapus guru ini?")) {
       try {
         const token = sessionStorage.getItem("accessToken");
         const res = await fetch(`${API_URL}/api/kepsek/guru/${id}`, {
@@ -168,7 +168,7 @@ export default function TeachersPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif text-gray-900 m-0">Daftar Guru</h1>
-          <p className="text-[13px] text-gray-500 m-0 mt-1">Kelola akun guru: tambah, ubah, dan hapus.</p>
+          <p className="text-[13px] text-gray-500 m-0 mt-1">Lihat dan kelola data guru madrasah.</p>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={handleReset} className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-sm">

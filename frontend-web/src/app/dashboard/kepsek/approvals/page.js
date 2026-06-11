@@ -60,9 +60,9 @@ export default function ApprovalsPage() {
 
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-serif text-gray-900 m-0">Pusat Persetujuan</h1>
+        <h1 className="text-3xl font-serif text-gray-900 m-0">Persetujuan Guru Baru</h1>
         <p className="text-[13px] text-gray-500 m-0 mt-2">
-          Verifikasi pendaftaran akun guru baru sebelum mereka dapat menggunakan platform.
+          Setujui agar guru dapat login dengan email & password yang mereka daftarkan.
         </p>
       </div>
 
@@ -95,7 +95,7 @@ export default function ApprovalsPage() {
               لا توجد طلبات
             </h2>
             <p className="text-[14px] text-gray-500 m-0">
-              Tidak ada pendaftaran guru yang menunggu verifikasi.
+              Tidak ada pendaftaran guru yang menunggu persetujuan.
             </p>
           </div>
         ) : (

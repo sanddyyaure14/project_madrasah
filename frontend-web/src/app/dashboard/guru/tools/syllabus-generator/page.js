@@ -9,7 +9,16 @@ const MATA_PELAJARAN_OPTIONS = [
   "SKI", "Matematika", "IPA Terpadu", "Bahasa Indonesia",
   "Bahasa Inggris", "PPKn",
 ];
-const KELAS_OPTIONS = ["VII", "VIII", "IX", "X", "XI", "XII"];
+const KELAS_OPTIONS = {
+  MI:  ["I", "II", "III", "IV", "V", "VI"],
+  MTs: ["VII", "VIII", "IX"],
+  MA:  ["X", "XI", "XII"],
+};
+const JENJANG_OPTIONS = [
+  { label: "MI", value: "MI" },
+  { label: "MTs", value: "MTs" },
+  { label: "MA", value: "MA" },
+];
 const KURIKULUM_OPTIONS = [
   { label: "Merdeka Belajar", value: "Merdeka" },
   { label: "Kurikulum 2013", value: "K13" },
@@ -23,15 +32,22 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function SyllabusGeneratorPage() {
   const [mataPelajaran, setMataPelajaran] = useState("Fiqih");
+  const [jenjang, setJenjang] = useState("MTs");
   const [kelas, setKelas] = useState("VII");
   const [kurikulum, setKurikulum] = useState("Merdeka");
   const [semester, setSemester] = useState("ganjil");
   const [tahunAjaran, setTahunAjaran] = useState("2025/2026");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [syllabusId, setSyllabusId] = useState(null); // UUID dari tabel syllabi (untuk download)
-  const [requestId, setRequestId] = useState(null); // request_id (untuk rating/feedback)
+  const [syllabusId, setSyllabusId] = useState(null);
+  const [requestId, setRequestId] = useState(null);
   const [error, setError] = useState("");
+
+  // Saat jenjang berubah, reset kelas ke pilihan pertama jenjang tersebut
+  function handleJenjangChange(j) {
+    setJenjang(j);
+    setKelas(KELAS_OPTIONS[j][0]);
+  }
 
   const handleGenerate = async (e) => {
     e.preventDefault();
@@ -44,8 +60,6 @@ export default function SyllabusGeneratorPage() {
     try {
       const token = sessionStorage.getItem("accessToken");
       if (!token) throw new Error("Sesi login tidak ditemukan. Silakan login ulang.");
-
-      const jenjang = ["VII", "VIII", "IX"].includes(kelas) ? "MTs" : "MA";
 
       const response = await fetch(`${API_URL}/api/syllabus/generate`, {
         method: "POST",
@@ -147,11 +161,25 @@ export default function SyllabusGeneratorPage() {
             </div>
           </div>
 
+          {/* Jenjang */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">Jenjang <span className="text-red-500">*</span></label>
+            <div className="flex flex-wrap gap-2">
+              {JENJANG_OPTIONS.map((opt) => (
+                <button key={opt.value} type="button" onClick={() => handleJenjangChange(opt.value)}
+                  className={`px-4 py-2 rounded-full text-sm border transition font-medium
+                    ${jenjang === opt.value ? "bg-[#006747] text-white border-[#006747]" : "bg-white text-gray-700 border-gray-200 hover:border-emerald-400"}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Kelas */}
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-2">Kelas <span className="text-red-500">*</span></label>
             <div className="flex flex-wrap gap-2">
-              {KELAS_OPTIONS.map((k) => (
+              {KELAS_OPTIONS[jenjang].map((k) => (
                 <button key={k} type="button" onClick={() => setKelas(k)}
                   className={`px-4 py-2 rounded-full text-sm border transition font-medium
                     ${kelas === k ? "bg-[#006747] text-white border-[#006747]" : "bg-white text-gray-700 border-gray-200 hover:border-emerald-400"}`}>

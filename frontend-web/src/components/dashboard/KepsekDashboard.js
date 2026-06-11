@@ -69,6 +69,14 @@ export default function KepsekDashboard() {
   const [activeTeachers, setActiveTeachers] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [processingId, setProcessingId] = useState(null);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    try {
+      const userData = JSON.parse(sessionStorage.getItem("user"));
+      if (userData) setUser(userData);
+    } catch (e) {}
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -182,16 +190,12 @@ export default function KepsekDashboard() {
       
       {/* BANNER UTAMA */}
       <div className="bg-[#106A43] text-white p-8 rounded-2xl relative overflow-hidden shadow-sm">
-        <div className="inline-flex items-center gap-2 border border-emerald-500/50 bg-emerald-800/30 text-emerald-100 text-[10px] uppercase font-bold tracking-wider px-3 py-1.5 rounded-full mb-6 relative z-10">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          PANEL KEPALA MADRASAH
-        </div>
-        
+        <p className="text-xs text-emerald-100/60 font-arabic mb-3 relative z-10" style={{ fontFamily: "Amiri, serif", direction: "rtl" }}>بسم الله</p>
         <h2 className="text-3xl font-serif leading-snug mb-2 relative z-10">
-          Ringkasan kinerja madrasah hari ini.
+          Mari mulai mempersiapkan pelajaran<br />hari ini,<br />{user?.nama_lengkap ? `Ustadz/Ustadzah ${user.nama_lengkap.split(" ")[0]}.` : "Kepala Madrasah."}
         </h2>
         <p className="text-sm text-emerald-100/80 max-w-lg m-0 relative z-10">
-          Pantau aktivitas guru, persetujuan dokumen, dan statistik penggunaan AI.
+          Pilih salah satu fitur di bawah, isi parameter, lalu biarkan MadrasahAI menyusunnya untuk Anda.
         </p>
         
         {/* Kaligrafi Latar Belakang */}
@@ -266,7 +270,7 @@ export default function KepsekDashboard() {
       {/* LABEL INFORMASI SAYA */}
       <div className="flex items-center gap-2 mb-4 mt-8">
         <svg className="w-5 h-5 text-emerald-600/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide m-0">INFORMASI SAYA (KEPALA MADRASAH)</h3>
+        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide m-0">INFORMASI SAYA</h3>
       </div>
 
       {/* KPI GRID SAYA (3 KARTU) */}
