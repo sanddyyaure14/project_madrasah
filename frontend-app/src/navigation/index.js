@@ -59,7 +59,6 @@ import AcademicContentDetailScreen from '../screens/AcademicContentDetailScreen'
 import SyllabusEditScreen from '../screens/SyllabusEditScreen';
 import AcademicContentEditScreen from '../screens/AcademicContentEditScreen';
 import PresentationFormScreen from '../screens/PresentationFormScreen';
-import PresentationPreviewScreen from '../screens/PresentationPreviewScreen';
 import PresentationDetailScreen from '../screens/PresentationDetailScreen';
 import GenerateStatsScreen from '../screens/GenerateStatsScreen';
 import UsageStatsScreen from '../screens/UsageStatsScreen';
@@ -252,8 +251,9 @@ function DashboardStack() {
       <Stack.Screen name="AcademicContentForm" component={AcademicContentFormScreen} options={{ title: 'Buat Konten Akademik' }} />
       <Stack.Screen name="AcademicContentPreview" component={AcademicContentPreviewScreen} options={{ title: 'Preview Konten Akademik' }} />
       <Stack.Screen name="PresentationForm" component={PresentationFormScreen} options={{ title: 'Buat Presentasi' }} />
-      <Stack.Screen name="PresentationPreview" component={PresentationPreviewScreen} options={{ title: 'Preview Presentasi' }} />
       <Stack.Screen name="PresentationDetail" component={PresentationDetailScreen} options={{ title: 'Detail Presentasi' }} />
+      <Stack.Screen name="UnitPlanDetail" component={UnitPlanDetailScreen} options={{ title: 'Detail RPP' }} />
+      <Stack.Screen name="UnitPlanEdit" component={UnitPlanEditScreen} options={{ title: 'Edit RPP' }} />
       <Stack.Screen name="Teachers" component={TeachersScreen} options={{ title: 'Daftar Guru' }} />
       <Stack.Screen name="Approvals" component={ApprovalsScreen} options={{ title: 'Persetujuan' }} />
       <Stack.Screen name="GenerateStats" component={GenerateStatsScreen} options={{ title: 'Statistik Generate' }} />

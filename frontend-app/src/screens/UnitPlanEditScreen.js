@@ -14,7 +14,7 @@ import { useAuth, API_URL } from '../lib/auth';
 import { C, S } from '../lib/theme';
 
 export default function UnitPlanEditScreen({ route, navigation }) {
-  const { id, data: initialData } = route.params || {};
+  const { id, currentData: initialData } = route.params;
   const { token } = useAuth();
 
   // Basic fields
@@ -120,11 +120,10 @@ export default function UnitPlanEditScreen({ route, navigation }) {
           {
             text: 'OK',
             onPress: () => {
-              // Navigate back dengan parameter refresh
-              navigation.navigate('UnitPlanDetail', {
-                id,
-                data: json.data,
-                _refresh: Date.now(), // Trigger refresh
+              navigation.navigate({
+                name: 'UnitPlanDetail',
+                params: { id: id, data: json.data },
+                merge: true,
               });
             },
           },
@@ -143,7 +142,20 @@ export default function UnitPlanEditScreen({ route, navigation }) {
   return (
     <View style={styles.screen}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Text style={styles.sectionTitle}>📋 Informasi Dasar</Text>
+        <View style={styles.hero}>
+          <View style={styles.heroIcon}>
+            <Ionicons name="create" size={26} color={C.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroSub}>EDIT RPP</Text>
+            <Text style={styles.heroTitle}>{initialData.judul_unit || 'RPP'}</Text>
+            <Text style={styles.heroDesc}>Edit informasi dan komponen inti RPP</Text>
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 12 }}>
+          <Ionicons name="information-circle" size={18} color={C.primary} />
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>Informasi Dasar</Text>
+        </View>
 
         <View style={styles.field}>
           <Text style={styles.label}>Judul Unit *</Text>
@@ -207,7 +219,10 @@ export default function UnitPlanEditScreen({ route, navigation }) {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>🎯 Komponen Inti</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 12 }}>
+          <Ionicons name="bulb" size={18} color={C.primary} />
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>Komponen Inti</Text>
+        </View>
 
         <View style={styles.field}>
           <Text style={styles.label}>Kompetensi Awal (satu per baris)</Text>
@@ -309,42 +324,38 @@ export default function UnitPlanEditScreen({ route, navigation }) {
         </View>
 
         <Text style={styles.hint}>
-          💡 Catatan: Kegiatan pembelajaran per pertemuan belum dapat diedit di sini. Untuk
+          Catatan: Kegiatan pembelajaran per pertemuan belum dapat diedit di sini. Untuk
           edit detail kegiatan, silakan gunakan versi web.
         </Text>
-      </ScrollView>
 
-      {/* Action bar */}
-      <View style={styles.actionBar}>
-        <TouchableOpacity
-          style={[styles.btn, styles.btnCancel]}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.btnCancelText}>Batal</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.btn, styles.btnSave]}
-          onPress={handleSave}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="checkmark" size={18} color="#fff" />
-              <Text style={styles.btnSaveText}>Simpan</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-    </View>
+      <TouchableOpacity
+        style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+        onPress={handleSave}
+        disabled={saving}
+        activeOpacity={0.85}
+      >
+        {saving
+          ? <ActivityIndicator color="#fff" size="small" />
+          : <><Ionicons name="checkmark-circle" size={18} color="#fff" /><Text style={styles.saveBtnText}>Simpan Perubahan</Text></>
+        }
+      </TouchableOpacity>
+
+    </ScrollView>
+    </View >
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   scroll: { flex: 1 },
-  content: { padding: 16, paddingBottom: 100 },
+  content: { padding: 16, paddingBottom: 48, gap: 16 },
+
+  hero: { flexDirection: 'row', gap: 14, alignItems: 'flex-start', marginBottom: 16 },
+  heroIcon: { width: 52, height: 52, borderRadius: 14, backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  heroSub: { fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  heroTitle: { fontSize: 20, fontWeight: '700', color: C.ink, marginTop: 2 },
+  heroDesc: { fontSize: 12, color: C.muted, marginTop: 3 },
+
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
@@ -380,45 +391,10 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 18,
     marginTop: 8,
+    marginBottom: 16,
   },
-  actionBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    gap: 12,
-    padding: 16,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: C.border,
-    ...S.shadow,
-  },
-  btn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  btnCancel: {
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: C.border,
-  },
-  btnCancelText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: C.muted,
-  },
-  btnSave: {
-    backgroundColor: C.primary,
-  },
-  btnSaveText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
-  },
+
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.primary, borderRadius: 14, paddingVertical: 15, marginTop: 12 },
+  saveBtnDisabled: { opacity: 0.7 },
+  saveBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 });

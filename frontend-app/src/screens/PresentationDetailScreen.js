@@ -1,22 +1,7 @@
-/**
- * PresentationDetailScreen.js
- * Halaman detail presentasi yang dibuka dari riwayat dokumen.
- * Menyediakan opsi Lihat, Edit Metadata, Hapus, dan Ekspor ke PPTX.
- */
-
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  TextInput,
-  Modal,
-  Clipboard,
-  Share,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  ActivityIndicator, Alert, TextInput, Modal, Clipboard, Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C, S } from '../lib/theme';
@@ -26,9 +11,6 @@ import FeedbackRating from '../components/FeedbackRating';
 
 const AUDIENS_OPTIONS = ['Siswa MTs', 'Siswa MA', 'Guru', 'Orang Tua', 'Umum'];
 
-// ---------------------------------------------------------------------------
-// Slide Card Component
-// ---------------------------------------------------------------------------
 function SlideCard({ slide, index }) {
   const title = slide.title || slide.judul || `Slide ${index + 1}`;
   const points = Array.isArray(slide.content)
@@ -68,9 +50,6 @@ function SlideCard({ slide, index }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main Screen
-// ---------------------------------------------------------------------------
 export default function PresentationDetailScreen({ route, navigation }) {
   const { id } = route.params;
   const { token } = useAuth();
@@ -81,10 +60,10 @@ export default function PresentationDetailScreen({ route, navigation }) {
   const [downloading, setDownloading] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
 
-  // Edit fields state
   const [editTopik, setEditTopik] = useState('');
   const [editTujuan, setEditTujuan] = useState('');
   const [editAudiens, setEditAudiens] = useState('');
+  const [editSlides, setEditSlides] = useState([]);
 
   useEffect(() => {
     fetchDetail();
@@ -102,6 +81,16 @@ export default function PresentationDetailScreen({ route, navigation }) {
         setEditTopik(json.data.topik || '');
         setEditTujuan(json.data.tujuan || '');
         setEditAudiens(json.data.audiens || 'Siswa MTs');
+        
+        let parsedSlides = [];
+        if (json.data.slides_json) {
+           try {
+             parsedSlides = typeof json.data.slides_json === 'string' ? JSON.parse(json.data.slides_json) : json.data.slides_json;
+           } catch {
+             parsedSlides = [];
+           }
+        }
+        setEditSlides(parsedSlides);
       } else {
         Alert.alert('Error', json.message || 'Data presentasi tidak ditemukan');
         navigation.goBack();
@@ -131,6 +120,7 @@ export default function PresentationDetailScreen({ route, navigation }) {
           topik: editTopik.trim(),
           tujuan: editTujuan.trim() || null,
           audiens: editAudiens,
+          slides_json: editSlides,
         }),
       });
       const json = await res.json();
@@ -140,9 +130,10 @@ export default function PresentationDetailScreen({ route, navigation }) {
           topik: editTopik.trim(),
           tujuan: editTujuan.trim(),
           audiens: editAudiens,
+          slides_json: editSlides,
         }));
         setEditVisible(false);
-        Alert.alert('Berhasil', 'Metadata presentasi berhasil diperbarui.');
+        Alert.alert('Berhasil', 'Presentasi berhasil diperbarui.');
       } else {
         Alert.alert('Gagal', json.message || 'Gagal memperbarui data.');
       }
@@ -242,6 +233,28 @@ export default function PresentationDetailScreen({ route, navigation }) {
     }
   }
 
+  function handleUpdateSlide(idx, field, value) {
+    setEditSlides(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      if (field === 'title') {
+        copy[idx].title = value;
+      } else if (field === 'catatan') {
+        copy[idx].catatan = value;
+      }
+      return copy;
+    });
+  }
+
+  function handleUpdateSlidePoint(slideIdx, pointIdx, value) {
+    setEditSlides(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      const content = Array.isArray(copy[slideIdx].content) ? copy[slideIdx].content : [];
+      content[pointIdx] = value;
+      copy[slideIdx].content = content;
+      return copy;
+    });
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -258,47 +271,49 @@ export default function PresentationDetailScreen({ route, navigation }) {
 
   return (
     <>
-      <View style={styles.container}>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Header Card */}
-          <View style={[styles.headerPanel, S.shadow]}>
-            <View style={styles.headerTitleRow}>
-              <View style={styles.iconWrap}>
-                <Ionicons name="easel" size={28} color={C.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.metaLabel}>DETAIL PRESENTASI</Text>
-                <Text style={styles.titleText}>{data.topik}</Text>
-                <View style={styles.badgeRow}>
-                  {data.audiens && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{data.audiens}</Text>
-                    </View>
-                  )}
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Result Panel */}
+        <View style={[styles.resultPanel, S.shadow]}>
+          {/* Header */}
+          <View style={styles.resultHeader}>
+            <View style={styles.resultIconWrap}>
+              <Ionicons name="easel" size={28} color={C.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.resultTitle}>{data.topik}</Text>
+              <Text style={styles.resultSubtitle}>PRESENTASI</Text>
+              <View style={styles.badgeRow}>
+                {data.audiens && (
                   <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{slides.length} Slide</Text>
+                    <Text style={styles.badgeText}>{data.audiens}</Text>
                   </View>
+                )}
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{slides.length} Slide</Text>
                 </View>
               </View>
             </View>
-
-            {data.tujuan ? (
-              <View style={styles.tujuanBox}>
-                <Text style={styles.tujuanLabel}>Tujuan Presentasi:</Text>
-                <Text style={styles.tujuanText}>{data.tujuan}</Text>
-              </View>
-            ) : null}
           </View>
+
+          {data.tujuan ? (
+            <View style={styles.tujuanBox}>
+              <Text style={styles.tujuanLabel}>Tujuan Presentasi:</Text>
+              <Text style={styles.tujuanText}>{data.tujuan}</Text>
+            </View>
+          ) : null}
 
           {/* Slides List */}
-          <View style={styles.slidesContainer}>
-            {slides.map((slide, index) => (
-              <SlideCard key={index} slide={slide} index={index} />
-            ))}
-          </View>
+          {slides.length > 0 && (
+            <View style={{ gap: 10, marginTop: 8 }}>
+              <Text style={styles.sectionGroupTitle}>Daftar Slide</Text>
+              {slides.map((slide, index) => (
+                <SlideCard key={index} slide={slide} index={index} />
+              ))}
+            </View>
+          )}
 
-          {/* Actions */}
-          <View style={styles.actionRow}>
+          {/* Action buttons */}
+          <View style={styles.resultActions}>
             <TouchableOpacity style={styles.btnEdit} onPress={() => setEditVisible(true)} activeOpacity={0.8}>
               <Ionicons name="create-outline" size={16} color={C.primary} />
               <Text style={styles.btnEditText}>Edit</Text>
@@ -315,7 +330,7 @@ export default function PresentationDetailScreen({ route, navigation }) {
 
           {/* Export PPT */}
           <TouchableOpacity
-            style={[styles.downloadBtn, downloading && styles.downloadBtnDisabled]}
+            style={[styles.exportBtn, downloading && { opacity: 0.5 }]}
             onPress={handleDownloadPPT}
             disabled={downloading}
             activeOpacity={0.8}
@@ -325,14 +340,15 @@ export default function PresentationDetailScreen({ route, navigation }) {
             ) : (
               <>
                 <Ionicons name="download-outline" size={16} color={C.primary} />
-                <Text style={styles.downloadBtnText}>Export PPTX (PowerPoint)</Text>
+                <Text style={styles.exportBtnText}>Export PPTX (PowerPoint)</Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* Feedback Rating */}
+          {/* Rating & Feedback AI */}
           {data && data.request_id && (
-            <View style={{ marginTop: 24 }}>
+            <View style={{ marginTop: 16 }}>
+              <Text style={styles.sectionGroupTitle}>Nilai Hasil Generate</Text>
               <FeedbackRating 
                 requestId={data.request_id}
                 endpoint="presentation"
@@ -340,53 +356,105 @@ export default function PresentationDetailScreen({ route, navigation }) {
               />
             </View>
           )}
-        </ScrollView>
-      </View>
+        </View>
+      </ScrollView>
 
-      {/* Edit Modal */}
+      {/* Edit Modal - Consistent with Syllabus Detail Modal */}
       <Modal visible={editVisible} animationType="slide" transparent onRequestClose={() => setEditVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, S.shadowLg]}>
+          <View style={[styles.modalCard, { maxHeight: '90%' }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Detail Presentasi</Text>
+              <Text style={styles.modalTitle}>Edit Presentasi</Text>
               <TouchableOpacity onPress={() => setEditVisible(false)}>
                 <Ionicons name="close" size={22} color={C.ink} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.editLabel}>Topik Presentasi</Text>
-            <TextInput
-              style={styles.editInput}
-              value={editTopik}
-              onChangeText={setEditTopik}
-              placeholder="Topik presentasi"
-              placeholderTextColor={C.mutedLight}
-            />
+            <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <View style={{ gap: 8 }}>
+                <Text style={styles.editLabel}>Topik Presentasi</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editTopik}
+                  onChangeText={setEditTopik}
+                  placeholder="Topik presentasi"
+                  placeholderTextColor={C.mutedLight}
+                />
+              </View>
 
-            <Text style={styles.editLabel}>Tujuan Presentasi</Text>
-            <TextInput
-              style={[styles.editInput, { height: 60 }]}
-              value={editTujuan}
-              onChangeText={setEditTujuan}
-              placeholder="Tujuan presentasi"
-              placeholderTextColor={C.mutedLight}
-              multiline
-            />
+              <View style={{ gap: 8 }}>
+                <Text style={styles.editLabel}>Tujuan Presentasi</Text>
+                <TextInput
+                  style={[styles.editInput, { minHeight: 80, textAlignVertical: 'top' }]}
+                  value={editTujuan}
+                  onChangeText={setEditTujuan}
+                  placeholder="Tujuan presentasi"
+                  placeholderTextColor={C.mutedLight}
+                  multiline
+                />
+              </View>
 
-            <Text style={styles.editLabel}>Target Audiens</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
-              {AUDIENS_OPTIONS.map(opt => {
-                const active = editAudiens === opt;
-                return (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[styles.chip, active && styles.chipActive]}
-                    onPress={() => setEditAudiens(opt)}
-                    activeOpacity={0.75}
-                  >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt}</Text>
-                  </TouchableOpacity>
-                );
+              <View style={{ gap: 8 }}>
+                <Text style={styles.editLabel}>Target Audiens</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
+                  {AUDIENS_OPTIONS.map(opt => {
+                    const active = editAudiens === opt;
+                    return (
+                      <TouchableOpacity
+                        key={opt}
+                        style={[styles.chip, active && styles.chipActive]}
+                        onPress={() => setEditAudiens(opt)}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              <View style={{ height: 1, backgroundColor: C.border, marginVertical: 8 }} />
+              <Text style={[styles.editLabel, { fontSize: 15 }]}>Edit Slide Content</Text>
+
+              {editSlides.map((slide, slideIdx) => {
+                 const points = Array.isArray(slide.content) ? slide.content : [];
+                 return (
+                   <View key={slideIdx} style={styles.slideCard}>
+                     <View style={[styles.slideHeader, { backgroundColor: C.primaryLight }]}>
+                       <Text style={[styles.slideNumberText, { color: C.primary }]}>SLIDE {slideIdx + 1}</Text>
+                     </View>
+                     <View style={styles.slideBody}>
+                       <Text style={styles.editLabel}>Judul Slide</Text>
+                       <TextInput
+                         style={styles.editInput}
+                         value={slide.title || slide.judul || ''}
+                         onChangeText={v => handleUpdateSlide(slideIdx, 'title', v)}
+                         placeholder="Judul Slide"
+                       />
+                       <Text style={[styles.editLabel, { marginTop: 8 }]}>Poin Materi</Text>
+                       {points.map((pt, ptIdx) => (
+                         <View key={ptIdx} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+                           <Text style={{ fontSize: 14, color: C.muted, marginTop: 12 }}>•</Text>
+                           <TextInput
+                             style={[styles.editInput, { flex: 1, minHeight: 60, textAlignVertical: 'top' }]}
+                             value={pt}
+                             onChangeText={v => handleUpdateSlidePoint(slideIdx, ptIdx, v)}
+                             placeholder={`Poin ${ptIdx + 1}`}
+                             multiline
+                           />
+                         </View>
+                       ))}
+                       <Text style={[styles.editLabel, { marginTop: 8 }]}>Catatan Presenter</Text>
+                       <TextInput
+                         style={[styles.editInput, { minHeight: 80, textAlignVertical: 'top' }]}
+                         value={slide.catatan || slide.notes || ''}
+                         onChangeText={v => handleUpdateSlide(slideIdx, 'catatan', v)}
+                         placeholder="Catatan opsional"
+                         multiline
+                       />
+                     </View>
+                   </View>
+                 );
               })}
             </ScrollView>
 
@@ -405,151 +473,53 @@ export default function PresentationDetailScreen({ route, navigation }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  scroll: { flex: 1 },
+  scroll: { flex: 1, backgroundColor: C.bg },
   content: { padding: 16, paddingBottom: 48, gap: 16 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: C.bg },
   loadingText: { fontSize: 14, color: C.muted },
 
-  headerPanel: {
-    backgroundColor: C.card,
-    borderRadius: 20,
-    padding: 20,
-    gap: 12,
-  },
-  headerTitleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
-  iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: C.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metaLabel: { fontSize: 9, fontWeight: '700', color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
-  titleText: { fontSize: 18, fontWeight: '700', color: C.ink, marginTop: 2, lineHeight: 24 },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  badge: {
-    backgroundColor: C.primaryLight,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
+  resultPanel: { backgroundColor: C.card, borderRadius: 20, padding: 20, gap: 16 },
+  resultHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  resultIconWrap: { width: 56, height: 56, borderRadius: 16, backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  resultTitle: { fontSize: 18, fontWeight: '700', color: C.ink },
+  resultSubtitle: { fontSize: 13, color: C.muted, marginTop: 2 },
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  badge: { backgroundColor: C.primaryLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
   badgeText: { fontSize: 11, fontWeight: '700', color: C.primary },
 
-  tujuanBox: {
-    backgroundColor: C.bg,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 4,
-  },
-  tujuanLabel: { fontSize: 11, fontWeight: '700', color: C.muted, textTransform: 'uppercase', marginBottom: 2 },
-  tujuanText: { fontSize: 13, color: C.ink, lineHeight: 18 },
+  sectionGroupTitle: { fontSize: 13, fontWeight: '700', color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
 
-  slidesContainer: { gap: 16 },
+  tujuanBox: { backgroundColor: C.primaryLight, borderRadius: 14, padding: 14, gap: 6, borderWidth: 1, borderColor: '#bbf7d0' },
+  tujuanLabel: { fontSize: 12, fontWeight: '700', color: C.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  tujuanText: { fontSize: 13, color: C.ink, lineHeight: 20 },
 
-  // Slide Card
-  slideCard: {
-    backgroundColor: C.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: C.border,
-    overflow: 'hidden',
-    ...S.shadow,
-  },
-  slideHeader: {
-    backgroundColor: C.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  slideCard: { backgroundColor: C.bg, borderRadius: 14, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+  slideHeader: { backgroundColor: C.primary, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
   slideNumberText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
-  slideBody: { padding: 16, gap: 12 },
-  slideTitleText: { fontSize: 15, fontWeight: '700', color: C.ink, lineHeight: 22 },
-  slidePointsList: { gap: 8 },
-  pointRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  bulletPoint: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.primary, marginTop: 7, flexShrink: 0 },
+  slideBody: { padding: 14, gap: 12 },
+  slideTitleText: { fontSize: 14, fontWeight: '700', color: C.ink, lineHeight: 20 },
+  slidePointsList: { gap: 6 },
+  pointRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  bulletPoint: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary, marginTop: 8, flexShrink: 0 },
   pointText: { flex: 1, fontSize: 13, color: C.ink, lineHeight: 19 },
 
-  // Notes Box
-  notesBox: {
-    backgroundColor: '#fffbeb',
-    borderWidth: 1,
-    borderColor: '#fef3c7',
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
-    gap: 4,
-  },
+  notesBox: { backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fef3c7', borderRadius: 10, padding: 12, marginTop: 4, gap: 4 },
   notesTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   notesTitleText: { fontSize: 11, fontWeight: '700', color: C.warning, textTransform: 'uppercase', letterSpacing: 0.5 },
   notesContentText: { fontSize: 12, color: '#78350f', lineHeight: 18 },
 
-  // Actions
-  actionRow: { flexDirection: 'row', gap: 8 },
-  btnEdit: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderWidth: 1.5,
-    borderColor: C.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    backgroundColor: C.card,
-  },
-  btnEditText: { fontSize: 13, fontWeight: '600', color: C.primary },
-  btnCopy: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderWidth: 1.5,
-    borderColor: C.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    backgroundColor: C.card,
-  },
-  btnCopyText: { fontSize: 13, fontWeight: '600', color: C.primary },
-  btnDelete: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderWidth: 1.5,
-    borderColor: C.danger,
-    borderRadius: 12,
-    paddingVertical: 12,
-    backgroundColor: C.card,
-  },
-  btnDeleteText: { fontSize: 13, fontWeight: '600', color: C.danger },
+  resultActions: { flexDirection: 'row', gap: 10 },
+  btnEdit: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: C.primary, borderRadius: 12, paddingVertical: 12 },
+  btnEditText: { fontSize: 14, fontWeight: '600', color: C.primary },
+  btnCopy: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: C.primary, borderRadius: 12, paddingVertical: 12 },
+  btnCopyText: { fontSize: 14, fontWeight: '600', color: C.primary },
+  btnDelete: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: C.danger, borderRadius: 12, paddingVertical: 12 },
+  btnDeleteText: { fontSize: 14, fontWeight: '600', color: C.danger },
 
-  downloadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    borderRadius: 12,
-    paddingVertical: 12,
-    backgroundColor: C.card,
-  },
-  downloadBtnDisabled: { opacity: 0.5 },
-  downloadBtnText: { fontSize: 14, fontWeight: '600', color: C.primary },
+  exportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: C.border, borderRadius: 12, paddingVertical: 12, backgroundColor: C.bg },
+  exportBtnText: { fontSize: 14, fontWeight: '600', color: C.primary },
 
-  // Modal styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: C.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 12 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
@@ -557,11 +527,7 @@ const styles = StyleSheet.create({
   editLabel: { fontSize: 13, fontWeight: '600', color: C.ink, marginBottom: -4 },
   editInput: { borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: C.ink, backgroundColor: C.bg },
   
-  // Chip
-  chip: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
-    borderWidth: 1, borderColor: C.border, backgroundColor: C.bg,
-  },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg },
   chipActive: { backgroundColor: C.primary, borderColor: C.primary },
   chipText: { fontSize: 13, color: C.ink },
   chipTextActive: { color: '#fff', fontWeight: '600' },

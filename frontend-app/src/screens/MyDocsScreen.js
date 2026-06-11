@@ -24,8 +24,8 @@ const TABS = [
   { key: 'worksheet', label: '📋 Worksheet' },
   { key: 'syllabus', label: '📚 Silabus' },
   { key: 'academic', label: '🎓 Konten Akademik' },
-  { key: 'presentation', label: '🖥️ Presentasi' },
-  { key: 'unitplan', label: '📖 RPP' },
+  { key: 'presentation', label: 'Presentasi' },
+  { key: 'unitplan', label: 'RPP' },
 ];
 
 // ─── Endpoint map ────────────────────────────────────────────────────────────
